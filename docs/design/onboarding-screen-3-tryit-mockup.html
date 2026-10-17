@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Akoya try-it prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 640px; height: 680px; overflow: hidden; background: radial-gradient(circle at 10% 90%, #22104a 0, transparent 40%), radial-gradient(circle at 90% 5%, #191d5a 0, transparent 40%), #05050a; font-family: 'Outfit', -apple-system, system-ui, sans-serif; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;">
+
+  <div style="position: relative; overflow: hidden; width: 420px; height: 520px; box-sizing: border-box; border-radius: 52px; background: radial-gradient(ellipse at 50% -5%, rgba(99,102,241,0.30) 0, rgba(91,33,182,0.14) 38%, transparent 66%), #0b0b18; box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 30px 80px rgba(0,0,0,0.6);">
+
+    <div style="position: absolute; inset: 0; border-radius: inherit; opacity: {{rimOpacity}}; transition: opacity 140ms ease-out; box-shadow: inset 0 -16px 30px -10px rgba(110,110,200,0.6), inset 0 18px 34px -12px rgba(120,112,176,0.55), inset 0 0 8px 1px rgba(120,114,172,0.7), inset 0 0 26px 6px rgba(78,84,156,0.7), inset 0 0 52px 14px rgba(40,52,128,0.6), inset 0 0 80px 18px rgba(18,32,100,0.45); pointer-events: none;"></div>
+    <div style="position: absolute; inset: 0; opacity: {{bottomOpacity}}; transition: opacity 140ms ease-out; background: radial-gradient(ellipse at 50% 115%, rgba(99,102,241,0.65) 0, rgba(124,58,237,0.28) 40%, transparent 70%); pointer-events: none;"></div>
+    <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1.3px); background-size: 12px 12px; pointer-events: none;"></div>
+
+    <div style="position: relative; height: 100%; box-sizing: border-box; padding: 40px 32px 28px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.5);">Try it</span>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 15px; color: rgba(255,255,255,0.8);">
+        <span>Hold</span>
+        <span style="padding: 3px 10px; border-radius: 8px; background: rgba(255,255,255,0.10); border: 1px solid rgba(165,180,252,0.35); font-size: 14px; font-weight: 600; color: #fff;">Right ⌘</span>
+        <span>and say anything</span>
+      </div>
+      <div style="height: 70px; display: flex; align-items: center; gap: 5px; margin-top: 8px;">
+        <sc-for list="{{cols}}" as="col" hint-placeholder-count="22">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <sc-for list="{{col.dots}}" as="d" hint-placeholder-count="1">
+              <div style="width: 5px; height: 5px; border-radius: 3px; background: #c7d2fe; opacity: {{col.o}};"></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="width: 100%; box-sizing: border-box; min-height: 96px; padding: 14px 16px; border-radius: 22px; background: rgba(40,40,58,0.6); font-size: 16px; line-height: 1.45; color: {{textColor}};">{{text}}</div>
+      <div style="flex-grow: 1;"></div>
+      <div style="width: 100%; padding: 13px 0; border-radius: 99px; background: {{doneBg}}; color: {{doneFg}}; text-align: center; font-size: 15px; font-weight: 600;">Done</div>
+      <div style="display: flex; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3);"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3);"></span><span style="width: 18px; height: 6px; border-radius: 3px; background: #fff;"></span></div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <button type="button" onPointerDown="{{onDown}}" onPointerUp="{{onUp}}" onPointerLeave="{{onUp}}" style="height: 44px; padding: 0 22px; border: none; border-radius: 99px; background: #f1f1f6; color: #0b0b18; font-size: 15px; font-weight: 600; cursor: pointer; user-select: none; touch-action: none;">Hold to talk</button>
+    <button type="button" onClick="{{onDemo}}" style="height: 44px; padding: 0 18px; border-radius: 99px; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 14px; cursor: pointer;">Play demo</button>
+    <button type="button" onClick="{{onReset}}" style="height: 44px; padding: 0 18px; border-radius: 99px; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 14px; cursor: pointer;">Reset</button>
+    <span style="font-size: 13px; color: rgba(255,255,255,0.6);">Glow: {{styleName}} (change in Tweaks)</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;glow&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Edges&quot;,&quot;Bottom&quot;,&quot;Both&quot;],&quot;default&quot;:&quot;Edges&quot;},&quot;$preview&quot;:{&quot;width&quot;:640,&quot;height&quot;:680}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.full = 'Okay, this is actually really smooth. I could get used to talking to my Mac.';
+    this.state = { talking: false, level: 0, chars: 0, levels: new Array(22).fill(0), done: false };
+    this.k = 0;
+  }
+  componentDidMount() { this.timer = setInterval(() => this.tick(), 50); }
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.demoTimer); }
+  tick() {
+    const s = this.state;
+    if (s.talking) {
+      this.k++;
+      const inWord = (this.k % 26) < 19;
+      const target = inWord ? 0.35 + Math.abs(Math.sin(this.k * 0.45)) * (0.4 + Math.random() * 0.25) : 0.05;
+      const level = s.level + (target - s.level) * 0.45;
+      const chars = Math.min(this.full.length, s.chars + (inWord ? 2 : 0));
+      this.setState({ level, chars, levels: s.levels.slice(1).concat([level]) });
+    } else if (s.level > 0.005 || s.levels.some((v) => v > 0.01)) {
+      const level = s.level * 0.7;
+      this.setState({ level, levels: s.levels.slice(1).concat([level]) });
+    }
+  }
+  renderVals() {
+    const s = this.state;
+    const glow = this.props.glow ?? 'Edges';
+    const g = s.talking || s.level > 0.01 ? 0.2 + 0.6 * s.level : 0;
+    const rim = glow === 'Bottom' ? 0 : g;
+    const bottom = glow === 'Edges' ? 0 : g;
+    const cols = s.levels.map((v) => {
+      const n = Math.max(1, Math.round(v * 13)) | 1;
+      return { dots: Array.from({ length: n }, (_, i) => i), o: s.talking ? 1 : 0.45 };
+    });
+    const hasText = s.chars > 0;
+    return {
+      rimOpacity: rim.toFixed(3),
+      bottomOpacity: bottom.toFixed(3),
+      cols,
+      text: hasText ? this.full.slice(0, s.chars) : 'Your words will appear here.',
+      textColor: hasText ? '#ffffff' : 'rgba(255,255,255,0.4)',
+      doneBg: s.done ? '#f1f1f6' : 'rgba(255,255,255,0.10)',
+      doneFg: s.done ? '#0b0b18' : 'rgba(255,255,255,0.4)',
+      styleName: glow,
+      onDown: () => this.setState({ talking: true }),
+      onUp: () => { if (this.state.talking) this.setState({ talking: false, done: this.state.chars > 0 }); },
+      onDemo: () => {
+        clearTimeout(this.demoTimer);
+        this.setState({ talking: true, level: 0, chars: 0, levels: new Array(22).fill(0), done: false });
+        this.demoTimer = setTimeout(() => this.setState({ talking: false, done: true }), 4000);
+      },
+      onReset: () => this.setState({ talking: false, level: 0, chars: 0, levels: new Array(22).fill(0), done: false })
+    };
+  }
+}
+</script>
+</body>
+</html>
