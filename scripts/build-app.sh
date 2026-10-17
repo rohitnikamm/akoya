@@ -17,6 +17,7 @@ cp "$BIN_DIR/Akoya" "$APP/Contents/MacOS/Akoya"
 for bundle in "$BIN_DIR"/*.bundle; do
     [ -e "$bundle" ] && cp -R "$bundle" "$APP/Contents/Resources/"
 done
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns" # regenerate with: swift scripts/make-icon.swift
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 
 # Valid identities only; capture first so grep -q closing the pipe cannot SIGPIPE under pipefail.

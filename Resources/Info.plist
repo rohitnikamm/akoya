@@ -6,6 +6,7 @@
     <key>CFBundleName</key><string>Akoya</string>
     <key>CFBundleDisplayName</key><string>Akoya</string>
     <key>CFBundleExecutable</key><string>Akoya</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleShortVersionString</key><string>__VERSION__</string>

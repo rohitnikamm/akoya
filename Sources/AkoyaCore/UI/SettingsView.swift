@@ -9,20 +9,27 @@ public struct SettingsView: View {
 
     public var body: some View {
         Form {
-            Picker("Hotkey", selection: $settings.hotkey) {
-                ForEach(HotkeyKey.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            Section("Dictation") {
+                Picker("Hotkey", selection: $settings.hotkey) {
+                    ForEach(HotkeyKey.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+                Picker("Mode", selection: $settings.mode) {
+                    ForEach(DictationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
             }
-            Picker("Mode", selection: $settings.mode) {
-                ForEach(DictationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            Section("Appearance") {
+                Picker("Waveform", selection: $settings.look) {
+                    ForEach(WaveLook.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+                Toggle("Red tint while recording", isOn: $settings.redTint)
+                Toggle("Hide icon when idle", isOn: $settings.hideIdleIcon)
+                Toggle("Expand animation", isOn: $settings.expandAnimation)
             }
-            Picker("Waveform", selection: $settings.look) {
-                ForEach(WaveLook.allCases, id: \.self) { Text($0.displayName).tag($0) }
+            Section("General") {
+                Toggle("Launch at login", isOn: $settings.launchAtLogin)
             }
-            Toggle("Red tint while recording", isOn: $settings.redTint)
-            Toggle("Hide icon when idle", isOn: $settings.hideIdleIcon)
-            Toggle("Expand animation", isOn: $settings.expandAnimation)
-            Toggle("Launch at login", isOn: $settings.launchAtLogin)
         }
+        .tint(AkoyaTheme.accentTop)
         .formStyle(.grouped)
         .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
