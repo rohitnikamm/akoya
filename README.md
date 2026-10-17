@@ -10,17 +10,28 @@ Akoya is not notarized. The cask removes the quarantine flag after install (as A
 
 ## First run
 
-Grant these in System Settings > Privacy & Security:
+Akoya opens a short three-step setup the first time it launches:
 
-- **Microphone**: to record your voice.
-- **Accessibility**: to paste the transcription into the focused app.
-- **Input Monitoring**: to detect the Right Option hotkey.
+1. **Welcome**: press "Get started".
+2. **Permissions**, one at a time, in this order. Each step advances by itself once the switch is on:
+   - **Microphone**: to record your voice.
+   - **Accessibility**: to paste the transcription into the focused app.
+   - **Input Monitoring**: to detect the hotkey (Right Option by default).
+3. **Try it**: hold the hotkey and say anything; your words appear live in the card. Press Done (or Skip).
+
+The speech model (about 450 MB) downloads in the background during setup. If you close setup early, the menu bar dropdown shows "Setup needed" with a "Finish setup" button that resumes where you left off.
 
 For a stable code signature, so these permissions survive rebuilds and updates, run `scripts/make-signing-cert.sh` once and follow its trust instructions. Without it, builds sign ad-hoc and macOS may ask again.
 
 ## Usage
 
 Hold Right Option, speak, release. Akoya transcribes and pastes. Press Esc while recording to cancel.
+
+Click the Akoya item in the menu bar to open the dropdown: current status, the hotkey, a Hold to talk / Tap to toggle switch, your last dictation (with a Copy button), Settings and Quit. Settings also has the hotkey (Right Option, Command or Control), the waveform look and Launch at login.
+
+## Upgrading from Silk
+
+Akoya was called Silk before 0.2.0. It uses a new bundle identifier, so macOS asks for Microphone, Accessibility and Input Monitoring again once (setup walks you through it). Speech models already downloaded under Silk are moved to Akoya's folder automatically, with no re-download. Old Silk preferences are left alone.
 
 ## Development
 
