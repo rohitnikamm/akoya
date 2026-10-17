@@ -11,5 +11,6 @@ cask "silk" do
   postflight do
     system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/Silk.app"], must_succeed: false
   end
+  uninstall quit: "com.rohitnikamm.silk"
   zap trash: ["~/Library/Application Support/Silk", "~/Library/Preferences/com.rohitnikamm.silk.plist"]
 end

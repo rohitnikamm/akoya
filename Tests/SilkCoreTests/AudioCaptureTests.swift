@@ -30,6 +30,36 @@ import Testing
     #expect(capture.stop().isEmpty)
 }
 
+@MainActor
+@Test func startThrowsWhenMicrophoneDenied() {
+    var requests = 0
+    let capture = AudioCapture(authorizationStatus: { .denied }, requestAccess: { requests += 1 })
+    #expect(throws: AudioCaptureError.self) { try capture.start() }
+    #expect(requests == 0)
+}
+
+@MainActor
+@Test func startThrowsWhenMicrophoneRestricted() {
+    let capture = AudioCapture(authorizationStatus: { .restricted }, requestAccess: {})
+    #expect(throws: AudioCaptureError.self) { try capture.start() }
+}
+
+@MainActor
+@Test func startRequestsAccessOnceWhenNotDetermined() {
+    var requests = 0
+    let capture = AudioCapture(authorizationStatus: { .notDetermined }, requestAccess: { requests += 1 })
+    #expect(throws: AudioCaptureError.self) { try capture.start() }
+    #expect(requests == 1)
+}
+
+@MainActor
+@Test func authorizedMicrophonePassesTheCheck() throws {
+    var requests = 0
+    let capture = AudioCapture(authorizationStatus: { .authorized }, requestAccess: { requests += 1 })
+    try capture.ensureMicrophoneAuthorized()
+    #expect(requests == 0)
+}
+
 @Test func convertDownsamplesStereo48kToMono16k() throws {
     let source = try #require(AVAudioFormat(
         commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))

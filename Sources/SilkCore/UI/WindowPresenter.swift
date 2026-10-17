@@ -7,6 +7,7 @@ import SwiftUI
 public final class WindowPresenter {
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var closeObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
 
     public init() {}
 
@@ -16,6 +17,11 @@ public final class WindowPresenter {
 
     public func showOnboarding() {
         onboardingWindow = present(onboardingWindow, title: "Welcome to Silk", content: OnboardingView())
+    }
+
+    /// True when no other Silk window is visible. Pure so it can be unit tested without AppKit.
+    nonisolated static func shouldHideApp(othersVisible: [Bool]) -> Bool {
+        !othersVisible.contains(true)
     }
 
     private func present<Content: View>(_ existing: NSWindow?, title: String, content: Content) -> NSWindow {
@@ -31,6 +37,37 @@ public final class WindowPresenter {
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.center()
+        observeClose(of: window)
         return window
+    }
+
+    /// Silk is an accessory app, so when its last window closes the app would otherwise stay
+    /// frontmost and the next ⌘V would land in Silk. Hiding hands focus back to the previously
+    /// active app. The closed window is dropped too, so its view (and the onboarding permission
+    /// polling) is torn down; the next show builds a fresh one.
+    private func observeClose(of window: NSWindow) {
+        let key = ObjectIdentifier(window)
+        closeObservers[key] = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self, weak window] _ in
+            MainActor.assumeIsolated {
+                guard let self, let window else { return }
+                if let token = self.closeObservers.removeValue(forKey: key) {
+                    NotificationCenter.default.removeObserver(token)
+                }
+                let others = [self.settingsWindow, self.onboardingWindow]
+                    .compactMap { $0 }.filter { $0 !== window }
+                if Self.shouldHideApp(othersVisible: others.map(\.isVisible)) {
+                    NSApp.hide(nil)
+                }
+                // Release after AppKit finishes closing the window.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if self.settingsWindow === window { self.settingsWindow = nil }
+                        if self.onboardingWindow === window { self.onboardingWindow = nil }
+                    }
+                }
+            }
+        }
     }
 }

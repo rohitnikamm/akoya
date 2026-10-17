@@ -11,6 +11,8 @@ public enum InsertError: Error, Equatable { case accessibilityDenied }
     private let postPaste: () -> Void
     private let restoreDelay: Duration
 
+    static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+
     public init(pasteboard: NSPasteboard = .general,
                 isTrusted: @escaping () -> Bool = { AXIsProcessTrusted() },
                 postPaste: @escaping () -> Void = PasteTextInserter.postCommandV,
@@ -27,6 +29,8 @@ public enum InsertError: Error, Equatable { case accessibilityDenied }
         let snapshot = PasteboardSnapshot(capturing: pasteboard)
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        // Convention honoured by clipboard managers: skip this transient entry.
+        pasteboard.setData(Data(), forType: Self.transientType)
         let changeCountAfterWrite = pasteboard.changeCount
 
         guard isTrusted() else { throw InsertError.accessibilityDenied }

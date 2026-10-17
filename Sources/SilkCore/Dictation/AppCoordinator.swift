@@ -66,7 +66,10 @@ public final class AppCoordinator {
     public func handle(_ event: HotkeyEvent) {
         switch (event, model.phase) {
         case (.pressed, .idle):
-            guard isReady() else { return }
+            guard isReady() else {
+                showError()
+                return
+            }
             startRecording()
         case (.pressed, .recording):
             if recordingMode == .toggle { stopRecording() }

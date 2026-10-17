@@ -63,6 +63,31 @@ private final class PasteRecorder {
         #expect(pb.string(forType: .string) == "original")
     }
 
+    @Test func dictatedTextIsMarkedTransientOnlyWhilePasting() async throws {
+        let pb = makePasteboard()
+        defer { pb.releaseGlobally() }
+        pb.clearContents()
+        pb.setString("original", forType: .string)
+
+        let transient = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+        let recorder = PasteRecorder()
+        var markedDuringPaste = false
+        let inserter = PasteTextInserter(
+            pasteboard: pb, isTrusted: { true },
+            postPaste: {
+                markedDuringPaste = pb.types?.contains(transient) ?? false
+                recorder.stringAtPaste = pb.string(forType: .string)
+            },
+            restoreDelay: shortDelay)
+        try await inserter.insert("hi")
+        try await Task.sleep(for: settle)
+
+        #expect(markedDuringPaste)
+        #expect(recorder.stringAtPaste == "hi")
+        #expect(pb.string(forType: .string) == "original")
+        #expect(!(pb.types?.contains(transient) ?? false))
+    }
+
     @Test func userCopyDuringWindowWins() async throws {
         let pb = makePasteboard()
         defer { pb.releaseGlobally() }

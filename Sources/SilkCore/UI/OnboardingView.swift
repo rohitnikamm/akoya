@@ -25,10 +25,29 @@ private extension Permission {
 private final class PermissionStatus: ObservableObject {
     @Published private(set) var granted: [Permission: Bool] = [:]
     private let isGranted: (Permission) -> Bool
+    private var pollTask: Task<Void, Never>?
 
     init(isGranted: @escaping (Permission) -> Bool) {
         self.isGranted = isGranted
         refresh()
+    }
+
+    /// Re-reads the grants once a second (the user flips them in System Settings, which sends
+    /// us no notification) until `stopPolling()`.
+    func startPolling() {
+        guard pollTask == nil else { return }
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                self?.refresh()
+            }
+        }
+    }
+
+    func stopPolling() {
+        pollTask?.cancel()
+        pollTask = nil
     }
 
     func refresh() {
@@ -43,7 +62,6 @@ public struct OnboardingView: View {
     private let request: (Permission) -> Void
     private let openSettings: (Permission) -> Void
     @StateObject private var status: PermissionStatus
-    private let refresh = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     public init(
         isGranted: @escaping (Permission) -> Bool = Permissions.isGranted,
@@ -68,7 +86,11 @@ public struct OnboardingView: View {
         }
         .padding(24)
         .frame(width: 440)
-        .onReceive(refresh) { _ in status.refresh() }
+        .onAppear {
+            status.refresh()
+            status.startPolling()
+        }
+        .onDisappear { status.stopPolling() }
     }
 
     private func row(for permission: Permission) -> some View {

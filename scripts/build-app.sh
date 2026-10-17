@@ -19,7 +19,9 @@ for bundle in "$BIN_DIR"/*.bundle; do
 done
 sed "s/__VERSION__/$VERSION/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 
-if security find-identity -p codesigning | grep -q "$IDENTITY"; then
+# Valid identities only; capture first so grep -q closing the pipe cannot SIGPIPE under pipefail.
+identities="$(security find-identity -v -p codesigning || true)"
+if grep -q "$IDENTITY" <<<"$identities"; then
     SIGN="$IDENTITY"
 else
     SIGN="-"

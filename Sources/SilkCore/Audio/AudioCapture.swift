@@ -2,12 +2,15 @@
 import Foundation
 
 public enum AudioCaptureError: Error, LocalizedError {
+    case microphoneNotAuthorized
     case noInputDevice
     case converterUnavailable
     case engineFailedToStart(String)
 
     public var errorDescription: String? {
         switch self {
+        case .microphoneNotAuthorized:
+            return "Microphone access has not been granted. Allow Silk in System Settings > Privacy & Security > Microphone."
         case .noInputDevice:
             return "No microphone input is available (the input device reports 0 channels or a 0 Hz sample rate)."
         case .converterUnavailable:
@@ -57,18 +60,47 @@ public final class AudioCapture: AudioRecording {
     private var configObserver: NSObjectProtocol?
     private var tapInstalled = false
     private var isRecording: Bool
+    private let authorizationStatus: () -> AVAuthorizationStatus
+    private let requestAccess: () -> Void
 
-    public init() {
+    public init(
+        authorizationStatus: @escaping () -> AVAuthorizationStatus = {
+            AVCaptureDevice.authorizationStatus(for: .audio)
+        },
+        requestAccess: @escaping () -> Void = {
+            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+        }
+    ) {
+        self.authorizationStatus = authorizationStatus
+        self.requestAccess = requestAccess
         isRecording = false
     }
 
     /// Test seam: sets the recording flag without touching the audio engine.
     init(testingRecording: Bool) {
+        authorizationStatus = { AVCaptureDevice.authorizationStatus(for: .audio) }
+        requestAccess = {}
         isRecording = testingRecording
+    }
+
+    /// Throws unless the microphone is authorized. When the user has not been asked yet, this
+    /// triggers the system prompt (fire-and-forget) and still throws, so the press that caused
+    /// it flashes the error cue rather than recording silence.
+    func ensureMicrophoneAuthorized() throws {
+        switch authorizationStatus() {
+        case .authorized:
+            return
+        case .notDetermined:
+            requestAccess()
+            throw AudioCaptureError.microphoneNotAuthorized
+        default:
+            throw AudioCaptureError.microphoneNotAuthorized
+        }
     }
 
     public func start() throws {
         guard !isRecording else { return }
+        try ensureMicrophoneAuthorized()
         discardSamples()
 
         let engine = AVAudioEngine()

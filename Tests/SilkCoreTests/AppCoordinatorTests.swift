@@ -278,12 +278,16 @@ private struct Rig {
     #expect(rig.audio.stopCount == 0)
 }
 
-@MainActor @Test func notReadyIgnoresPress() {
-    let rig = Rig()
+@MainActor @Test func notReadyFlashesErrorCueWithoutRecording() async {
+    let rig = Rig(errorDisplay: 0.1)
     rig.coordinator.isReady = { false }
     rig.coordinator.handle(.pressed)
+    #expect(rig.coordinator.phase == .error)
     #expect(rig.audio.startCount == 0)
+    await rig.coordinator.pendingWork?.value
     #expect(rig.coordinator.phase == .idle)
+    #expect(rig.audio.startCount == 0)
+    #expect(rig.transcriber.received.isEmpty)
 }
 
 // MARK: - Silence gate
