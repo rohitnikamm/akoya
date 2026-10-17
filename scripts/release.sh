@@ -39,7 +39,7 @@ fi
 # Print the command in dry-run mode, run it otherwise.
 run() {
     if [ "$DRY_RUN" -eq 1 ]; then
-        echo "[dry-run] $*"
+        printf '[dry-run]'; printf ' %q' "$@"; echo
     else
         "$@"
     fi
