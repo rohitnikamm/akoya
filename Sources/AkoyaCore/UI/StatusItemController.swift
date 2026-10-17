@@ -2,14 +2,47 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// An `NSHostingView` that never takes mouse events, so clicks reach the status item button
-/// underneath.
-private final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+/// Hosts `WaveformView` in the status button and takes the item's clicks itself, so the
+/// `NSStatusBarButton` underneath never tracks a click and never draws the system dark
+/// "pressed" capsule. The selected look is drawn by `WaveformView` (`WaveformModel.isSelected`).
+///
+/// Opens on mouse-down (like native items). It is a subview of the button, so it lives in the
+/// same window, which the dropdown panel's click monitor skips for the anchor button.
+final class StatusItemHostingView: NSHostingView<WaveformView> {
+    /// Invoked for a left or right mouse-down, or an accessibility press.
+    var onPress: (() -> Void)?
+
+    convenience init(model: WaveformModel, onPress: @escaping () -> Void) {
+        self.init(rootView: WaveformView(model: model))
+        self.onPress = onPress
+    }
+
+    required init(rootView: WaveformView) { super.init(rootView: rootView) }
+
+    @MainActor @preconcurrency required dynamic init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    /// `point` is in the superview's coordinates.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(convert(point, from: superview)) ? self : nil
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { onPress?() }
+    override func rightMouseDown(with event: NSEvent) { onPress?() }
+
+    // Overridden (not set) because NSHostingView supplies its own group role and children.
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+    override func accessibilityLabel() -> String? { "Akoya" }
+    override func accessibilityChildren() -> [Any]? { [] }
+
+    override func accessibilityPerformPress() -> Bool {
+        onPress?()
+        return true
+    }
 }
 
-/// Owns the menu bar item: hosts `WaveformView` in the status button (the hosting view draws
-/// no background, so only the system highlight shows), reports clicks on it
+/// Owns the menu bar item: hosts `WaveformView` in the status button, reports clicks on it
 /// (the app toggles the dropdown panel), and keeps the item's width in step with the
 /// dictation phase.
 @MainActor
@@ -21,25 +54,19 @@ public final class StatusItemController {
     private let statusItem: NSStatusItem
     private var subscriptions: Set<AnyCancellable> = []
     private var widthTimer: Timer?
-    private let clickTarget: ClickTarget
-    private var wantsHighlight = false
-    private var mouseUpMonitor: Any?
 
     /// - Parameter onClick: called with the item's button on each left or right click.
     public init(model: WaveformModel, onClick: @escaping (NSStatusBarButton) -> Void) {
         self.model = model
-        clickTarget = ClickTarget(onClick: onClick)
         statusItem = NSStatusBar.system.statusItem(withLength: WaveformGeometry.idleItemWidth)
         statusItem.autosaveName = Self.autosaveName
 
         if let button = statusItem.button {
             button.setAccessibilityLabel("Akoya")
-            button.target = clickTarget
-            button.action = #selector(ClickTarget.clicked(_:))
-            // Open on mouse-down, like native items, so the system never shows its dark *pressed*
-            // pill while the button is held; the selected look comes from `setHighlighted`.
-            button.sendAction(on: [.leftMouseDown, .rightMouseDown])
-            let hosting = PassthroughHostingView(rootView: WaveformView(model: model))
+            let hosting = StatusItemHostingView(model: model) { [weak button] in
+                guard let button else { return }
+                onClick(button)
+            }
             hosting.translatesAutoresizingMaskIntoConstraints = false
             button.addSubview(hosting)
             NSLayoutConstraint.activate([
@@ -61,35 +88,6 @@ public final class StatusItemController {
             .store(in: &subscriptions)
 
         statusItem.length = WaveformGeometry.itemWidth(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
-    }
-
-    /// Shows or clears the system "selected" highlight on the item while its dropdown is open.
-    ///
-    /// An action sent on mouse-down is followed by the button's own tracking loop, which clears
-    /// the highlight again on mouse-up. So while highlighted, the next mouse-up re-asserts it
-    /// (after the button has finished tracking) unless the dropdown has closed by then.
-    public func setHighlighted(_ highlighted: Bool) {
-        wantsHighlight = highlighted
-        statusItem.button?.highlight(highlighted)
-        if let mouseUpMonitor {
-            NSEvent.removeMonitor(mouseUpMonitor)
-            self.mouseUpMonitor = nil
-        }
-        guard highlighted else { return }
-        mouseUpMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp]) { [weak self] event in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                if let monitor = self.mouseUpMonitor {
-                    NSEvent.removeMonitor(monitor)
-                    self.mouseUpMonitor = nil
-                }
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, self.wantsHighlight else { return }
-                    self.statusItem.button?.highlight(true)
-                }
-            }
-            return event
-        }
     }
 
     /// Applies `WaveformGeometry.itemWidth` for the model's current state to the item length.
@@ -122,19 +120,5 @@ public final class StatusItemController {
         // .common so the tween keeps running during event tracking.
         RunLoop.main.add(timer, forMode: .common)
         widthTimer = timer
-    }
-}
-
-/// Objective-C target for the status button's action.
-@MainActor
-private final class ClickTarget: NSObject {
-    private let onClick: (NSStatusBarButton) -> Void
-
-    init(onClick: @escaping (NSStatusBarButton) -> Void) {
-        self.onClick = onClick
-    }
-
-    @objc func clicked(_ sender: NSStatusBarButton) {
-        onClick(sender)
     }
 }

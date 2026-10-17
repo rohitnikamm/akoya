@@ -53,3 +53,19 @@ private let barSize = CGSize(width: 77, height: 22)
     #expect(WaveformLayout.easedLength(from: 28, to: 77, progress: 3) == 77)  // clamped
     #expect(WaveformLayout.easedLength(from: 77, to: 28, progress: -1) == 77)
 }
+
+@Test func selectionRectInsetsWidthAndCentersVertically() {
+    let r = WaveformLayout.selectionRect(in: CGSize(width: 28, height: 24))
+    #expect(r == CGRect(x: 2, y: 1, width: 24, height: 22))
+}
+
+@Test func selectionRectClampsHeightToBoundsMinusTwo() {
+    let r = WaveformLayout.selectionRect(in: CGSize(width: 77, height: 22))
+    #expect(r == CGRect(x: 2, y: 1, width: 73, height: 20))
+    #expect(r.midY == 11)
+}
+
+@Test func selectionRectNeverGoesNegative() {
+    let r = WaveformLayout.selectionRect(in: CGSize(width: 3, height: 1))
+    #expect(r.width == 0 && r.height == 0)
+}

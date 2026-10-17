@@ -28,6 +28,11 @@ public final class StatusPanelController {
     /// The owner drives the menu bar item's selected look from this, so the two cannot drift.
     public var onVisibilityChange: ((Bool) -> Void)?
 
+    /// Makes `model.isSelected` follow the panel's visibility, which draws the item's selected look.
+    public func bindSelection(to model: WaveformModel) {
+        onVisibilityChange = { [weak model] visible in model?.isSelected = visible }
+    }
+
     public init(content: some View) {
         self.content = AnyView(content)
     }
@@ -99,7 +104,7 @@ public final class StatusPanelController {
 
     private func installMonitors() {
         // Global monitors only see other apps' events, so any click they report is outside
-        // the panel. Clicks on Akoya's own item arrive as its action (on mouse-down) and toggle
+        // the panel. Clicks on Akoya's own item arrive as its hosting view's mouse-down and toggle
         // instead. The monitors are installed after the opening mouse-down was dispatched, so
         // that event never reaches them.
         if let monitor = NSEvent.addGlobalMonitorForEvents(
@@ -120,8 +125,8 @@ public final class StatusPanelController {
             monitors.append(monitor)
         }
         // Clicks in another Akoya window (Settings, onboarding). Clicks on the item itself are
-        // left to its action, which fires on mouse-down and toggles; this monitor runs before
-        // that dispatch, so closing here would make the action reopen the panel.
+        // left to its hosting view, which toggles on mouse-down; this monitor runs before
+        // that dispatch, so closing here would make the toggle reopen the panel.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
             handler: { [weak self] event in
