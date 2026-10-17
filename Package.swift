@@ -2,12 +2,16 @@
 import Foundation
 import PackageDescription
 
-// CommandLineTools-only toolchains keep the Swift Testing macro plugin in a
-// non-default directory; point the compiler at it so plain `swift test` works.
-// Skipped when the directory is absent or full Xcode is installed (Xcode finds it itself).
-let cltTestingPlugins = "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
-let needsTestingPluginPath = FileManager.default.fileExists(atPath: cltTestingPlugins)
-    && !FileManager.default.fileExists(atPath: "/Applications/Xcode.app")
+// The Swift Testing macro plugin is not on the compiler's default search path when the
+// active developer dir is CommandLineTools, so `swift test` fails without help. Add the
+// plugin path only when CommandLineTools is the active developer dir (DEVELOPER_DIR, else
+// the xcode-select symlink) and the plugin directory exists. Xcode toolchains need nothing.
+let cltRoot = "/Library/Developer/CommandLineTools"
+let cltTestingPlugins = cltRoot + "/usr/lib/swift/host/plugins/testing"
+let activeDeveloperDir: String? = ProcessInfo.processInfo.environment["DEVELOPER_DIR"]
+    ?? (try? FileManager.default.destinationOfSymbolicLink(atPath: "/var/db/xcode_select_link"))
+let needsTestingPluginPath = activeDeveloperDir?.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == cltRoot.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    && FileManager.default.fileExists(atPath: cltTestingPlugins)
 
 let package = Package(
     name: "Silk",
