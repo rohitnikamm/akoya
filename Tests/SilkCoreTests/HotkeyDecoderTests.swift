@@ -16,3 +16,7 @@ import Testing
     #expect(HotkeyKey.rightCommand.keyCode == 54 && HotkeyKey.rightCommand.deviceMask == 0x10)
     #expect(HotkeyKey.rightControl.keyCode == 62 && HotkeyKey.rightControl.deviceMask == 0x2000)
 }
+@Test func shiftWhileHotkeyHeldIgnored() { #expect(HotkeyDecoder.decode(type: .flagsChanged, keyCode: 56, flags: 0x40 | 0x02, key: .rightOption, isRecording: true, isHeld: true).event == nil) }
+@Test func reconcileReleasesWhenHeldButKeyUp() { #expect(HotkeyDecoder.reconcile(isHeld: true, currentFlags: 0x80000, key: .rightOption) == .released) }
+@Test func reconcileKeepsHeldWhenKeyStillDown() { #expect(HotkeyDecoder.reconcile(isHeld: true, currentFlags: 0x40 | 0x80000, key: .rightOption) == nil) }
+@Test func reconcileNoopWhenNotHeld() { #expect(HotkeyDecoder.reconcile(isHeld: false, currentFlags: 0, key: .rightOption) == nil) }

@@ -59,4 +59,10 @@ public enum HotkeyDecoder {
             return pass
         }
     }
+
+    /// Ground-truth check after the tap may have missed events: if we believe the key is held
+    /// but the live modifier state says it is up, its key-up was lost and we owe a `.released`.
+    public static func reconcile(isHeld: Bool, currentFlags: UInt64, key: HotkeyKey) -> HotkeyEvent? {
+        isHeld && currentFlags & key.deviceMask == 0 ? .released : nil
+    }
 }

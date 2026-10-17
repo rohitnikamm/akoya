@@ -39,6 +39,7 @@ import Foundation
         CGEvent.tapEnable(tap: tap, enable: true)
         self.tap = tap
         self.runLoopSource = source
+        reconcileHeldState()
         return true
     }
 
@@ -50,10 +51,19 @@ import Foundation
         isHeld = false
     }
 
+    /// Events may have been lost while the tap was off; compare against the live modifier state.
+    private func reconcileHeldState() {
+        let flags = CGEventSource.flagsState(.combinedSessionState).rawValue
+        guard let event = HotkeyDecoder.reconcile(isHeld: isHeld, currentFlags: flags, key: key()) else { return }
+        isHeld = false
+        onEvent(event)
+    }
+
     /// Returns true when the event must be swallowed.
     private func handle(type: CGEventType, event: CGEvent) -> Bool {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            reconcileHeldState()
             return false
         }
         let decision = HotkeyDecoder.decode(
