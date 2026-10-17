@@ -1,5 +1,13 @@
 // swift-tools-version: 6.0
+import Foundation
 import PackageDescription
+
+// CommandLineTools-only toolchains keep the Swift Testing macro plugin in a
+// non-default directory; point the compiler at it so plain `swift test` works.
+// Skipped when the directory is absent or full Xcode is installed (Xcode finds it itself).
+let cltTestingPlugins = "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
+let needsTestingPluginPath = FileManager.default.fileExists(atPath: cltTestingPlugins)
+    && !FileManager.default.fileExists(atPath: "/Applications/Xcode.app")
 
 let package = Package(
     name: "Silk",
@@ -17,15 +25,11 @@ let package = Package(
             dependencies: [.product(name: "FluidAudio", package: "FluidAudio")]
         ),
         .executableTarget(name: "Silk", dependencies: ["SilkCore"]),
-        // CommandLineTools-only toolchains keep the Swift Testing macro plugin in a
-        // non-default directory; point the compiler at it so plain `swift test` works.
         .testTarget(
             name: "SilkCoreTests",
             dependencies: ["SilkCore"],
-            swiftSettings: [.unsafeFlags([
-                "-plugin-path",
-                "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
-            ])]
+            swiftSettings: needsTestingPluginPath
+                ? [.unsafeFlags(["-plugin-path", cltTestingPlugins])] : []
         ),
     ]
 )
