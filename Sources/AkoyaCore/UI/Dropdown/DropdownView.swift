@@ -121,9 +121,9 @@ private struct StatusCard: View {
         .padding(EdgeInsets(top: 18, leading: 16, bottom: 16, trailing: 16))
         .frame(maxWidth: .infinity)
         .akoyaDotGrid(pitch: 10, opacity: 0.08)
-        // Layers, bottom to top: V1 card, navy base (cross-fades in with the glow), rim glow,
+        // Layers, bottom to top: V1 card, glow base (cross-fades in with the glow), rim glow,
         // dot grid, content. Every kit modifier draws as a background, so the glow and the
-        // navy base are applied before `akoyaV1Card` to sit above its opaque fill. Neither is
+        // glow base are applied before `akoyaV1Card` to sit above its opaque fill. Neither is
         // built at rest.
         .background {
             if glowOpacity > 0 {
@@ -132,7 +132,7 @@ private struct StatusCard: View {
         }
         .background {
             if glowOpacity > 0 {
-                // Fully navy once the glow reaches its listening floor (0.2).
+                // Fully on the glow base once the glow reaches its listening floor (0.2).
                 AkoyaTheme.glowBase.opacity(min(1, glowOpacity / 0.2))
             }
         }
@@ -146,7 +146,7 @@ private struct StatusChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(AkoyaTheme.lavender)
+                .fill(AkoyaTheme.accentLight)
                 .frame(width: 6, height: 6)
                 .shadow(color: AkoyaTheme.chipGlow, radius: 4)
             Text(title)
@@ -183,7 +183,7 @@ private struct DownloadProgress: View {
             .overlay(alignment: .leading) {
                 GeometryReader { proxy in
                     Capsule()
-                        .fill(AkoyaTheme.lavender)
+                        .fill(AkoyaTheme.accentLight)
                         .frame(width: proxy.size.width * min(max(fraction, 0), 1))
                 }
             }
@@ -205,16 +205,16 @@ private struct PrimaryButton: View {
                 .foregroundStyle(AkoyaTheme.textPrimary)
                 .padding(.vertical, 7)
                 .padding(.horizontal, 18)
-                .background(IndigoGradient(), in: Capsule())
+                .background(AccentGradient(), in: Capsule())
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }
 }
 
-private struct IndigoGradient: ShapeStyle {
+private struct AccentGradient: ShapeStyle {
     func resolve(in environment: EnvironmentValues) -> LinearGradient {
-        LinearGradient(colors: [AkoyaTheme.indigoTop, AkoyaTheme.indigoBottom], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [AkoyaTheme.accentTop, AkoyaTheme.accentBottom], startPoint: .top, endPoint: .bottom)
     }
 }
 
@@ -236,7 +236,7 @@ private struct ModeSwitch: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
                         .background {
-                            if selected { Capsule().fill(IndigoGradient()) }
+                            if selected { Capsule().fill(AccentGradient()) }
                         }
                         .contentShape(Capsule())
                 }
@@ -270,7 +270,7 @@ private struct LastDictationCard: View {
                     feedback.flash()
                 }
                 .font(AkoyaFonts.outfit(11))
-                .foregroundStyle(AkoyaTheme.lavender)
+                .foregroundStyle(AkoyaTheme.accentLight)
                 .buttonStyle(.plain)
                 .accessibilityLabel("Copy last dictation")
             }

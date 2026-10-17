@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The Akoya dot-matrix mark: five columns of 2/4/6/4/2 white dots, vertically centred,
-/// with an optional soft lavender glow.
+/// The Akoya dot-matrix mark: five columns of 2/4/6/4/2 light blue dots, vertically centred,
+/// with an optional soft blue glow.
 public struct DotLogo: View {
     public nonisolated static let columns = [2, 4, 6, 4, 2]
 
@@ -19,12 +19,12 @@ public struct DotLogo: View {
             ForEach(Array(Self.columns.enumerated()), id: \.offset) { _, count in
                 VStack(spacing: dotSize * 4 / 6) {
                     ForEach(0..<count, id: \.self) { _ in
-                        Circle().fill(Color.white).frame(width: dotSize, height: dotSize)
+                        Circle().fill(AkoyaTheme.accentLightSoft).frame(width: dotSize, height: dotSize)
                     }
                 }
             }
         }
-        .shadow(color: glow ? AkoyaTheme.lavender.opacity(0.5) : .clear, radius: glow ? dotSize / 3 : 0)
+        .shadow(color: glow ? AkoyaTheme.accentLight.opacity(0.5) : .clear, radius: glow ? dotSize / 3 : 0)
         .accessibilityHidden(true)
     }
 }
