@@ -3,13 +3,14 @@ import Combine
 import SwiftUI
 
 /// An `NSHostingView` that never takes mouse events, so clicks reach the status item button
-/// underneath and open its menu.
+/// underneath.
 private final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
-/// Owns the menu bar item: hosts `WaveformView` in the status button and keeps the item's
-/// width in step with the dictation phase.
+/// Owns the menu bar item: hosts `WaveformView` in the status button, reports clicks on it
+/// (the app toggles the dropdown panel), and keeps the item's width in step with the
+/// dictation phase.
 @MainActor
 public final class StatusItemController {
     public static let autosaveName = "AkoyaStatusItem"
@@ -19,15 +20,20 @@ public final class StatusItemController {
     private let statusItem: NSStatusItem
     private var subscriptions: Set<AnyCancellable> = []
     private var widthTimer: Timer?
+    private let clickTarget: ClickTarget
 
-    public init(model: WaveformModel, menu: NSMenu) {
+    /// - Parameter onClick: called with the item's button on each left or right click.
+    public init(model: WaveformModel, onClick: @escaping (NSStatusBarButton) -> Void) {
         self.model = model
+        clickTarget = ClickTarget(onClick: onClick)
         statusItem = NSStatusBar.system.statusItem(withLength: WaveformGeometry.idleItemWidth)
         statusItem.autosaveName = Self.autosaveName
-        statusItem.menu = menu
 
         if let button = statusItem.button {
             button.setAccessibilityLabel("Akoya")
+            button.target = clickTarget
+            button.action = #selector(ClickTarget.clicked(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             let hosting = PassthroughHostingView(rootView: WaveformView(model: model))
             hosting.translatesAutoresizingMaskIntoConstraints = false
             button.addSubview(hosting)
@@ -79,8 +85,22 @@ public final class StatusItemController {
                 }
             }
         }
-        // .common so the tween keeps running while a menu is being tracked.
+        // .common so the tween keeps running during event tracking.
         RunLoop.main.add(timer, forMode: .common)
         widthTimer = timer
+    }
+}
+
+/// Objective-C target for the status button's action.
+@MainActor
+private final class ClickTarget: NSObject {
+    private let onClick: (NSStatusBarButton) -> Void
+
+    init(onClick: @escaping (NSStatusBarButton) -> Void) {
+        self.onClick = onClick
+    }
+
+    @objc func clicked(_ sender: NSStatusBarButton) {
+        onClick(sender)
     }
 }

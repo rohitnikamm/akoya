@@ -18,6 +18,35 @@ public enum AkoyaTheme {
     public static let textPrimary = Color.white
     public static let textSecondary = Color.white.opacity(0.7)
 
+    // Dropdown panel (docs/design/dropdown-mockup.html).
+    /// Navy base the status card cross-fades to while its rim glow shows, `#000218`.
+    public static let glowBase = Color(hex: 0x000218)
+    /// Mode switch track and Settings pill, `#14142A`.
+    public static let pill = Color(hex: 0x14142A)
+    /// Last-dictation card gradient, `#151530` → `#0D0D1A`.
+    public static let innerCardTop = Color(hex: 0x151530)
+    public static let innerCardBottom = Color(hex: 0x0D0D1A)
+    /// Round Quit button fill `#E8E8F0` and its glyph `#111111`.
+    public static let quitFill = Color(hex: 0xE8E8F0)
+    public static let quitGlyph = Color(hex: 0x111111)
+    /// Glow around the status chip's dot, `#818CF8`.
+    public static let chipGlow = Color(hex: 0x818CF8)
+    /// Keycap fill (white 0.10) and border (lavender 0.35).
+    public static let keycapFill = Color.white.opacity(0.10)
+    public static let keycapBorder = lavender.opacity(0.35)
+    /// Hairline border on inner cards (white 0.06) and top highlight on the panel (white 0.07).
+    public static let hairline = Color.white.opacity(0.06)
+    public static let topHighlight = Color.white.opacity(0.07)
+    /// Dropdown text levels: last-dictation body 0.88, pill labels 0.85, chip and hint 0.75,
+    /// unselected segment 0.6, section caption 0.45.
+    public static let textBody = Color.white.opacity(0.88)
+    public static let textControl = Color.white.opacity(0.85)
+    public static let textHint = Color.white.opacity(0.75)
+    public static let textMuted = Color.white.opacity(0.6)
+    public static let textCaption = Color.white.opacity(0.45)
+    /// Download progress track, white 0.10.
+    public static let progressTrack = Color.white.opacity(0.10)
+
     /// Corner radii; always use them with `RoundedRectangle(style: .continuous)`.
     public static let panel: CGFloat = 30
     public static let card: CGFloat = 24

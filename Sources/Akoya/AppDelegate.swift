@@ -1,10 +1,11 @@
-import AppKit
 import AkoyaCore
+import AppKit
 import os
+import SwiftUI
 
-/// Builds Akoya's components, connects them, and owns the menu bar menu.
+/// Builds Akoya's components, connects them, and owns the menu bar dropdown panel.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     /// How often to retry the hotkey tap while Accessibility has not been granted yet.
     private static let hotkeyRetryInterval: TimeInterval = 2
 
@@ -16,21 +17,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let windows = WindowPresenter()
     private let coordinator: AppCoordinator
     private let hotkeyMonitor: HotkeyMonitor
+    private let panelStatus = PanelStatus()
     private var statusController: StatusItemController?
+    private var panel: StatusPanelController?
 
     private var modelState: ModelState = .notReady {
-        didSet { refreshMenu() }
+        didSet { panelStatus.modelState = modelState }
     }
 
     private var hotkeyRetryTimer: Timer?
     private var becameActiveObserver: NSObjectProtocol?
-
-    // Menu items whose title or checkmark follows app state; refreshed in `refreshMenu`.
-    private let statusLineItem = NSMenuItem(title: "", action: #selector(statusLineClicked), keyEquivalent: "")
-    private let hotkeyItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: "")
-    private var modeItems: [(mode: DictationMode, item: NSMenuItem)] = []
-    private let launchAtLoginItem = NSMenuItem(
-        title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
 
     override init() {
         let settings = AkoyaSettings()
@@ -58,14 +54,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AkoyaFonts.register()
         // Bind before the status item reads the model, so the first width honours the settings.
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
         settings.$expandAnimation.assign(to: &model.$expandAnimation)
 
-        statusController = StatusItemController(model: model, menu: buildMenu())
-        refreshMenu()
+        panel = StatusPanelController(
+            content: DropdownRoot(model: model, settings: settings, status: panelStatus, actions: dropdownActions()))
+        statusController = StatusItemController(model: model) { [weak self] button in
+            self?.togglePanel(from: button)
+        }
 
         if !Permissions.allGranted { windows.showOnboarding() }
         migrateModelsFolder()
@@ -132,114 +132,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // MARK: - Menu
+    // MARK: - Dropdown panel
 
-    private func buildMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.delegate = self
-        // Enabled state is managed by hand: the status line is only clickable when it offers
-        // an action.
-        menu.autoenablesItems = false
-
-        statusLineItem.target = self
-        menu.addItem(statusLineItem)
-        menu.addItem(.separator())
-
-        hotkeyItem.target = self
-        menu.addItem(hotkeyItem)
-
-        let modeMenu = NSMenu()
-        modeMenu.autoenablesItems = false
-        modeItems = DictationMode.allCases.map { mode in
-            let item = NSMenuItem(title: mode.menuTitle, action: #selector(selectMode(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = mode.rawValue
-            modeMenu.addItem(item)
-            return (mode, item)
-        }
-        let modeItem = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
-        modeItem.submenu = modeMenu
-        menu.addItem(modeItem)
-
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        launchAtLoginItem.target = self
-        menu.addItem(launchAtLoginItem)
-
-        let permissionsItem = NSMenuItem(
-            title: "Check Permissions…", action: #selector(checkPermissions), keyEquivalent: "")
-        permissionsItem.target = self
-        menu.addItem(permissionsItem)
-
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Akoya", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        return menu
+    private func togglePanel(from button: NSStatusBarButton) {
+        guard let panel else { return }
+        // Permissions change in System Settings while Akoya is in the background; re-check on open.
+        if !panel.isShown { panelStatus.permissionsGranted = Permissions.allGranted }
+        panel.toggle(relativeTo: button)
     }
 
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        refreshMenu()
-    }
-
-    /// Brings every state-dependent title and checkmark up to date. Also runs on each model
-    /// state change, so download progress moves while the menu is open.
-    private func refreshMenu() {
-        let status = statusLine()
-        statusLineItem.title = status.title
-        statusLineItem.isEnabled = status.isClickable
-        hotkeyItem.title = "Hotkey: \(settings.hotkey.displayName)"
-        for (mode, item) in modeItems {
-            item.state = settings.mode == mode ? .on : .off
-        }
-        launchAtLoginItem.state = settings.launchAtLogin ? .on : .off
-    }
-
-    /// Model problems and progress come first; once the model is ready, missing permissions.
-    private func statusLine() -> (title: String, isClickable: Bool) {
-        switch modelState {
-        case .failed:
-            ("Model failed — click to retry", true)
-        case .downloading(let fraction?):
-            ("Downloading model… \(Int(fraction * 100))%", false)
-        case .downloading(nil), .notReady:
-            ("Preparing model…", false)
-        case .ready:
-            Permissions.allGranted ? ("Model ready", false) : ("Grant permissions…", true)
-        }
-    }
-
-    @objc private func statusLineClicked() {
-        if case .failed = modelState {
-            prepareModel()
-        } else if !Permissions.allGranted {
-            windows.showOnboarding()
-        }
-    }
-
-    @objc private func openSettings() {
-        windows.showSettings(settings)
-    }
-
-    @objc private func selectMode(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String, let mode = DictationMode(rawValue: raw) else { return }
-        settings.mode = mode
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        settings.launchAtLogin.toggle()
-    }
-
-    @objc private func checkPermissions() {
-        windows.showOnboarding()
+    private func dropdownActions() -> DropdownActions {
+        DropdownActions(
+            openSettings: { [weak self] in
+                guard let self else { return }
+                panel?.close()
+                windows.showSettings(settings)
+            },
+            quit: { NSApp.terminate(nil) },
+            // The panel stays open so the card shows the download starting again.
+            retryModel: { [weak self] in self?.prepareModel() },
+            finishSetup: { [weak self] in
+                self?.panel?.close()
+                self?.windows.showOnboarding()
+            },
+            copyLast: { text in
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+            })
     }
 }
 
-private extension DictationMode {
-    var menuTitle: String {
-        switch self {
-        case .hold: "Hold"
-        case .toggle: "Toggle"
-        }
+/// App state the dropdown shows that does not live in `WaveformModel` or `AkoyaSettings`.
+@MainActor
+private final class PanelStatus: ObservableObject {
+    @Published var modelState: ModelState = .notReady
+    @Published var permissionsGranted = Permissions.allGranted
+}
+
+/// Feeds `PanelStatus` into `DropdownView`, which takes those values as plain parameters.
+private struct DropdownRoot: View {
+    let model: WaveformModel
+    let settings: AkoyaSettings
+    @ObservedObject var status: PanelStatus
+    let actions: DropdownActions
+
+    var body: some View {
+        DropdownView(
+            model: model, settings: settings, modelState: status.modelState,
+            permissionsGranted: status.permissionsGranted, actions: actions)
     }
 }
