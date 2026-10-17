@@ -58,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         super.init()
         coordinator.isReady = { [weak self] in self?.modelState == .ready }
+        onboarding.retryModel = { [weak self] in self?.prepareModel() }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -74,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.togglePanel(from: button)
         }
 
+        quitLegacySilk()
         showOnboardingIfNeeded()
         migrateModelsFolder()
         prepareModel()
@@ -93,13 +95,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Onboarding
 
-    /// First launch shows the whole flow; later launches with a permission missing resume at
-    /// the first missing one.
+    /// First launch shows the whole flow; relaunching before finishing resumes at the first
+    /// missing permission once one is already on; after that only a missing permission
+    /// brings it back.
     private func showOnboardingIfNeeded() {
-        guard !settings.onboardingCompleted || !Permissions.allGranted else { return }
-        onboarding.show(
-            startAt: settings.onboardingCompleted
-                ? OnboardingFlow.firstIncomplete(granted: Permissions.isGranted) : .welcome)
+        guard let start = OnboardingFlow.launchStart(
+            completed: settings.onboardingCompleted, granted: Permissions.isGranted) else { return }
+        onboarding.show(startAt: start)
+    }
+
+    // MARK: - Silk
+
+    /// A still-running Silk listens for the same hotkey, so every dictation would paste twice.
+    private func quitLegacySilk() {
+        let count = LegacySilk.quitRunning()
+        if count > 0 {
+            Self.log.info("Asked \(count, privacy: .public) running Silk instance(s) to quit")
+        }
     }
 
     // MARK: - Model

@@ -61,6 +61,9 @@ final class TryItSession: ObservableObject {
     /// Switches dictation to practice mode: text lands in this card instead of being pasted.
     /// The onboarding controller switches back to `.paste` however the window closes.
     func begin() {
+        // The subscription also sees paste-mode takes made before this step, so drop any
+        // retry hint or transcript left over from them.
+        transcript = TryItTranscript()
         coordinator.destination = .practice { [weak self] text, isFinal in
             self?.transcript.receive(text, isFinal: isFinal)
         }
@@ -76,18 +79,21 @@ struct TryItStep: View {
     let hotkeyLabel: String
     let mode: DictationMode
     let modelState: ModelState
+    let retryModel: () -> Void
     let done: () -> Void
     let skip: () -> Void
 
     init(
         session: TryItSession, model: WaveformModel, hotkeyLabel: String, mode: DictationMode,
-        modelState: ModelState, done: @escaping () -> Void, skip: @escaping () -> Void
+        modelState: ModelState, retryModel: @escaping () -> Void, done: @escaping () -> Void,
+        skip: @escaping () -> Void
     ) {
         self.session = session
         self.model = model
         self.hotkeyLabel = hotkeyLabel
         self.mode = mode
         self.modelState = modelState
+        self.retryModel = retryModel
         self.done = done
         self.skip = skip
         _glow = StateObject(wrappedValue: VoiceGlowDriver(model: model))
@@ -108,7 +114,7 @@ struct TryItStep: View {
             TranscriptBox(transcript: transcript)
             Spacer(minLength: 0)
             if let line = modelState.onboardingStatusLine {
-                ModelStatusLine(text: line)
+                ModelStatusLine(text: line, showsRetry: modelState.onboardingShowsRetry, retry: retryModel)
             }
             // Quiet and inert until the first transcript (not `.disabled`, which would dim it
             // below the approved quiet look).
@@ -116,6 +122,8 @@ struct TryItStep: View {
                 if transcript.hasFinal { done() }
             }
             .accessibilityHint(transcript.hasFinal ? "" : "Available after your first dictation")
+            // Return finishes once Done is the primary button.
+            .keyboardShortcut(transcript.hasFinal ? .defaultAction : nil)
             PageDots(current: OnboardingStep.tryIt.pageIndex)
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .trailing) {

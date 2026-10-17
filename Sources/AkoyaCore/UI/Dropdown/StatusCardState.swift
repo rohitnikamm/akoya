@@ -21,13 +21,21 @@ public enum StatusCardState: Equatable, Sendable {
         }
     }
 
+    /// Whether the card offers Retry. A failed model keeps its Retry even while a missing
+    /// permission outranks it in the card state, or there would be no way to retry at all.
+    public func showsRetry(model: ModelState) -> Bool {
+        guard case .failed = model else { return false }
+        return self == .modelFailed || self == .setupNeeded
+    }
+
     public var chipTitle: String {
         switch self {
         case .ready: "Ready"
         case .listening: "Listening"
         case .transcribing: "Transcribing"
         case .downloading(let fraction?): "Downloading \(Int((min(max(fraction, 0), 1) * 100).rounded()))%"
-        case .downloading(nil): "Downloading…"
+        // No progress report yet: the files may already be on disk and only be loading.
+        case .downloading(nil): "Preparing…"
         case .modelFailed: "Model failed"
         case .setupNeeded: "Setup needed"
         }

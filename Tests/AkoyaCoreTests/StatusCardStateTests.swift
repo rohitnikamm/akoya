@@ -29,7 +29,7 @@ import Testing
     @Test func downloadingUnknown() {
         let state = StatusCardState.from(phase: .idle, model: .downloading(nil), permissionsGranted: true)
         #expect(state == .downloading(nil))
-        #expect(state.chipTitle == "Downloading…")
+        #expect(state.chipTitle == "Preparing…")
         // Before the first progress report the model is still being prepared.
         #expect(StatusCardState.from(phase: .idle, model: .notReady, permissionsGranted: true) == .downloading(nil))
     }
@@ -47,6 +47,25 @@ import Testing
         // Setup beats model problems and progress too.
         #expect(StatusCardState.from(phase: .idle, model: .failed("x"), permissionsGranted: false) == .setupNeeded)
         #expect(StatusCardState.from(phase: .idle, model: .downloading(0.5), permissionsGranted: false) == .setupNeeded)
+    }
+
+    @Test func retryIsOfferedWheneverTheModelFailed() {
+        let failed = ModelState.failed("offline")
+        // The model card on its own.
+        let modelFailed = StatusCardState.from(phase: .idle, model: failed, permissionsGranted: true)
+        #expect(modelFailed.showsRetry(model: failed))
+        // A missing permission outranks the failure, but Retry must still be there.
+        let setup = StatusCardState.from(phase: .idle, model: failed, permissionsGranted: false)
+        #expect(setup == .setupNeeded)
+        #expect(setup.showsRetry(model: failed))
+        // No retry when the model is fine or still loading.
+        for model in [ModelState.ready, .notReady, .downloading(0.4), .downloading(nil)] {
+            #expect(!StatusCardState.from(phase: .idle, model: model, permissionsGranted: false).showsRetry(model: model))
+            #expect(!StatusCardState.from(phase: .idle, model: model, permissionsGranted: true).showsRetry(model: model))
+        }
+        // Not while recording or transcribing, whatever the model says.
+        #expect(!StatusCardState.listening.showsRetry(model: failed))
+        #expect(!StatusCardState.transcribing.showsRetry(model: failed))
     }
 
     @Test func recordingBeatsSetupNeeded() {

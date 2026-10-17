@@ -6,7 +6,8 @@ import SwiftUI
 /// continuous-corner card, centred, movable by its background, with a × to close it.
 ///
 /// However the window goes away (Done, Skip, ×, app quit) dictation is switched back to
-/// pasting. Done and Skip also mark onboarding complete; Done taps the finished haptic.
+/// pasting. Done and Skip also mark onboarding complete; Done taps the finished haptic. The ×
+/// counts as Skip on the practice step or once every permission is on (`closeExit`).
 @MainActor
 public final class OnboardingWindowController {
     static let cardSize = CGSize(width: 420, height: 520)
@@ -19,6 +20,9 @@ public final class OnboardingWindowController {
     private var window: OnboardingWindow?
     private var viewModel: OnboardingViewModel?
     private var closeObserver: NSObjectProtocol?
+
+    /// Re-runs the speech model preparation; the footer's Retry calls it. Set once at launch.
+    public var retryModel: () -> Void = {}
 
     /// The speech model's state, for the download line on steps 2–3. Set it as it changes.
     public var modelState: ModelState = .notReady {
@@ -56,7 +60,9 @@ public final class OnboardingWindowController {
         }
         let viewModel = OnboardingViewModel(
             start: startAt, modelState: modelState,
-            tryIt: TryItSession(coordinator: coordinator, model: model))
+            tryIt: TryItSession(coordinator: coordinator, model: model),
+            retryModel: { [weak self] in self?.retryModel() },
+            reachedTryIt: { [weak self] in self?.bringForward() })
         let root = OnboardingRootView(
             viewModel: viewModel, settings: settings, model: model, hotkeyName: hotkeyName,
             finish: { [weak self] exit in self?.finish(exit) })
@@ -78,7 +84,19 @@ public final class OnboardingWindowController {
         viewModel.startPolling()
     }
 
-    /// Closes the window without marking onboarding complete (the × button, app quit).
+    /// The last permission was granted in System Settings, so the practice step is waiting
+    /// behind it. Raise the window without waiting for a click; activate only if Akoya is not
+    /// already frontmost, so Done and Return work at once.
+    private func bringForward() {
+        guard let window else { return }
+        window.orderFrontRegardless()
+        if !NSApp.isActive {
+            window.makeKey()
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    /// Closes the window without marking onboarding complete (app quit).
     public func close() {
         finish(.closed)
     }
@@ -131,13 +149,19 @@ final class OnboardingViewModel: ObservableObject {
     private let checkGrant: (Permission) -> Bool
     private let readMicrophoneStatus: () -> AVAuthorizationStatus
     private let grantedHaptic: () -> Void
+    private let reachedTryIt: () -> Void
     private var pollTask: Task<Void, Never>?
+
+    /// Re-runs the speech model preparation (the footer's Retry).
+    let retryModel: () -> Void
 
     init(
         start: OnboardingStep, modelState: ModelState, tryIt: TryItSession,
         isGranted: @escaping (Permission) -> Bool = Permissions.isGranted,
         microphoneStatus: @escaping () -> AVAuthorizationStatus = { AVCaptureDevice.authorizationStatus(for: .audio) },
-        grantedHaptic: @escaping () -> Void = Haptics.permissionGranted
+        grantedHaptic: @escaping () -> Void = Haptics.permissionGranted,
+        retryModel: @escaping () -> Void = {},
+        reachedTryIt: @escaping () -> Void = {}
     ) {
         flow = OnboardingFlow(start: start)
         self.modelState = modelState
@@ -146,6 +170,8 @@ final class OnboardingViewModel: ObservableObject {
         readMicrophoneStatus = microphoneStatus
         self.microphoneStatus = microphoneStatus()
         self.grantedHaptic = grantedHaptic
+        self.retryModel = retryModel
+        self.reachedTryIt = reachedTryIt
         readGrants()
     }
 
@@ -166,7 +192,17 @@ final class OnboardingViewModel: ObservableObject {
 
     func poll() {
         readGrants()
-        if flow.refresh(granted: isGranted(_:)) { grantedHaptic() }
+        if flow.refresh(granted: isGranted(_:)) {
+            grantedHaptic()
+            if flow.step == .tryIt { reachedTryIt() }
+        }
+    }
+
+    /// What the × means: with every permission on, or on the practice step, setup is as good as
+    /// finished, so it counts as Skip instead of showing up again at the next launch.
+    var closeExit: OnboardingExit {
+        let allGranted = Permission.allCases.allSatisfy { isGranted($0) }
+        return flow.step == .tryIt || allGranted ? .skipped : .closed
     }
 
     func startPolling() {
@@ -214,7 +250,7 @@ struct OnboardingRootView: View {
                     .transition(.opacity)
             }
             .animation(.easeInOut(duration: 0.25), value: viewModel.flow.step)
-            CloseButton { finish(.closed) }
+            CloseButton { finish(viewModel.closeExit) }
                 .padding(20)
         }
         .frame(width: OnboardingWindowController.cardSize.width, height: OnboardingWindowController.cardSize.height)
@@ -234,11 +270,11 @@ struct OnboardingRootView: View {
             PermissionsStep(
                 active: permission, granted: viewModel.isGranted(_:),
                 microphoneStatus: viewModel.microphoneStatus, modelState: viewModel.modelState,
-                perform: viewModel.perform(_:))
+                retryModel: viewModel.retryModel, perform: viewModel.perform(_:))
         case .tryIt:
             TryItStep(
                 session: viewModel.tryIt, model: model, hotkeyLabel: hotkeyName(), mode: settings.mode,
-                modelState: viewModel.modelState, done: { finish(.done) }, skip: { finish(.skipped) })
+                modelState: viewModel.modelState, retryModel: viewModel.retryModel, done: { finish(.done) }, skip: { finish(.skipped) })
         }
     }
 }
@@ -306,16 +342,27 @@ struct PageDots: View {
     }
 }
 
-/// The small footer line while the speech model is still downloading (steps 2–3).
+/// The small footer line while the speech model is not usable yet (steps 2–3), with a small
+/// Retry when it failed to load.
 struct ModelStatusLine: View {
     let text: String
+    var showsRetry = false
+    var retry: () -> Void = {}
 
     var body: some View {
-        Text(text)
-            .font(AkoyaFonts.outfit(12))
-            .foregroundStyle(AkoyaTheme.textEyebrow)
-            .monospacedDigit()
-            .multilineTextAlignment(.center)
+        HStack(spacing: 8) {
+            Text(text)
+                .font(AkoyaFonts.outfit(12))
+                .foregroundStyle(AkoyaTheme.textEyebrow)
+                .monospacedDigit()
+                .multilineTextAlignment(.center)
+            if showsRetry {
+                Button("Retry", action: retry)
+                    .buttonStyle(.plain)
+                    .font(AkoyaFonts.outfit(12, .semibold))
+                    .foregroundStyle(AkoyaTheme.accentLightSoft)
+            }
+        }
     }
 }
 

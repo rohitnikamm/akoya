@@ -71,6 +71,22 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
     #expect(reopened.step == .permission(.accessibility))
 }
 
+@Test func launchStartRules() {
+    let none = grants([])
+    let some = grants([.microphone])
+    let all = grants([.microphone, .accessibility, .inputMonitoring])
+    // First launch with nothing granted: the whole flow.
+    #expect(OnboardingFlow.launchStart(completed: false, granted: none) == .welcome)
+    // Relaunch mid-onboarding with something already granted: skip the welcome.
+    #expect(OnboardingFlow.launchStart(completed: false, granted: some) == .permission(.accessibility))
+    #expect(OnboardingFlow.launchStart(completed: false, granted: grants([.accessibility])) == .permission(.microphone))
+    #expect(OnboardingFlow.launchStart(completed: false, granted: all) == .tryIt)
+    // Completed: only a missing permission brings it back.
+    #expect(OnboardingFlow.launchStart(completed: true, granted: all) == nil)
+    #expect(OnboardingFlow.launchStart(completed: true, granted: some) == .permission(.accessibility))
+    #expect(OnboardingFlow.launchStart(completed: true, granted: none) == .permission(.microphone))
+}
+
 // MARK: - Try it transcript
 
 @Test func tryItShowsPartialsThenFinal() {
@@ -147,7 +163,17 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
     #expect(ModelState.notReady.onboardingStatusLine == "Getting the speech model ready…")
     #expect(ModelState.downloading(nil).onboardingStatusLine == "Getting the speech model ready…")
     #expect(ModelState.downloading(0.42).onboardingStatusLine == "Getting the speech model ready… 42%")
-    #expect(ModelState.failed("x").onboardingStatusLine != nil)
+    let failedLine = ModelState.failed("x").onboardingStatusLine
+    #expect(failedLine != nil)
+    // Retry is a button now, not a pointer at the menu bar.
+    #expect(failedLine?.contains("menu bar") == false)
+}
+
+@Test func onboardingRetryOnlyWhenTheModelFailed() {
+    #expect(ModelState.failed("x").onboardingShowsRetry)
+    for state in [ModelState.ready, .notReady, .downloading(nil), .downloading(0.3)] {
+        #expect(!state.onboardingShowsRetry)
+    }
 }
 
 // MARK: - Practice destination and closing
@@ -299,4 +325,96 @@ private final class OnboardingRig {
     #expect(rig.inserter.inserted.isEmpty)
     #expect(received.finals == ["practice words"])
     #expect(rig.isPasting)
+}
+
+// MARK: - View model: close, retry, reaching Try it
+
+@MainActor
+private func viewModel(
+    start: OnboardingStep, granted: Set<Permission> = [], retry: @escaping () -> Void = {},
+    reachedTryIt: @escaping () -> Void = {}, rig: OnboardingRig
+) -> OnboardingViewModel {
+    OnboardingViewModel(
+        start: start, modelState: .ready,
+        tryIt: TryItSession(coordinator: rig.coordinator, model: rig.model),
+        isGranted: { granted.contains($0) }, microphoneStatus: { .authorized },
+        grantedHaptic: {}, retryModel: retry, reachedTryIt: reachedTryIt)
+}
+
+@MainActor @Test func closeCountsAsSkipOnTryItOrWhenEverythingIsGranted() {
+    let rig = OnboardingRig()
+    let all: Set<Permission> = [.microphone, .accessibility, .inputMonitoring]
+    #expect(viewModel(start: .tryIt, granted: all, rig: rig).closeExit == .skipped)
+    // Try it is the last step, so it counts even if a grant has since been revoked.
+    #expect(viewModel(start: .tryIt, granted: [], rig: rig).closeExit == .skipped)
+    #expect(viewModel(start: .welcome, granted: all, rig: rig).closeExit == .skipped)
+    // Mid-flow with a permission missing: not complete.
+    #expect(viewModel(start: .welcome, granted: [], rig: rig).closeExit == .closed)
+    #expect(viewModel(start: .permission(.accessibility), granted: [.microphone], rig: rig).closeExit == .closed)
+}
+
+@MainActor @Test func closingAsSkipCompletesOnboarding() {
+    let rig = OnboardingRig()
+    rig.controller.finish(viewModel(start: .tryIt, rig: rig).closeExit)
+    #expect(rig.settings.onboardingCompleted)
+    let other = OnboardingRig()
+    other.controller.finish(viewModel(start: .permission(.microphone), rig: other).closeExit)
+    #expect(!other.settings.onboardingCompleted)
+}
+
+@MainActor @Test func retryModelCallsTheClosure() {
+    final class Count { var value = 0 }
+    let count = Count()
+    let rig = OnboardingRig()
+    let model = viewModel(start: .permission(.microphone), retry: { count.value += 1 }, rig: rig)
+    model.retryModel()
+    model.retryModel()
+    #expect(count.value == 2)
+}
+
+@MainActor @Test func reachingTryItBringsTheWindowForwardOnce() {
+    final class Grants { var on: Set<Permission> = [.microphone, .accessibility]; var fronted = 0 }
+    let state = Grants()
+    let rig = OnboardingRig()
+    let model = OnboardingViewModel(
+        start: .permission(.inputMonitoring), modelState: .ready,
+        tryIt: TryItSession(coordinator: rig.coordinator, model: rig.model),
+        isGranted: { state.on.contains($0) }, microphoneStatus: { .authorized },
+        grantedHaptic: {}, reachedTryIt: { state.fronted += 1 })
+    model.poll()
+    #expect(state.fronted == 0)
+    state.on.insert(.inputMonitoring)
+    model.poll()
+    #expect(model.flow.step == .tryIt)
+    #expect(state.fronted == 1)
+    model.poll()
+    #expect(state.fronted == 1)
+}
+
+@MainActor @Test func advancingToAnotherPermissionDoesNotBringTheWindowForward() {
+    final class Grants { var on: Set<Permission> = []; var fronted = 0 }
+    let state = Grants()
+    let rig = OnboardingRig()
+    let model = OnboardingViewModel(
+        start: .permission(.microphone), modelState: .ready,
+        tryIt: TryItSession(coordinator: rig.coordinator, model: rig.model),
+        isGranted: { state.on.contains($0) }, microphoneStatus: { .authorized },
+        grantedHaptic: {}, reachedTryIt: { state.fronted += 1 })
+    state.on.insert(.microphone)
+    model.poll()
+    #expect(model.flow.step == .permission(.accessibility))
+    #expect(state.fronted == 0)
+}
+
+@MainActor @Test func tryItBeginDropsAStaleRetryHint() {
+    let rig = OnboardingRig()
+    let session = TryItSession(coordinator: rig.coordinator, model: rig.model)
+    // A missed take in paste mode (the subscription listens whatever the destination).
+    rig.model.phase = .recording
+    rig.model.phase = .error
+    #expect(session.transcript.showsRetryHint)
+    session.begin()
+    #expect(!session.transcript.showsRetryHint)
+    #expect(session.transcript.text.isEmpty)
+    #expect(!session.transcript.hasFinal)
 }

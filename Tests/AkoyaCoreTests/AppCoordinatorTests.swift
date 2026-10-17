@@ -611,13 +611,41 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     await waitForCalls(gated, 1)
     rig.clock.advance(1)
     coordinator.handle(.released)
+    // The final pass waits for the partial (see practiceFinalWaitsForTheInFlightPartial).
+    gated.finish(call: 0, with: "late partial")
+    await coordinator.pendingPreview?.value
     await waitForCalls(gated, 2)
     gated.finish(call: 1, with: "final")
     await coordinator.pendingWork?.value
-    gated.finish(call: 0, with: "late partial")
-    await coordinator.pendingPreview?.value
     #expect(log.texts == ["final"])
     #expect(log.finals == [true])
+}
+
+@MainActor @Test func practiceFinalWaitsForTheInFlightPartial() async {
+    let rig = Rig()
+    rig.audio.samples = Array(repeating: 0.1, count: 16_000)
+    let gated = GatedTranscriber()
+    let coordinator = AppCoordinator(
+        audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
+        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+    let log = PracticeLog()
+    coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
+    coordinator.handle(.pressed)
+    rig.speak()
+    coordinator.tickLivePreview()
+    await waitForCalls(gated, 1)
+    rig.clock.advance(1)
+    coordinator.handle(.released)
+    // Never two transcriptions at once: the final must not start while the partial runs.
+    for _ in 0..<50 { await Task.yield() }
+    #expect(gated.callCount == 1)
+    gated.finish(call: 0, with: "partial")
+    await waitForCalls(gated, 2)
+    gated.finish(call: 1, with: "final")
+    await coordinator.pendingWork?.value
+    #expect(gated.callCount == 2)
+    #expect(log.texts == ["final"])
+    #expect(rig.model.phase == .idle)
 }
 
 @MainActor @Test func practiceEmptyFinalReportsEmptyAndShowsError() async {

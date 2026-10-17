@@ -49,9 +49,10 @@ public struct DropdownView: View {
 
     public var body: some View {
         VStack(spacing: 12) {
+            let state = StatusCardState.from(
+                phase: model.phase, model: modelState, permissionsGranted: permissionsGranted)
             StatusCard(
-                state: .from(phase: model.phase, model: modelState, permissionsGranted: permissionsGranted),
-                hotkey: settings.hotkey, mode: settings.mode, glowOpacity: glow.opacity,
+                state: state, showsRetry: state.showsRetry(model: modelState), hotkey: settings.hotkey, mode: settings.mode, glowOpacity: glow.opacity,
                 retry: actions.retryModel, finishSetup: actions.finishSetup)
             ModeSwitch(selection: $settings.mode)
             if let text = model.lastDictation {
@@ -80,6 +81,8 @@ public struct DropdownView: View {
 
 private struct StatusCard: View {
     let state: StatusCardState
+    /// Retry sits beside "Finish setup" when the model failed behind a missing permission.
+    let showsRetry: Bool
     let hotkey: HotkeyKey
     let mode: DictationMode
     /// Rim glow opacity (0 at rest); see `VoiceGlowDriver`.
@@ -113,7 +116,10 @@ private struct StatusCard: View {
             case .modelFailed:
                 PrimaryButton(title: "Retry", action: retry)
             case .setupNeeded:
-                PrimaryButton(title: "Finish setup", action: finishSetup)
+                HStack(spacing: 8) {
+                    PrimaryButton(title: "Finish setup", action: finishSetup)
+                    if showsRetry { PrimaryButton(title: "Retry", action: retry) }
+                }
             case .ready, .listening, .transcribing, .downloading(nil):
                 EmptyView()
             }

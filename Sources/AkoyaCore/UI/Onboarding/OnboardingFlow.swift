@@ -43,6 +43,18 @@ public struct OnboardingFlow: Equatable, Sendable {
     }
 }
 
+extension OnboardingFlow {
+    /// Where onboarding opens at launch, or nil when it should stay closed. First launch shows
+    /// the whole flow; a relaunch before finishing resumes at the first missing permission
+    /// when at least one is already on; once completed, only a missing permission reopens it.
+    public static func launchStart(completed: Bool, granted: (Permission) -> Bool) -> OnboardingStep? {
+        let anyGranted = Permission.allCases.contains(where: granted)
+        let allGranted = Permission.allCases.allSatisfy(granted)
+        if completed { return allGranted ? nil : firstIncomplete(granted: granted) }
+        return anyGranted ? firstIncomplete(granted: granted) : .welcome
+    }
+}
+
 /// How the onboarding window was dismissed.
 enum OnboardingExit {
     /// "Done" after a practice dictation.
@@ -62,7 +74,13 @@ extension ModelState {
         case .notReady, .downloading(nil): "Getting the speech model ready…"
         case .downloading(let fraction?):
             "Getting the speech model ready… \(Int((min(max(fraction, 0), 1) * 100).rounded()))%"
-        case .failed: "The speech model couldn’t load. Use Retry in the menu bar."
+        case .failed: "The speech model couldn’t load."
         }
+    }
+
+    /// The footer offers a Retry button next to the status line.
+    var onboardingShowsRetry: Bool {
+        if case .failed = self { return true }
+        return false
     }
 }

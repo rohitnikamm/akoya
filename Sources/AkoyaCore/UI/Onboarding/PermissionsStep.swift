@@ -8,6 +8,7 @@ struct PermissionsStep: View {
     let granted: (Permission) -> Bool
     let microphoneStatus: AVAuthorizationStatus
     let modelState: ModelState
+    let retryModel: () -> Void
     let perform: (Permission) -> Void
 
     var body: some View {
@@ -42,7 +43,7 @@ struct PermissionsStep: View {
             }
             Spacer(minLength: 0)
             if let line = modelState.onboardingStatusLine {
-                ModelStatusLine(text: line)
+                ModelStatusLine(text: line, showsRetry: modelState.onboardingShowsRetry, retry: retryModel)
             }
             OnboardingButton(
                 title: action == .request ? "Allow" : "Open System Settings", style: .accent,

@@ -149,8 +149,11 @@ public final class AppCoordinator {
         model.phase = .transcribing
         let transcriber = transcriber
         let inserter = inserter
+        // A partial pass may still be running; never run two transcriptions at once.
+        let partial = pendingPreview
         pendingWork = Task {
             do {
+                await partial?.value
                 let text = try await transcriber.transcribe(samples)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 switch destination {

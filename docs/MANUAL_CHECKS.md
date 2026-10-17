@@ -3,13 +3,14 @@
 Nothing here could be checked automatically: it needs a screen, a microphone and macOS permissions.
 
 ## Setup
-1. Optional, but recommended so permissions survive rebuilds: `scripts/make-signing-cert.sh`, then run the trust command it prints.
+1. Optional, but recommended so permissions survive rebuilds: `scripts/make-signing-cert.sh`, then run the trust command it prints. Do this BEFORE granting any permissions, or skip it if the "Silk Self-Signed" identity already exists (it keeps permissions across rebuilds too). Switching identities after granting requires granting again.
 2. `scripts/build-app.sh debug 0.2.0 && open build/Akoya.app`
 3. To see the first-run flow again: quit Akoya, `defaults delete com.rohitnikamm.akoya`, and revoke Akoya's Microphone, Accessibility and Input Monitoring entries in System Settings > Privacy & Security.
 
 ## Upgrading from Silk (once)
+- [ ] First: quit Silk, turn off its Launch at Login, and delete the old Silk.app. (Akoya also asks a running Silk to quit at launch: start Silk, then Akoya, and Silk's menu bar item disappears. Without this both apps would paste every dictation twice.)
 - [ ] The bundle id changed (`com.rohitnikamm.silk` to `com.rohitnikamm.akoya`), so macOS treats Akoya as a new app: Microphone, Accessibility and Input Monitoring must be granted again once. Onboarding walks through this; the old "Silk" entries in the privacy lists can be removed.
-- [ ] If `~/Library/Application Support/Silk/Models` existed, it is moved to `~/Library/Application Support/Akoya/Models` on first launch (`ls` both): the dropdown goes straight to Ready with no ~450 MB re-download. Old Silk preferences are untouched.
+- [ ] If `~/Library/Application Support/Silk/Models` existed, it is moved to `~/Library/Application Support/Akoya/Models` on first launch (`ls` both), with no ~450 MB re-download. The dropdown chip says "Preparing…" while the existing model loads (it may skip the download percentage entirely), then Ready. Old Silk preferences are untouched.
 
 ## Onboarding (first launch, or after the reset in Setup step 3)
 - [ ] The 420x520 dark card opens centred, with the dot logo, "akoya", and "Get started". Drag it by its background; the x in the corner closes it.
@@ -21,7 +22,10 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Try it: the hotkey hint names your current key ("Hold Right ⌥ and say anything", or "Tap" in toggle mode). Holding it makes the blue glow rise from the bottom edge following your voice, and the grid brightens; your words appear live while you speak, then settle as the final text. Nothing is pasted anywhere, even with another app frontmost.
 - [ ] Say nothing or something unintelligible: "Didn’t catch that — try again" appears.
 - [ ] "Done" is quiet and does nothing until the first transcript arrives; after that it turns light and closes setup. "Skip" closes setup without needing a dictation. Either way setup is not shown on the next launch (if all permissions are still granted).
-- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete, so the next launch restarts at the welcome step. Only after Done or Skip does a later launch with a permission missing resume at the first missing permission.
+- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete: the next launch restarts at the welcome step if no permission is on yet, or at the first missing permission if at least one already is. The exception is the x on the Try it step, or with all three permissions on, which counts as Skip (not shown again). After Done or Skip, a later launch with a permission missing resumes at the first missing permission.
+- [ ] When the last permission is switched on in System Settings, the setup window comes to the front on the Try it step by itself (Done and Return work without an extra click).
+- [ ] Try it: Return presses Done once it is light (after the first transcript). A "Didn’t catch that" hint from a failed paste-mode dictation made earlier is not shown when the step opens.
+- [ ] Model failure during setup (network off on a fresh model): steps 2 and 3 show "The speech model couldn’t load." with a small Retry that restarts the download. The dropdown with a permission still missing shows "Setup needed" with both "Finish setup" and "Retry".
 - [ ] Reduce Motion on (System Settings > Accessibility > Display): the glow still follows the voice but without the breathing animation.
 
 ## Dropdown
@@ -29,7 +33,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Click outside, press Esc, or click the item again: the panel closes.
 - [ ] Status card at rest shows "akoya", the "Ready" chip, the dot logo and "Hold [Right ⌥] to talk" with no rim glow. Changing the hotkey in Settings updates the keycap.
 - [ ] While you hold the hotkey with the panel open: the chip says "Listening" and the blue rim glow follows your voice; it says "Transcribing" while the model works, then returns to Ready with no glow.
-- [ ] First launch (no model yet): chip "Downloading 42%" (or "Downloading…") with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
+- [ ] First launch (no model yet): chip "Preparing…" until the first progress report, then "Downloading 42%" with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
 - [ ] With a permission revoked: chip "Setup needed" and a "Finish setup" button, which closes the panel and opens onboarding at the first missing permission. Open the panel after granting it in System Settings: the state is re-checked on open and becomes Ready.
 - [ ] Mode switch: "Hold to talk" / "Tap to toggle" changes the behaviour immediately (and in Settings).
 - [ ] "Last dictation" is hidden until you dictate; then it shows the inserted text. "Copy" copies it (the label flips to "Copied") and pasting elsewhere gives that text. It is cleared when you quit Akoya.
