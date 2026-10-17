@@ -40,14 +40,17 @@ private final class PermissionStatus: ObservableObject {
 }
 
 public struct OnboardingView: View {
+    private let request: (Permission) -> Void
     private let openSettings: (Permission) -> Void
     @StateObject private var status: PermissionStatus
     private let refresh = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     public init(
         isGranted: @escaping (Permission) -> Bool = Permissions.isGranted,
+        request: @escaping (Permission) -> Void = Permissions.request(_:),
         openSettings: @escaping (Permission) -> Void = Permissions.openSettings(for:)
     ) {
+        self.request = request
         self.openSettings = openSettings
         _status = StateObject(wrappedValue: PermissionStatus(isGranted: isGranted))
     }
@@ -83,7 +86,11 @@ public struct OnboardingView: View {
             if isOn {
                 Text("Granted").foregroundStyle(.secondary)
             } else {
-                Button("Open System Settings") { openSettings(permission) }
+                Button("Open System Settings") {
+                    Permissions.performOnboardingAction(
+                        for: permission, granted: false, request: request, openSettings: openSettings
+                    )
+                }
             }
         }
         .accessibilityElement(children: .combine)
