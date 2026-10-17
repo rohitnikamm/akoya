@@ -29,7 +29,8 @@ public struct SettingsView: View {
     }
 }
 
-private extension HotkeyKey {
+public extension HotkeyKey {
+    /// Human-readable key name, shown in Settings and the menu.
     var displayName: String {
         switch self {
         case .rightOption: "Right Option"

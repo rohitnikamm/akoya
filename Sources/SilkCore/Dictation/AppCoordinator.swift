@@ -4,9 +4,16 @@ import Foundation
 /// text insertion, and mirrors the current phase and waveform levels into `WaveformModel`.
 ///
 /// Transitions: `idle → recording → transcribing → idle`, with `error` (shown briefly) as the
-/// exit for a failed start, an empty transcript, or a transcribe/insert failure.
+/// exit for a failed start, a silent recording, an empty transcript, or a transcribe/insert
+/// failure. The phase stays `transcribing` until `insert` returns, so a new press cannot start
+/// a recording while the clipboard is still being restored.
 @MainActor
 public final class AppCoordinator {
+    /// A recording whose loudest level step (see `LevelMeter.step(forRMS:)`) never rose above
+    /// this is treated as silence and not transcribed: Parakeet invents text such as "Okay."
+    /// for silent audio. Step 2 is roughly -44 to -39 dBFS.
+    public static let silenceMaxStep = 2
+
     private let audio: AudioRecording
     private let transcriber: Transcribing
     private let inserter: TextInserting
@@ -18,6 +25,8 @@ public final class AppCoordinator {
     private let errorDisplay: TimeInterval
 
     private var meter = LevelMeter()
+    /// Loudest raw level step seen in the current recording.
+    private var loudestStep = 1
     private var recordingStartedAt: TimeInterval = 0
     private var recordingMode: DictationMode = .hold
     private var maxRecordingTimer: Task<Void, Never>?
@@ -79,6 +88,7 @@ public final class AppCoordinator {
 
     private func startRecording() {
         meter.reset()
+        loudestStep = 1
         model.columns = meter.columns
         do {
             try audio.start()
@@ -101,6 +111,10 @@ public final class AppCoordinator {
     private func stopRecording() {
         maxRecordingTimer?.cancel()
         let samples = audio.stop()
+        guard loudestStep > Self.silenceMaxStep else {
+            showError() // nothing was said; treat it like an empty transcript
+            return
+        }
         model.phase = .transcribing
         let transcriber = transcriber
         let inserter = inserter
@@ -130,6 +144,7 @@ public final class AppCoordinator {
 
     private func receiveLevel(_ rms: Float) {
         guard isRecording else { return }
+        loudestStep = max(loudestStep, LevelMeter.step(forRMS: rms))
         meter.push(rms: rms)
         model.columns = meter.columns
     }
@@ -148,7 +163,8 @@ public final class AppCoordinator {
         model.phase = .idle
     }
 
-    /// Error cue for a failure that has no surrounding work task (a failed audio start).
+    /// Error cue for a failure that has no surrounding work task (a failed audio start or a
+    /// silent recording).
     private func showError() {
         model.phase = .error
         pendingWork = Task { await flashError() }

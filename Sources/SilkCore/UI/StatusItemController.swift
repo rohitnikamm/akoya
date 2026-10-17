@@ -27,6 +27,7 @@ public final class StatusItemController {
         statusItem.menu = menu
 
         if let button = statusItem.button {
+            button.setAccessibilityLabel("Silk")
             let hosting = PassthroughHostingView(rootView: WaveformView(model: model))
             hosting.translatesAutoresizingMaskIntoConstraints = false
             button.addSubview(hosting)

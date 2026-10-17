@@ -87,11 +87,18 @@ private struct Rig {
             maxRecording: maxRecording, errorDisplay: errorDisplay)
     }
 
-    /// Press, wait past the minimum hold, release.
+    /// Press, speak (one loud level so the silence gate lets it through), wait past the
+    /// minimum hold, release.
     func dictate() {
         coordinator.handle(.pressed)
+        speak()
         clock.advance(1)
         coordinator.handle(.released)
+    }
+
+    /// Feeds one loud level, as if the user spoke.
+    func speak() {
+        audio.onLevel?(1.0)
     }
 }
 
@@ -102,6 +109,7 @@ private struct Rig {
     rig.coordinator.handle(.pressed)
     #expect(rig.coordinator.phase == .recording)
     #expect(rig.coordinator.isRecording)
+    rig.speak()
     rig.clock.advance(1)
     rig.coordinator.handle(.released)
     #expect(rig.coordinator.phase == .transcribing)
@@ -142,6 +150,7 @@ private struct Rig {
     #expect(rig.coordinator.phase == .recording)
     rig.coordinator.handle(.released)
     #expect(rig.coordinator.phase == .recording)
+    rig.speak()
     rig.coordinator.handle(.pressed)
     #expect(rig.coordinator.phase == .transcribing)
     await rig.coordinator.pendingWork?.value
@@ -220,6 +229,7 @@ private struct Rig {
     let rig = Rig()
     rig.audio.samples = [0.5, 0.6]
     rig.coordinator.handle(.pressed)
+    rig.speak()
     rig.audio.onInterrupted?()
     #expect(rig.coordinator.phase == .transcribing)
     await rig.coordinator.pendingWork?.value
@@ -250,6 +260,7 @@ private struct Rig {
 @MainActor @Test func maxRecordingAutoStops() async {
     let rig = Rig(maxRecording: 0.05)
     rig.coordinator.handle(.pressed)
+    rig.speak()
     try? await Task.sleep(for: .milliseconds(200))
     await rig.coordinator.pendingWork?.value
     #expect(rig.transcriber.received.count == 1)
@@ -273,4 +284,100 @@ private struct Rig {
     rig.coordinator.handle(.pressed)
     #expect(rig.audio.startCount == 0)
     #expect(rig.coordinator.phase == .idle)
+}
+
+// MARK: - Silence gate
+
+@MainActor @Test func silentRecordingSkipsTranscription() async {
+    let rig = Rig(errorDisplay: 0.1)
+    rig.coordinator.handle(.pressed)
+    for _ in 0..<10 { rig.audio.onLevel?(0) }
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .error)
+    #expect(rig.audio.stopCount == 1)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func quietLevelsAtTheThresholdStillCountAsSilence() async {
+    let rig = Rig(errorDisplay: 0.1)
+    // -40 dBFS maps to step 2: the loudest level that still counts as silence.
+    let rms = Float(pow(10, -40.0 / 20))
+    #expect(LevelMeter.step(forRMS: rms) == AppCoordinator.silenceMaxStep)
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(rms)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.isEmpty)
+}
+
+@MainActor @Test func silentInterruptionSkipsTranscription() async {
+    let rig = Rig(errorDisplay: 0.1)
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(0)
+    rig.audio.onInterrupted?()
+    #expect(rig.coordinator.phase == .error)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func silentMaxRecordingAutoStopSkipsTranscription() async {
+    let rig = Rig(maxRecording: 0.05, errorDisplay: 0.01)
+    rig.coordinator.handle(.pressed)
+    try? await Task.sleep(for: .milliseconds(200))
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.stopCount == 1)
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func loudnessFromAnEarlierRecordingDoesNotCarryOver() async {
+    let rig = Rig(errorDisplay: 0.01)
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.count == 1)
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.count == 1)
+}
+
+// MARK: - Insert window
+
+@MainActor
+private final class SuspendingInserter: TextInserting {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var started = false
+    func insert(_ text: String) async throws {
+        started = true
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func finish() { continuation?.resume(); continuation = nil }
+}
+
+@MainActor @Test func phaseStaysBusyUntilInsertReturns() async {
+    let audio = FakeAudio()
+    let inserter = SuspendingInserter()
+    let clock = FakeClock()
+    let coordinator = AppCoordinator(
+        audio: audio, transcriber: FakeTranscriber(), inserter: inserter, model: WaveformModel(),
+        mode: { .hold }, now: { clock.time })
+    coordinator.handle(.pressed)
+    audio.onLevel?(1.0)
+    clock.advance(1)
+    coordinator.handle(.released)
+    while !inserter.started { await Task.yield() }
+    // Inside the paste/clipboard-restore window a new press must not start a recording.
+    #expect(coordinator.phase == .transcribing)
+    coordinator.handle(.pressed)
+    #expect(audio.startCount == 1)
+    inserter.finish()
+    await coordinator.pendingWork?.value
+    #expect(coordinator.phase == .idle)
 }
