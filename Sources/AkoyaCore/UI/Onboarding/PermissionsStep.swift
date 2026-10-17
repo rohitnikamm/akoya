@@ -1,7 +1,7 @@
 import AVFoundation
 import SwiftUI
 
-/// Step 2: chips for the three permissions, and one card for the active one with its single
+/// Step 2: chips for the two permissions, and one card for the active one with its single
 /// action (docs/design/onboarding-screens-1-2-mockup.html, second card).
 struct PermissionsStep: View {
     let active: Permission
@@ -118,7 +118,7 @@ private struct PermissionIcon: View {
         PermissionGlyph(permission: permission)
             .stroke(AkoyaTheme.textPrimary, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
             .overlay {
-                // The accessibility figure's head and the keyboard's keys are filled.
+                // The accessibility figure's head is filled.
                 PermissionGlyphFill(permission: permission).fill(AkoyaTheme.textPrimary)
             }
             .frame(width: 32, height: 32)
@@ -157,18 +157,12 @@ private struct PermissionGlyph: Shape {
             path.addLine(to: p(8.5, 20.5))
             path.move(to: p(12, 14))
             path.addLine(to: p(15.5, 20.5))
-        case .inputMonitoring:
-            path.addRoundedRect(
-                in: CGRect(origin: p(2.5, 6), size: CGSize(width: 19 * unit, height: 12 * unit)),
-                cornerSize: CGSize(width: 2.5 * unit, height: 2.5 * unit))
-            path.move(to: p(8.5, 14.5))
-            path.addLine(to: p(15.5, 14.5))
         }
         return path
     }
 }
 
-/// Filled parts of the icons: the figure's head, the keyboard's keys.
+/// Filled parts of the icons: the accessibility figure's head.
 private struct PermissionGlyphFill: Shape {
     let permission: Permission
 
@@ -183,10 +177,6 @@ private struct PermissionGlyphFill: Shape {
             break
         case .accessibility:
             path.addEllipse(in: dot(12, 4.5, 2))
-        case .inputMonitoring:
-            for x in [6.5, 10, 13.5, 17.0] {
-                path.addEllipse(in: dot(x, 10, 1))
-            }
         }
         return path
     }
@@ -198,7 +188,6 @@ extension Permission {
         switch self {
         case .microphone: "Microphone"
         case .accessibility: "Accessibility"
-        case .inputMonitoring: "Input"
         }
     }
 
@@ -206,7 +195,6 @@ extension Permission {
         switch self {
         case .microphone: "Microphone"
         case .accessibility: "Accessibility"
-        case .inputMonitoring: "Input Monitoring"
         }
     }
 
@@ -214,7 +202,6 @@ extension Permission {
         switch self {
         case .microphone: "Lets Akoya hear you while you talk. Your voice never leaves your Mac."
         case .accessibility: "Lets Akoya paste your words and notice your hotkey. Switch on Akoya in the list that opens."
-        case .inputMonitoring: "Lets Akoya notice your hotkey in any app. Switch on Akoya in the list that opens."
         }
     }
 }

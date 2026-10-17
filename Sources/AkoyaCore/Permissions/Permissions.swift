@@ -4,7 +4,7 @@ import AVFoundation
 import CoreGraphics
 
 public enum Permission: CaseIterable, Sendable {
-    case microphone, accessibility, inputMonitoring
+    case microphone, accessibility
 }
 
 /// What the onboarding button should do for a permission that may not be granted yet.
@@ -25,8 +25,6 @@ public enum Permissions {
             AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         case .accessibility:
             AXIsProcessTrusted()
-        case .inputMonitoring:
-            CGPreflightListenEventAccess()
         }
     }
 
@@ -39,8 +37,6 @@ public enum Permissions {
             // Value of `kAXTrustedCheckOptionPrompt`, spelled out because the imported
             // global is not concurrency-safe under Swift 6.
             _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
-        case .inputMonitoring:
-            _ = CGRequestListenEventAccess()
         }
     }
 
@@ -48,7 +44,6 @@ public enum Permissions {
         let pane = switch p {
         case .microphone: "Privacy_Microphone"
         case .accessibility: "Privacy_Accessibility"
-        case .inputMonitoring: "Privacy_ListenEvent"
         }
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") else { return }
         NSWorkspace.shared.open(url)
@@ -58,8 +53,8 @@ public enum Permissions {
         Permission.allCases.allSatisfy(isGranted)
     }
 
-    /// Decides what the onboarding button does. macOS only lists an app in the Microphone and
-    /// Input Monitoring panes after it has asked for access, so ask before sending the user there.
+    /// Decides what the onboarding button does. macOS only lists an app in the Accessibility
+    /// pane after it has asked for access, so ask before sending the user there.
     /// A microphone that was already denied or restricted can only be changed in Settings.
     public static func onboardingAction(
         for p: Permission,
@@ -70,7 +65,7 @@ public enum Permissions {
         switch p {
         case .microphone:
             return microphoneStatus == .notDetermined ? .request : .openSettings
-        case .accessibility, .inputMonitoring:
+        case .accessibility:
             return .requestThenOpenSettings
         }
     }

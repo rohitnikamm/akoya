@@ -15,7 +15,7 @@ public enum OnboardingStep: Hashable, Sendable {
 }
 
 /// Which onboarding step is showing, and where it goes next. Permissions are asked for in the
-/// order Microphone → Accessibility → Input Monitoring, skipping any already granted.
+/// order Microphone → Accessibility, skipping any already granted.
 public struct OnboardingFlow: Equatable, Sendable {
     public private(set) var step: OnboardingStep
 

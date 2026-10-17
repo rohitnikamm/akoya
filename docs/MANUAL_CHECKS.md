@@ -5,24 +5,24 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 ## Setup
 1. Optional, but recommended so permissions survive rebuilds: `scripts/make-signing-cert.sh`, then run the trust command it prints. Do this BEFORE granting any permissions, or skip it if the "Silk Self-Signed" identity already exists (it keeps permissions across rebuilds too). Switching identities after granting requires granting again.
 2. `scripts/build-app.sh debug 0.2.0 && open build/Akoya.app`
-3. To see the first-run flow again: quit Akoya, `defaults delete com.rohitnikamm.akoya`, and revoke Akoya's Microphone, Accessibility and Input Monitoring entries in System Settings > Privacy & Security.
+3. To see the first-run flow again: quit Akoya, `defaults delete com.rohitnikamm.akoya`, and revoke Akoya's Microphone and Accessibility entries in System Settings > Privacy & Security.
 
 ## Upgrading from Silk (once)
 - [ ] First: quit Silk, turn off its Launch at Login, and delete the old Silk.app. (Akoya also asks a running Silk to quit at launch: start Silk, then Akoya, and Silk's menu bar item disappears. Without this both apps would paste every dictation twice.)
-- [ ] The bundle id changed (`com.rohitnikamm.silk` to `com.rohitnikamm.akoya`), so macOS treats Akoya as a new app: Microphone, Accessibility and Input Monitoring must be granted again once. Onboarding walks through this; the old "Silk" entries in the privacy lists can be removed.
+- [ ] The bundle id changed (`com.rohitnikamm.silk` to `com.rohitnikamm.akoya`), so macOS treats Akoya as a new app: Microphone and Accessibility must be granted again once. Onboarding walks through this; the old "Silk" entries in the privacy lists can be removed.
 - [ ] If `~/Library/Application Support/Silk/Models` existed, it is moved to `~/Library/Application Support/Akoya/Models` on first launch (`ls` both), with no ~450 MB re-download. The dropdown chip says "Preparing…" while the existing model loads (it may skip the download percentage entirely), then Ready. Old Silk preferences are untouched.
 
 ## Onboarding (first launch, or after the reset in Setup step 3)
 - [ ] The 420x520 dark card opens centred, with the dot logo, "akoya", and "Get started". Drag it by its background; the x in the corner closes it.
-- [ ] "Get started" goes to the first missing permission. Order is Microphone, then Accessibility, then Input Monitoring; already-granted ones are skipped. Chips at the top show granted (green), current (blue) and pending (grey).
+- [ ] "Get started" goes to the first missing permission. Order is Microphone, then Accessibility; already-granted ones are skipped. Chips at the top show granted (green), current (blue) and pending (grey).
 - [ ] Microphone: "Allow" shows the system prompt. After you click Allow in the prompt, the step advances on its own within about half a second. (If it was denied earlier, the button opens the Microphone pane instead.)
-- [ ] Accessibility and Input Monitoring: "Open System Settings" opens the right pane with Akoya in the list (with the new app icon). The status reads "Waiting for the switch…"; flipping Akoya on advances to the next step on its own, with no button press.
+- [ ] Accessibility: "Open System Settings" opens the right pane with Akoya in the list (with the new app icon). The status reads "Waiting for the switch…"; flipping Akoya on advances to the next step on its own, with no button press. The hotkey and dictation work from this permission alone.
 - [ ] A subtle haptic tap fires each time a permission turns green (trackpad Mac), and a different one when you press Done.
 - [ ] While the model is still downloading, a "Getting the speech model ready…" line (with %) shows on steps 2 and 3.
 - [ ] Try it: the hotkey hint names your current key ("Hold Right ⌥ and say anything", or "Tap" in toggle mode). Holding it makes the blue glow rise from the bottom edge following your voice, and the grid brightens; your words appear live while you speak, then settle as the final text. Nothing is pasted anywhere, even with another app frontmost.
 - [ ] Say nothing or something unintelligible: "Didn’t catch that — try again" appears.
 - [ ] "Done" is quiet and does nothing until the first transcript arrives; after that it turns light and closes setup. "Skip" closes setup without needing a dictation. Either way setup is not shown on the next launch (if all permissions are still granted).
-- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete: the next launch restarts at the welcome step if no permission is on yet, or at the first missing permission if at least one already is. The exception is the x on the Try it step, or with all three permissions on, which counts as Skip (not shown again). After Done or Skip, a later launch with a permission missing resumes at the first missing permission.
+- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete: the next launch restarts at the welcome step if no permission is on yet, or at the first missing permission if at least one already is. The exception is the x on the Try it step, or with both permissions on, which counts as Skip (not shown again). After Done or Skip, a later launch with a permission missing resumes at the first missing permission.
 - [ ] When the last permission is switched on in System Settings, the setup window comes to the front on the Try it step by itself (Done and Return work without an extra click).
 - [ ] Try it: Return presses Done once it is light (after the first transcript). A "Didn’t catch that" hint from a failed paste-mode dictation made earlier is not shown when the step opens.
 - [ ] Model failure during setup (network off on a fresh model): steps 2 and 3 show "The speech model couldn’t load." with a small Retry that restarts the download. The dropdown with a permission still missing shows "Setup needed" with both "Finish setup" and "Retry".
@@ -46,7 +46,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 
 ## App icon
 - [ ] Finder shows `build/Akoya.app` with the dark rounded icon and the glowing dot logo.
-- [ ] System Settings > Privacy & Security > Microphone / Accessibility / Input Monitoring list "Akoya" with that icon, so it is easy to find.
+- [ ] System Settings > Privacy & Security > Microphone / Accessibility list "Akoya" with that icon, so it is easy to find.
 
 ## Core flow
 - [ ] Hold Right Option, speak, release: waveform while speaking, scanning bar, then text appears in TextEdit, Safari, Slack, Terminal and VS Code.

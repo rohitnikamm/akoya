@@ -23,17 +23,20 @@ struct PermissionsTests {
         #expect(action(.microphone, .restricted) == .openSettings)
     }
 
-    @Test func accessibilityAndInputMonitoringRequestThenOpen() {
+    @Test func accessibilityRequestsThenOpens() {
         #expect(action(.accessibility) == .requestThenOpenSettings)
-        #expect(action(.inputMonitoring) == .requestThenOpenSettings)
+    }
+
+    @Test func onlyMicrophoneAndAccessibilityAreNeeded() {
+        #expect(Permission.allCases == [.microphone, .accessibility])
     }
 
     @Test func performCallsHooksInOrder() {
         var calls: [String] = []
         Permissions.performOnboardingAction(
-            for: .inputMonitoring, microphoneStatus: .notDetermined, granted: false,
+            for: .accessibility, microphoneStatus: .notDetermined, granted: false,
             request: { calls.append("request \($0)") }, openSettings: { calls.append("open \($0)") })
-        #expect(calls == ["request inputMonitoring", "open inputMonitoring"])
+        #expect(calls == ["request accessibility", "open accessibility"])
 
         calls = []
         Permissions.performOnboardingAction(

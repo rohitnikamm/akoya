@@ -18,17 +18,34 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
 
 @Test func allGrantedSkipsToTryIt() {
     var flow = OnboardingFlow()
-    flow.next(granted: grants([.microphone, .accessibility, .inputMonitoring]))
+    flow.next(granted: grants([.microphone, .accessibility]))
+    #expect(flow.step == .tryIt)
+}
+
+@Test func onlyMicrophoneAndAccessibilityArePermissions() {
+    #expect(Permission.allCases == [.microphone, .accessibility])
+}
+
+@Test func onboardingGoesWelcomeMicAccessibilityTryIt() {
+    var flow = OnboardingFlow()
+    #expect(flow.step == .welcome)
+    flow.next(granted: grants([]))
+    #expect(flow.step == .permission(.microphone))
+    let micAdvanced = flow.refresh(granted: grants([.microphone]))
+    #expect(micAdvanced)
+    #expect(flow.step == .permission(.accessibility))
+    let axAdvanced = flow.refresh(granted: grants([.microphone, .accessibility]))
+    #expect(axAdvanced)
     #expect(flow.step == .tryIt)
 }
 
 @Test func refreshAdvancesAndReports() {
     var flow = OnboardingFlow(start: .permission(.microphone))
-    // Microphone turned on; Accessibility was already on, so Input Monitoring is next.
-    let advanced1 = flow.refresh(granted: grants([.microphone, .accessibility]))
+    // Microphone turned on; Accessibility is still off, so it is next.
+    let advanced1 = flow.refresh(granted: grants([.microphone]))
     #expect(advanced1)
-    #expect(flow.step == .permission(.inputMonitoring))
-    let advanced2 = flow.refresh(granted: grants([.microphone, .accessibility, .inputMonitoring]))
+    #expect(flow.step == .permission(.accessibility))
+    let advanced2 = flow.refresh(granted: grants([.microphone, .accessibility]))
     #expect(advanced2)
     #expect(flow.step == .tryIt)
 }
@@ -40,7 +57,7 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
     #expect(flow.step == .permission(.accessibility))
     // Off a permission step there is nothing to advance.
     var welcome = OnboardingFlow()
-    let advanced4 = welcome.refresh(granted: grants([.microphone, .accessibility, .inputMonitoring]))
+    let advanced4 = welcome.refresh(granted: grants([.microphone, .accessibility]))
     #expect(!advanced4)
     #expect(welcome.step == .welcome)
     var tryIt = OnboardingFlow(start: .tryIt)
@@ -49,7 +66,7 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
     #expect(tryIt.step == .tryIt)
 }
 
-@Test func orderIsMicAxInput() {
+@Test func orderIsMicAx() {
     var flow = OnboardingFlow()
     flow.next(granted: grants([]))
     #expect(flow.step == .permission(.microphone))
@@ -58,15 +75,15 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
     #expect(flow.step == .permission(.accessibility))
     let advanced7 = flow.refresh(granted: grants([.microphone, .accessibility]))
     #expect(advanced7)
-    #expect(flow.step == .permission(.inputMonitoring))
+    #expect(flow.step == .tryIt)
     #expect(OnboardingFlow.firstIncomplete(granted: grants([.accessibility])) == .permission(.microphone))
-    #expect(OnboardingFlow.firstIncomplete(granted: grants([.microphone, .inputMonitoring])) == .permission(.accessibility))
+    #expect(OnboardingFlow.firstIncomplete(granted: grants([])) == .permission(.microphone))
 }
 
 @Test func firstIncompleteForReopen() {
     // "Finish setup" reopens at the first missing permission, or the practice step when none is.
-    #expect(OnboardingFlow.firstIncomplete(granted: grants([.microphone, .accessibility])) == .permission(.inputMonitoring))
-    #expect(OnboardingFlow.firstIncomplete(granted: grants([.microphone, .accessibility, .inputMonitoring])) == .tryIt)
+    #expect(OnboardingFlow.firstIncomplete(granted: grants([.microphone])) == .permission(.accessibility))
+    #expect(OnboardingFlow.firstIncomplete(granted: grants([.microphone, .accessibility])) == .tryIt)
     let reopened = OnboardingFlow(start: OnboardingFlow.firstIncomplete(granted: grants([.microphone])))
     #expect(reopened.step == .permission(.accessibility))
 }
@@ -74,7 +91,7 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
 @Test func launchStartRules() {
     let none = grants([])
     let some = grants([.microphone])
-    let all = grants([.microphone, .accessibility, .inputMonitoring])
+    let all = grants([.microphone, .accessibility])
     // First launch with nothing granted: the whole flow.
     #expect(OnboardingFlow.launchStart(completed: false, granted: none) == .welcome)
     // Relaunch mid-onboarding with something already granted: skip the welcome.
@@ -284,7 +301,7 @@ private final class OnboardingRig {
     #expect(state.taps == 0)
     state.on.insert(.accessibility)
     viewModel.poll()
-    #expect(viewModel.flow.step == .permission(.inputMonitoring))
+    #expect(viewModel.flow.step == .tryIt)
     #expect(viewModel.isGranted(.accessibility))
     #expect(state.taps == 1)
     viewModel.poll()
@@ -343,7 +360,7 @@ private func viewModel(
 
 @MainActor @Test func closeCountsAsSkipOnTryItOrWhenEverythingIsGranted() {
     let rig = OnboardingRig()
-    let all: Set<Permission> = [.microphone, .accessibility, .inputMonitoring]
+    let all: Set<Permission> = [.microphone, .accessibility]
     #expect(viewModel(start: .tryIt, granted: all, rig: rig).closeExit == .skipped)
     // Try it is the last step, so it counts even if a grant has since been revoked.
     #expect(viewModel(start: .tryIt, granted: [], rig: rig).closeExit == .skipped)
@@ -373,17 +390,17 @@ private func viewModel(
 }
 
 @MainActor @Test func reachingTryItBringsTheWindowForwardOnce() {
-    final class Grants { var on: Set<Permission> = [.microphone, .accessibility]; var fronted = 0 }
+    final class Grants { var on: Set<Permission> = [.microphone]; var fronted = 0 }
     let state = Grants()
     let rig = OnboardingRig()
     let model = OnboardingViewModel(
-        start: .permission(.inputMonitoring), modelState: .ready,
+        start: .permission(.accessibility), modelState: .ready,
         tryIt: TryItSession(coordinator: rig.coordinator, model: rig.model),
         isGranted: { state.on.contains($0) }, microphoneStatus: { .authorized },
         grantedHaptic: {}, reachedTryIt: { state.fronted += 1 })
     model.poll()
     #expect(state.fronted == 0)
-    state.on.insert(.inputMonitoring)
+    state.on.insert(.accessibility)
     model.poll()
     #expect(model.flow.step == .tryIt)
     #expect(state.fronted == 1)
