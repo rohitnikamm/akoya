@@ -65,7 +65,9 @@ scripts/build-app.sh release "$VERSION"
 
 # A release must carry the stable self-signed identity, or users re-grant permissions on every update.
 # "Silk Self-Signed" is the pre-rename identity and is still accepted.
-if codesign -dvv build/Akoya.app 2>&1 | grep -qE "Authority=(Akoya|Silk) Self-Signed"; then
+# Capture first: grep -q closing the pipe early would SIGPIPE codesign and fail under pipefail.
+SIGNATURE="$(codesign -dvv build/Akoya.app 2>&1 || true)"
+if grep -qE "Authority=(Akoya|Silk) Self-Signed" <<<"$SIGNATURE"; then
     :
 elif [ "$DRY_RUN" -eq 1 ]; then
     echo "WARNING: build/Akoya.app is signed ad-hoc, not with 'Akoya Self-Signed' (or 'Silk Self-Signed'); a real release would refuse. Run scripts/make-signing-cert.sh first." >&2

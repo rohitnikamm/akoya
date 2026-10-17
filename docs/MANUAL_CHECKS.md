@@ -19,9 +19,9 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] A subtle haptic tap fires each time a permission turns green (trackpad Mac), and a different one when you press Done.
 - [ ] While the model is still downloading, a "Getting the speech model ready…" line (with %) shows on steps 2 and 3.
 - [ ] Try it: the hotkey hint names your current key ("Hold Right ⌥ and say anything", or "Tap" in toggle mode). Holding it makes the blue glow rise from the bottom edge following your voice, and the grid brightens; your words appear live while you speak, then settle as the final text. Nothing is pasted anywhere, even with another app frontmost.
-- [ ] Say nothing or whisper nothing intelligible: "Didn't catch that, try again" appears.
+- [ ] Say nothing or something unintelligible: "Didn’t catch that — try again" appears.
 - [ ] "Done" is quiet and does nothing until the first transcript arrives; after that it turns light and closes setup. "Skip" closes setup without needing a dictation. Either way setup is not shown on the next launch (if all permissions are still granted).
-- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card), and the next launch resumes at the first missing permission or the welcome step.
+- [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete, so the next launch restarts at the welcome step. Only after Done or Skip does a later launch with a permission missing resume at the first missing permission.
 - [ ] Reduce Motion on (System Settings > Accessibility > Display): the glow still follows the voice but without the breathing animation.
 
 ## Dropdown
@@ -36,7 +36,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Footer: "Settings" closes the panel and opens the "Akoya Settings" window; the round Quit button quits.
 
 ## Settings
-- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey, mode), Appearance (waveform, red tint, hide icon, expand animation) and General (launch at login), with blue toggles.
+- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey, mode), Appearance (waveform, red tint, hide icon, expand animation) and General (launch at login), and check the toggles show the blue accent when switched on.
 - [ ] Right Command and Right Control work when chosen; toggle mode works; Launch at login adds Akoya to System Settings > General > Login Items.
 - [ ] Appearance changes (look, red tint, hide idle icon, expand animation) apply live.
 
