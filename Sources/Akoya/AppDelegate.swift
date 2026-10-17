@@ -18,11 +18,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator: AppCoordinator
     private let hotkeyMonitor: HotkeyMonitor
     private let panelStatus = PanelStatus()
+    private let onboarding: OnboardingWindowController
     private var statusController: StatusItemController?
     private var panel: StatusPanelController?
 
     private var modelState: ModelState = .notReady {
-        didSet { panelStatus.modelState = modelState }
+        didSet {
+            panelStatus.modelState = modelState
+            onboarding.modelState = modelState
+        }
     }
 
     private var hotkeyRetryTimer: Timer?
@@ -39,6 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.model = model
         self.transcriber = transcriber
         self.coordinator = coordinator
+        onboarding = OnboardingWindowController(
+            coordinator: coordinator, model: model, settings: settings,
+            hotkeyName: { settings.hotkey.keycapLabel })
         hotkeyMonitor = HotkeyMonitor(
             key: { settings.hotkey },
             isRecording: { coordinator.isRecording },
@@ -67,16 +74,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.togglePanel(from: button)
         }
 
-        if !Permissions.allGranted { windows.showOnboarding() }
+        showOnboardingIfNeeded()
         migrateModelsFolder()
         prepareModel()
         startHotkeyMonitor()
+    }
+
+    /// Practice mode must not outlive the onboarding window.
+    func applicationWillTerminate(_ notification: Notification) {
+        onboarding.close()
     }
 
     /// Reopening the app (e.g. from Finder) is the way back in when the idle icon is hidden.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         windows.showSettings(settings)
         return false
+    }
+
+    // MARK: - Onboarding
+
+    /// First launch shows the whole flow; later launches with a permission missing resume at
+    /// the first missing one.
+    private func showOnboardingIfNeeded() {
+        guard !settings.onboardingCompleted || !Permissions.allGranted else { return }
+        onboarding.show(
+            startAt: settings.onboardingCompleted
+                ? OnboardingFlow.firstIncomplete(granted: Permissions.isGranted) : .welcome)
     }
 
     // MARK: - Model
@@ -153,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             retryModel: { [weak self] in self?.prepareModel() },
             finishSetup: { [weak self] in
                 self?.panel?.close()
-                self?.windows.showOnboarding()
+                self?.onboarding.show(startAt: OnboardingFlow.firstIncomplete(granted: Permissions.isGranted))
             },
             copyLast: { text in
                 let pasteboard = NSPasteboard.general

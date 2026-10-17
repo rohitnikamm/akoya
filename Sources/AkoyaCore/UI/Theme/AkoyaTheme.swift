@@ -48,6 +48,37 @@ public enum AkoyaTheme {
     /// Download progress track, white 0.10.
     public static let progressTrack = Color.white.opacity(0.10)
 
+    // Onboarding (docs/design/onboarding-screens-1-2-mockup.html, indigo translated to the
+    // blue family; try-it values from blue-glow-target.html).
+    /// Light pill button ("Get started", primary "Done"), `#F1F1F6` with surface-coloured text.
+    public static let buttonLight = Color(hex: 0xF1F1F6)
+    /// Quiet pill button ("Done" before the first transcript), white 0.12 with white 0.7 text.
+    public static let buttonQuiet = Color.white.opacity(0.12)
+    public static let buttonQuietText = Color.white.opacity(0.7)
+    /// Permission chips: granted (green), active (blue), pending (grey).
+    public static let chipGrantedFill = Color(rgba: 52, 199, 89, 0.15)
+    public static let chipGrantedText = Color(hex: 0x86EFAC)
+    public static let chipGrantedDot = Color(hex: 0x4ADE80)
+    public static let chipActiveFill = Color(rgba: 96, 165, 250, 0.2)
+    public static let chipPendingFill = Color.white.opacity(0.06)
+    public static let chipPendingText = Color.white.opacity(0.45)
+    public static let chipPendingDot = Color.white.opacity(0.3)
+    /// The amber dot beside "Waiting for the switch…", `#FBBF24`.
+    public static let waiting = Color(hex: 0xFBBF24)
+    /// Round permission icon well: `rgba(59,130,246,0.18)` with a 1 pt `rgba(147,197,253,0.28)` ring.
+    public static let iconWell = Color(rgba: 59, 130, 246, 0.18)
+    public static let iconWellRing = Color(rgba: 147, 197, 253, 0.28)
+    /// Page dots: the current page white, the others white 0.3.
+    public static let pageDotInactive = Color.white.opacity(0.3)
+    /// Onboarding body copy levels: welcome line 0.7, permission reason 0.68, status 0.6,
+    /// eyebrow and quiet links 0.5, placeholder 0.4.
+    public static let textOnboardingBody = Color.white.opacity(0.7)
+    public static let textReason = Color.white.opacity(0.68)
+    public static let textEyebrow = Color.white.opacity(0.5)
+    public static let textPlaceholder = Color.white.opacity(0.4)
+    /// Try-it hotkey line, white 0.8.
+    public static let textTryItHint = Color.white.opacity(0.8)
+
     /// Corner radii; always use them with `RoundedRectangle(style: .continuous)`.
     public static let panel: CGFloat = 30
     public static let card: CGFloat = 24

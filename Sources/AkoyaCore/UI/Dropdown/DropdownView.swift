@@ -30,7 +30,7 @@ public struct DropdownView: View {
 
     @ObservedObject private var model: WaveformModel
     @ObservedObject private var settings: AkoyaSettings
-    @StateObject private var glow: StatusGlowDriver
+    @StateObject private var glow: VoiceGlowDriver
     private let modelState: ModelState
     private let permissionsGranted: Bool
     private let actions: DropdownActions
@@ -44,7 +44,7 @@ public struct DropdownView: View {
         self.modelState = modelState
         self.permissionsGranted = permissionsGranted
         self.actions = actions
-        _glow = StateObject(wrappedValue: StatusGlowDriver(model: model))
+        _glow = StateObject(wrappedValue: VoiceGlowDriver(model: model))
     }
 
     public var body: some View {
@@ -82,7 +82,7 @@ private struct StatusCard: View {
     let state: StatusCardState
     let hotkey: HotkeyKey
     let mode: DictationMode
-    /// Rim glow opacity (0 at rest); see `StatusGlowDriver`.
+    /// Rim glow opacity (0 at rest); see `VoiceGlowDriver`.
     let glowOpacity: Double
     let retry: () -> Void
     let finishSetup: () -> Void
@@ -382,81 +382,11 @@ extension DictationMode {
 
 extension HotkeyKey {
     /// Short keycap label, e.g. "Right ⌘" (the mockup's form of `displayName`).
-    fileprivate var keycapLabel: String {
+    public var keycapLabel: String {
         switch self {
         case .rightOption: "Right ⌥"
         case .rightCommand: "Right ⌘"
         case .rightControl: "Right ⌃"
         }
-    }
-}
-
-// MARK: - Glow driver
-
-/// Smooths the status card's rim-glow opacity with `GlowEnvelope` at about 60 Hz, ticking only
-/// while recording and while the glow fades out afterwards. Starts settled at the model's
-/// current state, so a panel opened mid-recording glows at once.
-@MainActor
-final class StatusGlowDriver: ObservableObject {
-    private static let tickInterval: TimeInterval = 1.0 / 60.0
-    /// Below this the fade-out is finished and the glow is dropped.
-    private static let restThreshold = 0.002
-
-    @Published private(set) var opacity: Double = 0
-
-    private weak var model: WaveformModel?
-    private var envelope = GlowEnvelope()
-    private var timer: Timer?
-    private var lastTick = Date()
-    private var phaseSubscription: AnyCancellable?
-
-    init(model: WaveformModel) {
-        self.model = model
-        // A step far longer than either time constant lands on the target.
-        opacity = envelope.step(target: Self.target(for: model), dt: 60)
-        // `@Published` emits in willSet, so use the delivered phase, not `model.phase`.
-        phaseSubscription = model.$phase.sink { [weak self] phase in
-            if phase == .recording { self?.startTicking() }
-        }
-    }
-
-    private static func target(for model: WaveformModel) -> Double {
-        GlowEnvelope.opacity(
-            level: model.voiceLevel, recording: model.phase == .recording,
-            reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
-    }
-
-    private func startTicking() {
-        guard timer == nil else { return }
-        lastTick = Date()
-        let timer = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] timer in
-            // Stop when the panel's view (and this driver with it) has gone.
-            guard let self else { return timer.invalidate() }
-            MainActor.assumeIsolated { self.tick() }
-        }
-        // .common so the glow keeps moving during event tracking.
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
-    }
-
-    private func tick() {
-        guard let model else { return stopTicking() }
-        let now = Date()
-        let dt = now.timeIntervalSince(lastTick)
-        lastTick = now
-        let target = Self.target(for: model)
-        // Reduce Motion: a fixed glow while recording, switched rather than breathing.
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        var value = envelope.step(target: target, dt: reduceMotion ? 60 : dt)
-        if target == 0, value < Self.restThreshold {
-            value = envelope.step(target: 0, dt: 60)
-            stopTicking()
-        }
-        if value != opacity { opacity = value }
-    }
-
-    private func stopTicking() {
-        timer?.invalidate()
-        timer = nil
     }
 }
