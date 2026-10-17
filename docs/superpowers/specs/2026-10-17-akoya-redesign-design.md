@@ -88,6 +88,28 @@ Dropdown status card (~292×170): same character, roughly half the blur/spread
 smoothed), 0 at rest. Attack ≈ 100 ms, release ≈ 450 ms, so it breathes rather than flickers.
 With *Reduce Motion* on: fixed 0.5 while recording, no breathing.
 
+## Palette change: electric blue, bottom-weighted *(Rohit's decision, supersedes indigo)*
+
+Rohit switched the glow and accents from indigo/violet to **electric blue with light coming
+from the bottom**, after a second reference (a dark dashboard card lit from below). This
+supersedes the indigo values in "Visual language" wherever they conflict:
+
+- Target renders: `docs/design/blue-glow-target.png` (Try-it card at rest / mid / peak, and
+  the dropdown card at listening peak). Exact CSS in `docs/design/blue-glow-target.html`.
+- Card base `#03060F` (onboarding) / `#020611` (dropdown card while glowing); panel gradient
+  `#0E1424` → `#070A12`; inner pills `rgba(30,36,58,0.6–0.8)`.
+- V1 top gradient becomes blue-tinted: `rgba(40,90,200,0.18)` at the top centre fading out by
+  ~60% (screens 1–2 and the dropdown card at rest).
+- Rim glow: brightest along the **bottom** edge (near-white `rgba(200,228,255,0.95)` right at
+  the edge → `rgba(90,160,255)` → electric `rgba(30,100,255)` → `rgba(20,70,220)` rising about
+  a quarter of the card's height), with only a thin gentle blue rim on the sides and top.
+  Compact scale for the dropdown card is in the same HTML file.
+- Faint blue grid (`rgba(80,140,255,0.07)`, 34 pt pitch) in the lower ~55% of the Try-it card,
+  fading upward; its opacity rises with the glow.
+- Accents: selected segment / primary button electric blue (`#2F6BFF` → `#1D4ED8`); dots and
+  small accents light blue (`#BFDBFE` / `#93C5FD`); Copy link `#93C5FD`.
+- Voice-driven intensity, timings and Reduce Motion rules are unchanged.
+
 ## Dropdown panel
 
 - Clicking the menu bar item toggles a borderless, **non-activating** floating panel anchored
