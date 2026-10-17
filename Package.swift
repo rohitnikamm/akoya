@@ -26,7 +26,8 @@ let package = Package(
     targets: [
         .target(
             name: "AkoyaCore",
-            dependencies: [.product(name: "FluidAudio", package: "FluidAudio")]
+            dependencies: [.product(name: "FluidAudio", package: "FluidAudio")],
+            resources: [.copy("Resources/Fonts")]
         ),
         .executableTarget(name: "Akoya", dependencies: ["AkoyaCore"]),
         .testTarget(
