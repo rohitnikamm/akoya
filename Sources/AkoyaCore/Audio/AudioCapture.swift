@@ -36,6 +36,13 @@ private final class CaptureBuffer: @unchecked Sendable {
         return windower.append(chunk)
     }
 
+    /// Copies the samples captured so far, leaving them in place for the final `take()`.
+    func snapshot() -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
+        return samples
+    }
+
     func take() -> [Float] {
         lock.lock()
         defer { lock.unlock() }
@@ -150,6 +157,16 @@ public final class AudioCapture: AudioRecording {
         teardownEngine()
         isRecording = false
         return buffer.take()
+    }
+
+    /// The samples captured so far, copied without clearing them (used by the live preview).
+    public func snapshot() -> [Float] {
+        buffer.snapshot()
+    }
+
+    /// Test seam: appends samples as the audio tap would, without an engine.
+    func appendSamplesForTesting(_ samples: [Float]) {
+        _ = buffer.append(samples)
     }
 
     public func cancel() {

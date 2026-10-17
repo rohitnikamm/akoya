@@ -12,6 +12,11 @@ public final class WaveformModel: ObservableObject {
     @Published public var redTint = false
     @Published public var hideIdleIcon = false
     @Published public var expandAnimation = false
+    /// Current voice loudness, 0...1 (`(level step - 1) / 7` of the latest RMS); 0 when not
+    /// recording. Drives the onboarding rim glow.
+    @Published public var voiceLevel: Double = 0
+    /// The text of the last successful paste-mode dictation. In memory only.
+    @Published public var lastDictation: String?
 
     /// When `phase` last changed. Drives the scanner sweep and the error flash.
     /// Deliberately not `@Published`: it only matters while the timeline is ticking.

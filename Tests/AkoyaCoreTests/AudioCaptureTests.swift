@@ -84,3 +84,14 @@ import Testing
     let mean = steady.reduce(0, +) / Float(steady.count)
     #expect(mean > 0.1 && mean < 1.0)
 }
+
+@MainActor
+@Test func snapshotDoesNotClear() {
+    let capture = AudioCapture(testingRecording: true)
+    capture.appendSamplesForTesting([0.1, 0.2, 0.3])
+    #expect(capture.snapshot() == [0.1, 0.2, 0.3])
+    capture.appendSamplesForTesting([0.4])
+    #expect(capture.snapshot() == [0.1, 0.2, 0.3, 0.4])
+    #expect(capture.stop() == [0.1, 0.2, 0.3, 0.4])
+    #expect(capture.snapshot().isEmpty)
+}

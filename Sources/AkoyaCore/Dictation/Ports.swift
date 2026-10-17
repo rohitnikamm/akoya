@@ -10,6 +10,7 @@ public enum WaveLook: String, CaseIterable, Sendable { case pixel, solid }
     var onInterrupted: (() -> Void)? { get set }      // device change mid-recording
     func start() throws
     func stop() -> [Float]                            // 16 kHz mono samples
+    func snapshot() -> [Float]                        // samples so far, without clearing them
     func cancel()
 }
 public protocol Transcribing: Sendable { func transcribe(_ samples: [Float]) async throws -> String }

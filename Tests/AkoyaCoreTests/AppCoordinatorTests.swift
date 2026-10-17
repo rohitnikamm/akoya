@@ -21,6 +21,7 @@ private final class FakeAudio: AudioRecording {
         if let startError { throw startError }
     }
     func stop() -> [Float] { stopCount += 1; return samples }
+    func snapshot() -> [Float] { samples }
     func cancel() { cancelCount += 1 }
 }
 
@@ -384,4 +385,285 @@ private final class SuspendingInserter: TextInserting {
     inserter.finish()
     await coordinator.pendingWork?.value
     #expect(coordinator.phase == .idle)
+}
+
+// MARK: - Voice level and last dictation
+
+@MainActor @Test func voiceLevelFollowsRMS() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    #expect(rig.model.voiceLevel == 1)
+    rig.audio.onLevel?(0)
+    #expect(rig.model.voiceLevel == 0)
+    rig.audio.onLevel?(1.0)
+    #expect(rig.model.voiceLevel == 1)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.model.voiceLevel == 0)
+    await rig.coordinator.pendingWork?.value
+}
+
+@MainActor @Test func voiceLevelResetsOnCancel() {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    rig.coordinator.handle(.cancel)
+    #expect(rig.model.voiceLevel == 0)
+}
+
+@MainActor @Test func voiceLevelResetsOnInterruption() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    rig.audio.onInterrupted?()
+    #expect(rig.model.voiceLevel == 0)
+    await rig.coordinator.pendingWork?.value
+}
+
+@MainActor @Test func lastDictationSetAfterInsert() async {
+    let rig = Rig(transcript: "  hello world ")
+    #expect(rig.model.lastDictation == nil)
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.lastDictation == "hello world")
+}
+
+@MainActor @Test func lastDictationUnchangedWhenInsertFails() async {
+    let rig = Rig()
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.lastDictation == "hello")
+    rig.transcriber.result = "second"
+    rig.inserter.error = FakeFailure()
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.lastDictation == "hello")
+}
+
+@MainActor @Test func pasteModeNeverPreviews() async {
+    let rig = Rig()
+    rig.audio.samples = Array(repeating: 0.1, count: 32_000)
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.tickLivePreview()
+    rig.clock.advance(1)
+    rig.coordinator.tickLivePreview()
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.count == 1)
+}
+
+// MARK: - Practice mode
+
+@MainActor
+private final class PracticeLog {
+    var events: [(text: String, isFinal: Bool)] = []
+    var texts: [String] { events.map(\.text) }
+    var finals: [Bool] { events.map(\.isFinal) }
+}
+
+/// A transcriber whose calls suspend until the test finishes them, in any order.
+private final class GatedTranscriber: Transcribing, @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuations: [CheckedContinuation<String, Never>] = []
+    var callCount: Int { lock.withLock { continuations.count } }
+
+    func transcribe(_ samples: [Float]) async throws -> String {
+        await withCheckedContinuation { continuation in
+            lock.withLock { continuations.append(continuation) }
+        }
+    }
+
+    func finish(call index: Int, with text: String) {
+        let continuation = lock.withLock { continuations[index] }
+        continuation.resume(returning: text)
+    }
+}
+
+@MainActor
+private func waitForCalls(_ transcriber: GatedTranscriber, _ count: Int) async {
+    while transcriber.callCount < count { await Task.yield() }
+}
+
+@MainActor
+private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
+    let rig = Rig(transcript: transcript)
+    rig.audio.samples = Array(repeating: 0.1, count: 16_000) // 1 s of audio
+    let log = PracticeLog()
+    rig.coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
+    return (rig, log)
+}
+
+@MainActor @Test func practiceEmitsPartials() async {
+    let (rig, log) = practiceRig(transcript: " partial ")
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    #expect(log.texts == ["partial"])
+    #expect(log.finals == [false])
+    #expect(rig.transcriber.received.first?.count == 16_000)
+    #expect(rig.model.phase == .recording)
+}
+
+@MainActor @Test func practiceWaitsForSpeechAndMinAudio() async {
+    let (rig, log) = practiceRig()
+    rig.coordinator.handle(.pressed)
+    rig.coordinator.tickLivePreview() // silent so far
+    rig.audio.onLevel?(0.001)          // step 2: still below the gate
+    rig.coordinator.tickLivePreview()
+    rig.speak()
+    rig.audio.samples = Array(repeating: 0.1, count: 4_000) // 0.25 s
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(log.events.isEmpty)
+}
+
+@MainActor @Test func practicePartialsRespectTheInterval() async {
+    let (rig, log) = practiceRig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    rig.clock.advance(0.3)
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    #expect(log.events.count == 1)
+    rig.clock.advance(0.4)
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    #expect(log.events.count == 2)
+}
+
+@MainActor @Test func practiceSkipsEmptyPartials() async {
+    let (rig, log) = practiceRig(transcript: "   ")
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    #expect(rig.transcriber.received.count == 1)
+    #expect(log.events.isEmpty)
+}
+
+@MainActor @Test func practiceFinalReplacesPartial() async {
+    let (rig, log) = practiceRig(transcript: "par")
+    rig.model.lastDictation = "earlier"
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.tickLivePreview()
+    await rig.coordinator.pendingPreview?.value
+    rig.transcriber.result = " partial text "
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    #expect(log.texts == ["par", "partial text"])
+    #expect(log.finals == [false, true])
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.model.lastDictation == "earlier")
+    #expect(rig.model.phase == .idle)
+}
+
+@MainActor @Test func practiceNoOverlap() async {
+    let rig = Rig()
+    rig.audio.samples = Array(repeating: 0.1, count: 16_000)
+    let gated = GatedTranscriber()
+    let coordinator = AppCoordinator(
+        audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
+        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+    let log = PracticeLog()
+    coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
+    coordinator.handle(.pressed)
+    rig.speak()
+    coordinator.tickLivePreview()
+    await waitForCalls(gated, 1)
+    rig.clock.advance(1)
+    coordinator.tickLivePreview()
+    rig.clock.advance(1)
+    coordinator.tickLivePreview()
+    for _ in 0..<20 { await Task.yield() }
+    #expect(gated.callCount == 1)
+    gated.finish(call: 0, with: "one")
+    await coordinator.pendingPreview?.value
+    #expect(log.texts == ["one"])
+    // With the first pass done, the next tick may run again.
+    rig.clock.advance(1)
+    coordinator.tickLivePreview()
+    await waitForCalls(gated, 2)
+    gated.finish(call: 1, with: "two")
+    await coordinator.pendingPreview?.value
+    #expect(log.texts == ["one", "two"])
+}
+
+@MainActor @Test func practicePartialFinishingAfterReleaseIsDropped() async {
+    let rig = Rig()
+    rig.audio.samples = Array(repeating: 0.1, count: 16_000)
+    let gated = GatedTranscriber()
+    let coordinator = AppCoordinator(
+        audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
+        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+    let log = PracticeLog()
+    coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
+    coordinator.handle(.pressed)
+    rig.speak()
+    coordinator.tickLivePreview()
+    await waitForCalls(gated, 1)
+    rig.clock.advance(1)
+    coordinator.handle(.released)
+    await waitForCalls(gated, 2)
+    gated.finish(call: 1, with: "final")
+    await coordinator.pendingWork?.value
+    gated.finish(call: 0, with: "late partial")
+    await coordinator.pendingPreview?.value
+    #expect(log.texts == ["final"])
+    #expect(log.finals == [true])
+}
+
+@MainActor @Test func practiceEmptyFinalReportsEmptyAndShowsError() async {
+    let (rig, log) = practiceRig(transcript: "  ")
+    rig.dictate()
+    #expect(rig.model.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(log.texts == [""])
+    #expect(log.finals == [true])
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.model.phase == .idle)
+}
+
+@MainActor @Test func practiceSilentRecordingStillShowsErrorCue() async {
+    let (rig, log) = practiceRig()
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.model.phase == .error)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(log.events.isEmpty)
+}
+
+@MainActor @Test func resetToPasteAfterPractice() async {
+    let (rig, log) = practiceRig(transcript: "hello")
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.destination = .paste
+    rig.coordinator.tickLivePreview() // no longer previews
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.inserter.inserted == ["hello "])
+    #expect(rig.model.lastDictation == "hello")
+    #expect(log.events.isEmpty)
+    #expect(rig.transcriber.received.count == 1)
+}
+
+@MainActor @Test func practiceLoopTicksWhileRecordingAndStopsAfter() async {
+    let (rig, log) = practiceRig(transcript: "live")
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    // The real 0.1 s loop (not the manual hook) delivers a partial without any help.
+    for _ in 0..<200 where log.events.isEmpty { try? await Task.sleep(for: .milliseconds(20)) }
+    #expect(log.texts.first == "live")
+    rig.coordinator.handle(.cancel)
+    #expect(rig.coordinator.isPreviewLoopRunning == false)
 }
