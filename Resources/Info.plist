@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key><string>com.rohitnikamm.silk</string>
-    <key>CFBundleName</key><string>Silk</string>
-    <key>CFBundleDisplayName</key><string>Silk</string>
-    <key>CFBundleExecutable</key><string>Silk</string>
+    <key>CFBundleIdentifier</key><string>com.rohitnikamm.akoya</string>
+    <key>CFBundleName</key><string>Akoya</string>
+    <key>CFBundleDisplayName</key><string>Akoya</string>
+    <key>CFBundleExecutable</key><string>Akoya</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleShortVersionString</key><string>__VERSION__</string>
@@ -13,6 +13,6 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
-    <key>NSMicrophoneUsageDescription</key><string>Silk listens only while you hold the dictation key, and transcribes on this Mac.</string>
+    <key>NSMicrophoneUsageDescription</key><string>Akoya listens only while you hold the dictation key, and transcribes on this Mac.</string>
 </dict>
 </plist>

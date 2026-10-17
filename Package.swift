@@ -14,24 +14,24 @@ let needsTestingPluginPath = activeDeveloperDir?.trimmingCharacters(in: Characte
     && FileManager.default.fileExists(atPath: cltTestingPlugins)
 
 let package = Package(
-    name: "Silk",
+    name: "Akoya",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "SilkCore", targets: ["SilkCore"]),
-        .executable(name: "Silk", targets: ["Silk"]),
+        .library(name: "AkoyaCore", targets: ["AkoyaCore"]),
+        .executable(name: "Akoya", targets: ["Akoya"]),
     ],
     dependencies: [
         .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.4"),
     ],
     targets: [
         .target(
-            name: "SilkCore",
+            name: "AkoyaCore",
             dependencies: [.product(name: "FluidAudio", package: "FluidAudio")]
         ),
-        .executableTarget(name: "Silk", dependencies: ["SilkCore"]),
+        .executableTarget(name: "Akoya", dependencies: ["AkoyaCore"]),
         .testTarget(
-            name: "SilkCoreTests",
-            dependencies: ["SilkCore"],
+            name: "AkoyaCoreTests",
+            dependencies: ["AkoyaCore"],
             swiftSettings: needsTestingPluginPath
                 ? [.unsafeFlags(["-plugin-path", cltTestingPlugins])] : []
         ),

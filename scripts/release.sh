@@ -1,9 +1,9 @@
 #!/bin/bash
 # Usage: scripts/release.sh [--dry-run] VERSION
 #
-# Builds Silk.app, zips it, publishes a GitHub release, and updates the Homebrew tap.
+# Builds Akoya.app, zips it, publishes a GitHub release, and updates the Homebrew tap.
 # With --dry-run everything happens locally (build, zip, sha256, cask render to
-# build/silk.rb) and the gh/git commands that would publish are printed, not run.
+# build/akoya.rb) and the gh/git commands that would publish are printed, not run.
 # TAP_DIR overrides where the homebrew-tap clone lives (default: ../homebrew-tap).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -57,32 +57,33 @@ run() {
 }
 
 TAG="v$VERSION"
-ZIP="build/Silk-$TAG.zip"
-CASK_OUT="build/silk.rb"
+ZIP="build/Akoya-$TAG.zip"
+CASK_OUT="build/akoya.rb"
 TAP_DIR="${TAP_DIR:-$(cd .. && pwd)/homebrew-tap}"
 
 scripts/build-app.sh release "$VERSION"
 
 # A release must carry the stable self-signed identity, or users re-grant permissions on every update.
-if codesign -dvv build/Silk.app 2>&1 | grep -q "Authority=Silk Self-Signed"; then
+# "Silk Self-Signed" is the pre-rename identity and is still accepted.
+if codesign -dvv build/Akoya.app 2>&1 | grep -qE "Authority=(Akoya|Silk) Self-Signed"; then
     :
 elif [ "$DRY_RUN" -eq 1 ]; then
-    echo "WARNING: build/Silk.app is signed ad-hoc, not with 'Silk Self-Signed'; a real release would refuse. Run scripts/make-signing-cert.sh first." >&2
+    echo "WARNING: build/Akoya.app is signed ad-hoc, not with 'Akoya Self-Signed' (or 'Silk Self-Signed'); a real release would refuse. Run scripts/make-signing-cert.sh first." >&2
 else
-    echo "error: build/Silk.app is not signed with 'Silk Self-Signed'; refusing to release." >&2
+    echo "error: build/Akoya.app is not signed with 'Akoya Self-Signed' (or 'Silk Self-Signed'); refusing to release." >&2
     echo "Run scripts/make-signing-cert.sh once, then re-run this script." >&2
     exit 1
 fi
 
 rm -f "$ZIP"
-ditto -c -k --keepParent build/Silk.app "$ZIP"
+ditto -c -k --keepParent build/Akoya.app "$ZIP"
 SHA256="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 echo "$ZIP sha256: $SHA256"
 
-sed -e "s/__VERSION__/$VERSION/g" -e "s/__SHA256__/$SHA256/g" packaging/silk.rb > "$CASK_OUT"
+sed -e "s/__VERSION__/$VERSION/g" -e "s/__SHA256__/$SHA256/g" packaging/akoya.rb > "$CASK_OUT"
 echo "Rendered cask to $CASK_OUT"
 
-run gh release create "$TAG" "$ZIP" --target "$(git rev-parse HEAD)" --title "Silk $VERSION" --generate-notes
+run gh release create "$TAG" "$ZIP" --target "$(git rev-parse HEAD)" --title "Akoya $VERSION" --generate-notes
 
 if [ "$DRY_RUN" -eq 1 ]; then
     if [ -d "$TAP_DIR/.git" ]; then
@@ -90,9 +91,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
     else
         echo "[dry-run] git clone $TAP_REPO $TAP_DIR"
     fi
-    echo "[dry-run] mkdir -p $TAP_DIR/Casks && cp $CASK_OUT $TAP_DIR/Casks/silk.rb"
-    echo "[dry-run] git -C $TAP_DIR add Casks/silk.rb"
-    echo "[dry-run] git -C $TAP_DIR diff --cached --quiet || git -C $TAP_DIR commit -m \"silk $VERSION\""
+    echo "[dry-run] mkdir -p $TAP_DIR/Casks && cp $CASK_OUT $TAP_DIR/Casks/akoya.rb"
+    echo "[dry-run] git -C $TAP_DIR add Casks/akoya.rb"
+    echo "[dry-run] git -C $TAP_DIR diff --cached --quiet || git -C $TAP_DIR commit -m \"akoya $VERSION\""
     echo "[dry-run] git -C $TAP_DIR push"
     echo "Dry run complete; nothing was published."
     exit 0
@@ -104,8 +105,8 @@ else
     git clone "$TAP_REPO" "$TAP_DIR"
 fi
 mkdir -p "$TAP_DIR/Casks"
-cp "$CASK_OUT" "$TAP_DIR/Casks/silk.rb"
-git -C "$TAP_DIR" add Casks/silk.rb
-git -C "$TAP_DIR" diff --cached --quiet || git -C "$TAP_DIR" commit -m "silk $VERSION"
+cp "$CASK_OUT" "$TAP_DIR/Casks/akoya.rb"
+git -C "$TAP_DIR" add Casks/akoya.rb
+git -C "$TAP_DIR" diff --cached --quiet || git -C "$TAP_DIR" commit -m "akoya $VERSION"
 git -C "$TAP_DIR" push
-echo "Released Silk $VERSION"
+echo "Released Akoya $VERSION"

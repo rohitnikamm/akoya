@@ -1,9 +1,9 @@
 #!/bin/bash
-# Creates a self-signed code-signing identity "Silk Self-Signed" in the login keychain.
+# Creates a self-signed code-signing identity "Akoya Self-Signed" in the login keychain.
 # A stable identity keeps macOS privacy permissions valid across rebuilds.
 set -euo pipefail
 
-NAME="Silk Self-Signed"
+NAME="Akoya Self-Signed"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -24,10 +24,10 @@ CNF
 openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
     -keyout "$TMP/key.pem" -out "$TMP/cert.pem" -config "$TMP/openssl.cnf"
 openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-    -out "$TMP/silk.p12" -passout pass:silk -name "$NAME"
+    -out "$TMP/akoya.p12" -passout pass:akoya -name "$NAME"
 
-security import "$TMP/silk.p12" -k "$KEYCHAIN" -P silk -T /usr/bin/codesign
-CERT="$HOME/.silk-self-signed.pem"
+security import "$TMP/akoya.p12" -k "$KEYCHAIN" -P akoya -T /usr/bin/codesign
+CERT="$HOME/.akoya-self-signed.pem"
 cp "$TMP/cert.pem" "$CERT"
 
 echo

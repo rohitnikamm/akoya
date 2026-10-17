@@ -1,12 +1,12 @@
-# Silk
+# Akoya
 
 macOS menu bar dictation: hold a key, speak, release. Transcribes on-device (Parakeet via FluidAudio) and pastes into the focused app. Apple Silicon, macOS 14+.
 
 ## Install
 
-    brew install --cask rohitnikamm/tap/silk
+    brew install --cask rohitnikamm/tap/akoya
 
-Silk is not notarized. The cask removes the quarantine flag after install (as AeroSpace does), so it opens without a Gatekeeper prompt.
+Akoya is not notarized. The cask removes the quarantine flag after install (as AeroSpace does), so it opens without a Gatekeeper prompt.
 
 ## First run
 
@@ -20,11 +20,11 @@ For a stable code signature, so these permissions survive rebuilds and updates, 
 
 ## Usage
 
-Hold Right Option, speak, release. Silk transcribes and pastes. Press Esc while recording to cancel.
+Hold Right Option, speak, release. Akoya transcribes and pastes. Press Esc while recording to cancel.
 
 ## Development
 
     swift test                          # run the tests
-    scripts/build-app.sh debug          # -> build/Silk.app
+    scripts/build-app.sh debug          # -> build/Akoya.app
 
 Releases: `scripts/release.sh VERSION` builds, publishes a GitHub release, and updates the Homebrew tap. Use `--dry-run` to try it locally.
