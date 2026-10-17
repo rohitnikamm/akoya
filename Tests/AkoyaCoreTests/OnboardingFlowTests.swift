@@ -153,35 +153,41 @@ private func grants(_ granted: Set<Permission>) -> (Permission) -> Bool {
 // MARK: - Practice destination and closing
 
 @MainActor
-private final class SilentAudio: AudioRecording {
+private final class RigAudio: AudioRecording {
     var onLevel: ((Float) -> Void)?
     var onInterrupted: (() -> Void)?
+    private(set) var cancelCount = 0
     func start() throws {}
-    func stop() -> [Float] { [] }
+    func stop() -> [Float] { [0.1, 0.2, 0.3] }
     func snapshot() -> [Float] { [] }
-    func cancel() {}
+    func cancel() { cancelCount += 1 }
 }
 
-private struct NoTranscriber: Transcribing {
-    func transcribe(_ samples: [Float]) async throws -> String { "" }
+private struct WordsTranscriber: Transcribing {
+    func transcribe(_ samples: [Float]) async throws -> String { "practice words" }
 }
 
-private struct NoInserter: TextInserting {
-    func insert(_ text: String) async throws {}
+@MainActor
+private final class RecordingInserter: TextInserting {
+    private(set) var inserted: [String] = []
+    func insert(_ text: String) async throws { inserted.append(text) }
 }
 
 @MainActor
 private final class OnboardingRig {
     let model = WaveformModel()
     let settings = AkoyaSettings(defaults: UserDefaults(suiteName: "akoya-onboarding-test-\(UUID())")!)
+    let audio = RigAudio()
+    let inserter = RecordingInserter()
     let coordinator: AppCoordinator
     private(set) var finishedHaptics = 0
     private(set) var controller: OnboardingWindowController!
 
-    init() {
+    /// Toggle mode lets a test stop a recording without waiting out the minimum hold.
+    init(mode: DictationMode = .hold) {
         coordinator = AppCoordinator(
-            audio: SilentAudio(), transcriber: NoTranscriber(), inserter: NoInserter(), model: model,
-            mode: { .hold })
+            audio: audio, transcriber: WordsTranscriber(), inserter: inserter, model: model,
+            mode: { mode }, errorDisplay: 0.01)
         controller = OnboardingWindowController(
             coordinator: coordinator, model: model, settings: settings, hotkeyName: { "Right ⌥" },
             finishedHaptic: { [unowned self] in self.finishedHaptics += 1 })
@@ -257,4 +263,40 @@ private final class OnboardingRig {
     #expect(state.taps == 1)
     viewModel.poll()
     #expect(state.taps == 1)
+}
+
+@MainActor @Test func closingMidRecordingCancelsInsteadOfPasting() async {
+    for exit in [OnboardingExit.closed, .skipped, .done] {
+        let rig = OnboardingRig(mode: .toggle)
+        rig.coordinator.destination = .practice { _, _ in }
+        rig.coordinator.handle(.pressed)
+        rig.audio.onLevel?(1.0)  // speech, so the silence gate would let it through
+        #expect(rig.coordinator.phase == .recording)
+        rig.controller.finish(exit)
+        #expect(rig.coordinator.phase == .idle)
+        #expect(rig.audio.cancelCount == 1)
+        // The next tap starts a fresh recording rather than transcribing the practice speech.
+        rig.coordinator.handle(.pressed)
+        #expect(rig.coordinator.phase == .recording)
+        rig.coordinator.handle(.cancel)
+        await rig.coordinator.pendingWork?.value
+        #expect(rig.inserter.inserted.isEmpty)
+    }
+}
+
+@MainActor @Test func closingWhilePracticeTranscribesNeverPastesTheFinal() async {
+    final class Received { var finals: [String] = [] }
+    let received = Received()
+    let rig = OnboardingRig(mode: .toggle)
+    rig.coordinator.destination = .practice { text, isFinal in if isFinal { received.finals.append(text) } }
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    rig.coordinator.handle(.pressed)  // toggle stop: the final pass starts
+    #expect(rig.coordinator.phase == .transcribing)
+    rig.controller.close()
+    await rig.coordinator.pendingWork?.value
+    // The coordinator captured the practice destination when the recording stopped.
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(received.finals == ["practice words"])
+    #expect(rig.isPasting)
 }

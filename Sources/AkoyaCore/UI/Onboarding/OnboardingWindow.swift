@@ -84,6 +84,11 @@ public final class OnboardingWindowController {
     }
 
     func finish(_ exit: OnboardingExit) {
+        // The coordinator reads `destination` when a recording stops, so a practice recording
+        // still running (toggle mode, or a held key) would otherwise be pasted into whatever
+        // app is frontmost next. Drop it. A final pass already running keeps the practice
+        // destination it captured at stop time, so it is never pasted.
+        if coordinator.isRecording { coordinator.handle(.cancel) }
         coordinator.destination = .paste
         switch exit {
         case .done:
