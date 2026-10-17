@@ -17,11 +17,16 @@ public final class StatusPanelController {
     private let content: AnyView
     private let panel = DropdownPanel()
     private var hostingView: NSView?
-    private weak var anchorButton: NSStatusBarButton?
+    private weak var anchorButton: NSButton?
     private var contentSize: CGSize = .zero
     /// Event monitors and the Space observer, installed in `show` and removed in `close`.
     private var monitors: [Any] = []
     private var spaceObserver: NSObjectProtocol?
+
+    /// Called with `true` once the panel is shown and `false` once it is closed, on every path
+    /// (outside click, Esc, second click of the item, Space change, `close()` from an action).
+    /// The owner drives the menu bar item's selected look from this, so the two cannot drift.
+    public var onVisibilityChange: ((Bool) -> Void)?
 
     public init(content: some View) {
         self.content = AnyView(content)
@@ -29,7 +34,7 @@ public final class StatusPanelController {
 
     public var isShown: Bool { hostingView != nil }
 
-    public func toggle(relativeTo button: NSStatusBarButton) {
+    public func toggle(relativeTo button: NSButton) {
         if isShown {
             close()
         } else {
@@ -43,11 +48,11 @@ public final class StatusPanelController {
         panel.orderOut(nil)
         panel.contentView = nil
         hostingView = nil
-        anchorButton?.highlight(false)
         anchorButton = nil
+        onVisibilityChange?(false)
     }
 
-    private func show(relativeTo button: NSStatusBarButton) {
+    private func show(relativeTo button: NSButton) {
         anchorButton = button
         let root = content
             .fixedSize()
@@ -67,8 +72,8 @@ public final class StatusPanelController {
         // The window shadow follows the drawn alpha (the rounded panel), so draw first.
         panel.display()
         panel.invalidateShadow()
-        button.highlight(true)
         installMonitors()
+        onVisibilityChange?(true)
     }
 
     private func contentSizeChanged(to size: CGSize) {
@@ -94,7 +99,9 @@ public final class StatusPanelController {
 
     private func installMonitors() {
         // Global monitors only see other apps' events, so any click they report is outside
-        // the panel. Clicks on Akoya's own item arrive as its action and toggle instead.
+        // the panel. Clicks on Akoya's own item arrive as its action (on mouse-down) and toggle
+        // instead. The monitors are installed after the opening mouse-down was dispatched, so
+        // that event never reaches them.
         if let monitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
             handler: { [weak self] _ in MainActor.assumeIsolated { self?.close() } })
@@ -113,7 +120,8 @@ public final class StatusPanelController {
             monitors.append(monitor)
         }
         // Clicks in another Akoya window (Settings, onboarding). Clicks on the item itself are
-        // left to its action, which toggles; closing here first would reopen it.
+        // left to its action, which fires on mouse-down and toggles; this monitor runs before
+        // that dispatch, so closing here would make the action reopen the panel.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
             handler: { [weak self] event in

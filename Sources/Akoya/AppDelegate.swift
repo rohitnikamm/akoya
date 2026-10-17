@@ -74,6 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
+        // The item shows the system selected highlight exactly while the panel is open.
+        panel?.onVisibilityChange = { [weak self] visible in
+            self?.statusController?.setHighlighted(visible)
+        }
 
         quitLegacySilk()
         showOnboardingIfNeeded()
