@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// Shows SwiftUI content in a borderless, non-activating panel under the status item: opening
-/// it never takes focus from the frontmost app. It closes on a click outside, on Esc while it
-/// is key, and on a second click of the item.
+/// Shows SwiftUI content in a borderless, non-activating panel under the status item. The
+/// panel never becomes key, so the frontmost app keeps keyboard focus (and dictated ⌘V keeps
+/// landing there) even after a click inside. It closes on a click outside (in another app or
+/// another Akoya window), on Esc, on a Space change, and on a second click of the item.
 ///
 /// The content is hosted only while the panel is shown, so a closed panel does no rendering
 /// work while the waveform model changes during dictation.
@@ -18,8 +19,9 @@ public final class StatusPanelController {
     private var hostingView: NSView?
     private weak var anchorButton: NSStatusBarButton?
     private var contentSize: CGSize = .zero
-    private var mouseMonitor: Any?
-    private var keyMonitor: Any?
+    /// Event monitors and the Space observer, installed in `show` and removed in `close`.
+    private var monitors: [Any] = []
+    private var spaceObserver: NSObjectProtocol?
 
     public init(content: some View) {
         self.content = AnyView(content)
@@ -60,7 +62,7 @@ public final class StatusPanelController {
         hostingView = hosting
         panel.contentView = hosting
         place()
-        // Front without making it key or activating Akoya; a click inside makes it key.
+        // Front without making it key or activating Akoya.
         panel.orderFrontRegardless()
         // The window shadow follows the drawn alpha (the rounded panel), so draw first.
         panel.display()
@@ -93,33 +95,60 @@ public final class StatusPanelController {
     private func installMonitors() {
         // Global monitors only see other apps' events, so any click they report is outside
         // the panel. Clicks on Akoya's own item arrive as its action and toggle instead.
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        if let monitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+            handler: { [weak self] _ in MainActor.assumeIsolated { self?.close() } })
+        {
+            monitors.append(monitor)
+        }
+        // The panel is never key, so Esc goes to the frontmost app; watch for it globally
+        // (Akoya already has the Accessibility access this needs). The app sees Esc too.
+        if let monitor = NSEvent.addGlobalMonitorForEvents(
+            matching: .keyDown,
+            handler: { [weak self] event in
+                guard event.keyCode == Self.escapeKeyCode else { return }
+                MainActor.assumeIsolated { self?.close() }
+            })
+        {
+            monitors.append(monitor)
+        }
+        // Clicks in another Akoya window (Settings, onboarding). Clicks on the item itself are
+        // left to its action, which toggles; closing here first would reopen it.
+        if let monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown],
+            handler: { [weak self] event in
+                let window = event.window
+                MainActor.assumeIsolated {
+                    guard let self, let window, window !== self.panel,
+                          window !== self.anchorButton?.window
+                    else { return }
+                    self.close()
+                }
+                return event
+            })
+        {
+            monitors.append(monitor)
+        }
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
-        }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let isEscape = event.keyCode == Self.escapeKeyCode
-            let handled = MainActor.assumeIsolated { () -> Bool in
-                guard isEscape, let self, self.panel.isKeyWindow else { return false }
-                self.close()
-                return true
-            }
-            return handled ? nil : event
         }
     }
 
     private func removeMonitors() {
-        for monitor in [mouseMonitor, keyMonitor].compactMap({ $0 }) {
-            NSEvent.removeMonitor(monitor)
+        monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        if let spaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver)
+            self.spaceObserver = nil
         }
-        mouseMonitor = nil
-        keyMonitor = nil
     }
 }
 
-/// Borderless, non-activating, transparent floating panel at status bar level. It can become
-/// key (so Esc reaches it after a click inside) but never main, and never activates the app.
+/// Borderless, non-activating, transparent floating panel at status bar level. It never
+/// becomes key or main: if it did, a click inside would leave it key, and dictation's ⌘V and
+/// the user's typing would go to the panel instead of the frontmost app.
 private final class DropdownPanel: NSPanel {
     init() {
         super.init(
@@ -134,11 +163,11 @@ private final class DropdownPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
     }
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 
-/// Lets the first click on a control act right away, even before the panel is key.
+/// Lets clicks on controls act although the panel is never key.
 private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
