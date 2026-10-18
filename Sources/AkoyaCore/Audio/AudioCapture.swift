@@ -196,7 +196,7 @@ public final class AudioCapture: AudioRecording {
             return true
         }
         guard applyDevice(engine, device) else {
-            Self.log.error("Could not switch to \(device.name, privacy: .public); using the system default")
+            Self.log.error("Could not switch to \(device.name, privacy: .private); using the system default")
             return false
         }
         return true

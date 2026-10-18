@@ -103,6 +103,19 @@ private struct Rig {
     }
 }
 
+/// Polls `condition` (yielding to the main actor, then sleeping briefly) until it holds or
+/// `timeout` passes, so timer-driven tests wait on the outcome instead of a fixed delay.
+/// Returns whether the condition held.
+@MainActor
+private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while !condition() {
+        if ContinuousClock.now >= deadline { return false }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return true
+}
+
 // MARK: - Tests
 
 @MainActor @Test func holdPressReleaseInsertsTrimmedTextWithSpace() async {
@@ -154,6 +167,7 @@ private struct Rig {
     under.clock.advance(0.29)
     under.coordinator.handle(.released)
     #expect(under.coordinator.phase == .recording)
+    under.coordinator.handle(.cancel)
 
     let over = Rig()
     over.coordinator.handle(.pressed)
@@ -266,15 +280,15 @@ private struct Rig {
     #expect(rig.coordinator.phase == .idle)
 }
 
-@MainActor @Test func tapDoesNotStopOnMaxRecordingEarlierThanConfigured() async {
-    // A latched recording is still bounded by maxRecording.
+@MainActor @Test func latchedRecordingStopsAtMaxRecording() async {
+    // A latched (tap-started) recording is still bounded by maxRecording.
     let rig = Rig(maxRecording: 0.05)
     rig.coordinator.handle(.pressed)
     rig.speak()
     rig.clock.advance(0.1)
     rig.coordinator.handle(.released)
     #expect(rig.coordinator.phase == .recording)
-    while rig.coordinator.phase == .recording { await Task.yield() }
+    #expect(await waitUntil { rig.coordinator.phase != .recording })
     await rig.coordinator.pendingWork?.value
     #expect(rig.inserter.inserted == ["hello "])
 }
@@ -394,7 +408,7 @@ private struct Rig {
     let rig = Rig(maxRecording: 0.05)
     rig.coordinator.handle(.pressed)
     rig.speak()
-    try? await Task.sleep(for: .milliseconds(200))
+    #expect(await waitUntil { rig.coordinator.phase != .recording })
     await rig.coordinator.pendingWork?.value
     #expect(rig.transcriber.received.count == 1)
     #expect(rig.inserter.inserted == ["hello "])
@@ -466,7 +480,7 @@ private struct Rig {
 @MainActor @Test func silentMaxRecordingAutoStopSkipsTranscription() async {
     let rig = Rig(maxRecording: 0.05, errorDisplay: 0.01)
     rig.coordinator.handle(.pressed)
-    try? await Task.sleep(for: .milliseconds(200))
+    #expect(await waitUntil { rig.coordinator.phase != .recording })
     await rig.coordinator.pendingWork?.value
     #expect(rig.audio.stopCount == 1)
     #expect(rig.transcriber.received.isEmpty)

@@ -104,7 +104,7 @@ struct TryItStep: View {
                 .font(AkoyaFonts.outfit(12, .medium))
                 .kerning(0.96)
                 .foregroundStyle(AkoyaTheme.textEyebrow)
-            HotkeyHint(verb: "Hold", keycap: hotkeyLabel)
+            HotkeyHint(keycap: hotkeyLabel)
                 // The coordinator ignores presses until the model is ready.
                 .opacity(modelState == .ready ? 1 : 0.4)
             TryItWaveform(columns: model.columns, live: model.phase == .recording)
@@ -144,16 +144,25 @@ struct TryItStep: View {
     }
 }
 
-/// "Hold [Right ⌥] and say anything".
+/// "Hold [Right ⌥] and say anything", with a quieter "or tap it once to start, again to stop".
 private struct HotkeyHint: View {
-    let verb: String
     let keycap: String
 
     var body: some View {
+        VStack(spacing: 8) {
+            keycapLine
+            Text("or tap it once to start, again to stop")
+                .font(AkoyaFonts.outfit(12.5))
+                .foregroundStyle(AkoyaTheme.textHintSecondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var keycapLine: some View {
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
         // Word spacing either side of the keycap, as in the inline blue target.
-        HStack(spacing: 4) {
-            Text(verb)
+        return HStack(spacing: 4) {
+            Text("Hold")
             Text(keycap)
                 .font(AkoyaFonts.outfit(14, .semibold))
                 .foregroundStyle(AkoyaTheme.textPrimary)
@@ -169,7 +178,6 @@ private struct HotkeyHint: View {
         }
         .font(AkoyaFonts.outfit(15))
         .foregroundStyle(AkoyaTheme.textTryItHint)
-        .accessibilityElement(children: .combine)
     }
 }
 
