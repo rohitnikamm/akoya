@@ -10,7 +10,6 @@ import ServiceManagement
 public final class AkoyaSettings: ObservableObject {
     private enum Key {
         static let hotkey = "akoya.hotkey"
-        static let mode = "akoya.mode"
         static let look = "akoya.look"
         static let redTint = "akoya.redTint"
         static let hideIdleIcon = "akoya.hideIdleIcon"
@@ -24,9 +23,6 @@ public final class AkoyaSettings: ObservableObject {
 
     @Published public var hotkey: HotkeyKey {
         didSet { defaults.set(hotkey.rawValue, forKey: Key.hotkey) }
-    }
-    @Published public var mode: DictationMode {
-        didSet { defaults.set(mode.rawValue, forKey: Key.mode) }
     }
     @Published public var look: WaveLook {
         didSet { defaults.set(look.rawValue, forKey: Key.look) }
@@ -61,7 +57,6 @@ public final class AkoyaSettings: ObservableObject {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         hotkey = defaults.string(forKey: Key.hotkey).flatMap(HotkeyKey.init(rawValue:)) ?? .rightOption
-        mode = defaults.string(forKey: Key.mode).flatMap(DictationMode.init(rawValue:)) ?? .hold
         look = defaults.string(forKey: Key.look).flatMap(WaveLook.init(rawValue:)) ?? .pixel
         redTint = defaults.bool(forKey: Key.redTint)
         hideIdleIcon = defaults.bool(forKey: Key.hideIdleIcon)

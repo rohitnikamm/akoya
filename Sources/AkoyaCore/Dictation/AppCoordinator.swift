@@ -7,6 +7,9 @@ import Foundation
 /// exit for a failed start, a silent recording, an empty transcript, or a transcribe/insert
 /// failure. The phase stays `transcribing` until `insert` returns, so a new press cannot start
 /// a recording while the clipboard is still being restored.
+///
+/// The hotkey is hold-or-tap: releasing after `holdThreshold` stops (push-to-talk); releasing
+/// sooner latches the recording on, and the next press stops it. Esc cancels either way.
 @MainActor
 public final class AppCoordinator {
     /// A recording whose loudest level step (see `LevelMeter.step(forRMS:)`) never rose above
@@ -25,17 +28,17 @@ public final class AppCoordinator {
     private let transcriber: Transcribing
     private let inserter: TextInserting
     private let model: WaveformModel
-    private let mode: () -> DictationMode
     private let now: () -> TimeInterval
     private let maxRecording: TimeInterval
-    private let minHold: TimeInterval
+    private let holdThreshold: TimeInterval
     private let errorDisplay: TimeInterval
 
     private var meter = LevelMeter()
     /// Loudest raw level step seen in the current recording.
     private var loudestStep = 1
     private var recordingStartedAt: TimeInterval = 0
-    private var recordingMode: DictationMode = .hold
+    /// True once a quick tap released the key: the recording keeps going until the next press.
+    private var isLatched = false
     private var maxRecordingTimer: Task<Void, Never>?
 
     // Practice-mode live preview state.
@@ -63,18 +66,17 @@ public final class AppCoordinator {
     public var isRecording: Bool { model.phase == .recording }
 
     public init(audio: AudioRecording, transcriber: Transcribing, inserter: TextInserting,
-                model: WaveformModel, mode: @escaping () -> DictationMode,
+                model: WaveformModel,
                 now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-                maxRecording: TimeInterval = 300, minHold: TimeInterval = 0.25,
+                maxRecording: TimeInterval = 300, holdThreshold: TimeInterval = 0.30,
                 errorDisplay: TimeInterval = 0.6) {
         self.audio = audio
         self.transcriber = transcriber
         self.inserter = inserter
         self.model = model
-        self.mode = mode
         self.now = now
         self.maxRecording = maxRecording
-        self.minHold = minHold
+        self.holdThreshold = holdThreshold
         self.errorDisplay = errorDisplay
 
         audio.onLevel = { [weak self] rms in
@@ -94,13 +96,16 @@ public final class AppCoordinator {
             }
             startRecording()
         case (.pressed, .recording):
-            if recordingMode == .toggle { stopRecording() }
+            // A press while the key is already held (no release seen) is not a stop request.
+            if isLatched { stopRecording() }
         case (.released, .recording):
-            guard recordingMode == .hold else { return }
-            if now() - recordingStartedAt < minHold {
-                cancelRecording()
-            } else {
+            // A latched recording ignores releases. (The release that follows the stopping
+            // press arrives after the phase left `.recording`, so it never reaches here.)
+            guard !isLatched else { return }
+            if now() - recordingStartedAt >= holdThreshold {
                 stopRecording()
+            } else {
+                isLatched = true
             }
         case (.cancel, .recording):
             cancelRecording()
@@ -121,7 +126,7 @@ public final class AppCoordinator {
             showError()
             return
         }
-        recordingMode = mode()
+        isLatched = false
         recordingStartedAt = now()
         model.phase = .recording
         scheduleMaxRecordingStop()

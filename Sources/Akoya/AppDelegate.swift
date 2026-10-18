@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let transcriber = ParakeetTranscriber()
         let coordinator = AppCoordinator(
             audio: AudioCapture(), transcriber: transcriber, inserter: PasteTextInserter(),
-            model: model, mode: { settings.mode })
+            model: model)
         self.settings = settings
         self.model = model
         self.transcriber = transcriber

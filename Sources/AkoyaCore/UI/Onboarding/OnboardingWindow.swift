@@ -273,7 +273,7 @@ struct OnboardingRootView: View {
                 retryModel: viewModel.retryModel, perform: viewModel.perform(_:))
         case .tryIt:
             TryItStep(
-                session: viewModel.tryIt, model: model, hotkeyLabel: hotkeyName(), mode: settings.mode,
+                session: viewModel.tryIt, model: model, hotkeyLabel: hotkeyName(),
                 modelState: viewModel.modelState, retryModel: viewModel.retryModel, done: { finish(.done) }, skip: { finish(.skipped) })
         }
     }

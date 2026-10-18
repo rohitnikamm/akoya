@@ -2,7 +2,6 @@ import Foundation
 
 public enum DictationPhase: Equatable, Sendable { case idle, recording, transcribing, error }
 public enum HotkeyEvent: Equatable, Sendable { case pressed, released, cancel }
-public enum DictationMode: String, CaseIterable, Sendable { case hold, toggle }
 public enum WaveLook: String, CaseIterable, Sendable { case pixel, solid }
 
 @MainActor public protocol AudioRecording: AnyObject {

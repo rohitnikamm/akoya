@@ -77,19 +77,19 @@ private struct Rig {
     let clock = FakeClock()
     let coordinator: AppCoordinator
 
-    init(transcript: String = "hello", mode: DictationMode = .hold,
+    init(transcript: String = "hello",
          maxRecording: TimeInterval = 300, errorDisplay: TimeInterval = 0.01) {
         let transcriber = FakeTranscriber(result: transcript)
         let clock = self.clock
         self.transcriber = transcriber
         coordinator = AppCoordinator(
             audio: audio, transcriber: transcriber, inserter: inserter, model: model,
-            mode: { mode }, now: { clock.time },
+            now: { clock.time },
             maxRecording: maxRecording, errorDisplay: errorDisplay)
     }
 
-    /// Press, speak (one loud level so the silence gate lets it through), wait past the
-    /// minimum hold, release.
+    /// Press, speak (one loud level so the silence gate lets it through), hold past the
+    /// hold threshold, release.
     func dictate() {
         coordinator.handle(.pressed)
         speak()
@@ -120,16 +120,163 @@ private struct Rig {
     #expect(rig.model.phase == .idle)
 }
 
-@MainActor @Test func shortTapCancels() async {
+@MainActor @Test func holdThenReleaseStops() async {
     let rig = Rig()
     rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.5)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.stopCount == 1)
+    #expect(rig.audio.cancelCount == 0)
+    #expect(rig.inserter.inserted == ["hello "])
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func quickTapKeepsRecording() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
     rig.clock.advance(0.1)
     rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .recording)
+    #expect(rig.audio.stopCount == 0)
+    #expect(rig.audio.cancelCount == 0)
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.inserter.inserted.isEmpty)
+}
+
+@MainActor @Test func releaseJustUnderThresholdLatchesAndJustOverStops() async {
+    let under = Rig()
+    under.coordinator.handle(.pressed)
+    under.speak()
+    under.clock.advance(0.29)
+    under.coordinator.handle(.released)
+    #expect(under.coordinator.phase == .recording)
+
+    let over = Rig()
+    over.coordinator.handle(.pressed)
+    over.speak()
+    over.clock.advance(0.31)
+    over.coordinator.handle(.released)
+    #expect(over.coordinator.phase == .transcribing)
+    await over.coordinator.pendingWork?.value
+}
+
+@MainActor @Test func tapThenPressStops() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    rig.clock.advance(2)  // talking, hands off the key
+    rig.coordinator.handle(.pressed)
+    #expect(rig.coordinator.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.stopCount == 1)
+    #expect(rig.transcriber.received.count == 1)
+    #expect(rig.inserter.inserted == ["hello "])
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func releaseAfterTapStopPressIsIgnored() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    rig.coordinator.handle(.pressed)  // stops
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.coordinator.phase == .idle)
+    rig.coordinator.handle(.released)  // the key coming back up must do nothing
+    #expect(rig.coordinator.phase == .idle)
+    #expect(rig.audio.startCount == 1)
+    #expect(rig.audio.stopCount == 1)
+    #expect(rig.audio.cancelCount == 0)
+    #expect(rig.transcriber.received.count == 1)
+}
+
+@MainActor @Test func releaseOfStopPressWhileTranscribingIsIgnored() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    rig.coordinator.handle(.pressed)  // stops
+    #expect(rig.coordinator.phase == .transcribing)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.inserter.inserted == ["hello "])
+}
+
+@MainActor @Test func escapeCancelsAfterTap() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .recording)
+    rig.coordinator.handle(.cancel)
     await rig.coordinator.pendingWork?.value
     #expect(rig.audio.cancelCount == 1)
     #expect(rig.audio.stopCount == 0)
     #expect(rig.transcriber.received.isEmpty)
     #expect(rig.coordinator.phase == .idle)
+    // A new recording after the cancel starts unlatched: a long hold stops on release.
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+}
+
+@MainActor @Test func nextRecordingAfterTapStopStartsUnlatched() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    rig.coordinator.handle(.pressed)  // stops
+    await rig.coordinator.pendingWork?.value
+    rig.coordinator.handle(.released)
+    rig.coordinator.handle(.pressed)  // fresh recording
+    rig.speak()
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)  // a real hold: must stop, not be treated as latched
+    #expect(rig.coordinator.phase == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.startCount == 2)
+    #expect(rig.transcriber.received.count == 2)
+}
+
+@MainActor @Test func silentTapStillErrorCue() async {
+    let rig = Rig(errorDisplay: 0.1)
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)  // accidental tap, nothing said
+    #expect(rig.coordinator.phase == .recording)
+    rig.clock.advance(2)
+    rig.coordinator.handle(.pressed)
+    #expect(rig.coordinator.phase == .error)
+    #expect(rig.transcriber.received.isEmpty)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func tapDoesNotStopOnMaxRecordingEarlierThanConfigured() async {
+    // A latched recording is still bounded by maxRecording.
+    let rig = Rig(maxRecording: 0.05)
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.clock.advance(0.1)
+    rig.coordinator.handle(.released)
+    #expect(rig.coordinator.phase == .recording)
+    while rig.coordinator.phase == .recording { await Task.yield() }
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.inserter.inserted == ["hello "])
 }
 
 @MainActor @Test func escapeCancels() async {
@@ -143,21 +290,6 @@ private struct Rig {
     #expect(rig.inserter.inserted.isEmpty)
     #expect(rig.coordinator.phase == .idle)
     #expect(!rig.coordinator.isRecording)
-}
-
-@MainActor @Test func toggleModeStartsAndStopsOnPress() async {
-    let rig = Rig(mode: .toggle)
-    rig.coordinator.handle(.pressed)
-    #expect(rig.coordinator.phase == .recording)
-    rig.coordinator.handle(.released)
-    #expect(rig.coordinator.phase == .recording)
-    rig.speak()
-    rig.coordinator.handle(.pressed)
-    #expect(rig.coordinator.phase == .transcribing)
-    await rig.coordinator.pendingWork?.value
-    #expect(rig.transcriber.received.count == 1)
-    #expect(rig.inserter.inserted == ["hello "])
-    #expect(rig.coordinator.phase == .idle)
 }
 
 @MainActor @Test func pressWhileTranscribingIsIgnored() async {
@@ -372,7 +504,7 @@ private final class SuspendingInserter: TextInserting {
     let clock = FakeClock()
     let coordinator = AppCoordinator(
         audio: audio, transcriber: FakeTranscriber(), inserter: inserter, model: WaveformModel(),
-        mode: { .hold }, now: { clock.time })
+        now: { clock.time })
     coordinator.handle(.pressed)
     audio.onLevel?(1.0)
     clock.advance(1)
@@ -571,7 +703,7 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     let gated = GatedTranscriber()
     let coordinator = AppCoordinator(
         audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
-        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+        now: { [clock = rig.clock] in clock.time })
     let log = PracticeLog()
     coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
     coordinator.handle(.pressed)
@@ -602,7 +734,7 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     let gated = GatedTranscriber()
     let coordinator = AppCoordinator(
         audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
-        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+        now: { [clock = rig.clock] in clock.time })
     let log = PracticeLog()
     coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
     coordinator.handle(.pressed)
@@ -627,7 +759,7 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     let gated = GatedTranscriber()
     let coordinator = AppCoordinator(
         audio: rig.audio, transcriber: gated, inserter: rig.inserter, model: rig.model,
-        mode: { .hold }, now: { [clock = rig.clock] in clock.time })
+        now: { [clock = rig.clock] in clock.time })
     let log = PracticeLog()
     coordinator.destination = .practice { text, isFinal in log.events.append((text, isFinal)) }
     coordinator.handle(.pressed)

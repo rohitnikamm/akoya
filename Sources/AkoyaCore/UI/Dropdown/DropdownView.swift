@@ -52,9 +52,8 @@ public struct DropdownView: View {
             let state = StatusCardState.from(
                 phase: model.phase, model: modelState, permissionsGranted: permissionsGranted)
             StatusCard(
-                state: state, showsRetry: state.showsRetry(model: modelState), hotkey: settings.hotkey, mode: settings.mode, glowOpacity: glow.opacity,
+                state: state, showsRetry: state.showsRetry(model: modelState), hotkey: settings.hotkey, glowOpacity: glow.opacity,
                 retry: actions.retryModel, finishSetup: actions.finishSetup)
-            ModeSwitch(selection: $settings.mode)
             if let text = model.lastDictation {
                 LastDictationCard(text: text, copy: actions.copyLast)
             }
@@ -84,7 +83,6 @@ private struct StatusCard: View {
     /// Retry sits beside "Finish setup" when the model failed behind a missing permission.
     let showsRetry: Bool
     let hotkey: HotkeyKey
-    let mode: DictationMode
     /// Rim glow opacity (0 at rest); see `VoiceGlowDriver`.
     let glowOpacity: Double
     let retry: () -> Void
@@ -103,7 +101,7 @@ private struct StatusCard: View {
             DotLogo(dotSize: 6)
                 .frame(height: 56)
             HStack(spacing: 8) {
-                Text(mode == .hold ? "Hold" : "Tap")
+                Text("Hold")
                 Keycap(label: hotkey.keycapLabel)
                 Text("to talk")
             }
@@ -221,37 +219,6 @@ private struct PrimaryButton: View {
 private struct AccentGradient: ShapeStyle {
     func resolve(in environment: EnvironmentValues) -> LinearGradient {
         LinearGradient(colors: [AkoyaTheme.accentTop, AkoyaTheme.accentBottom], startPoint: .top, endPoint: .bottom)
-    }
-}
-
-// MARK: - Mode switch
-
-private struct ModeSwitch: View {
-    @Binding var selection: DictationMode
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(DictationMode.allCases, id: \.self) { mode in
-                let selected = mode == selection
-                Button {
-                    selection = mode
-                } label: {
-                    Text(mode.segmentTitle)
-                        .font(AkoyaFonts.outfit(13, selected ? .semibold : .regular))
-                        .foregroundStyle(selected ? AkoyaTheme.textPrimary : AkoyaTheme.textMuted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background {
-                            if selected { Capsule().fill(AccentGradient()) }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(4)
-        .background(AkoyaTheme.pill, in: Capsule())
     }
 }
 
@@ -375,16 +342,6 @@ private struct PowerGlyph: Shape {
 }
 
 // MARK: - Labels
-
-extension DictationMode {
-    /// Segment titles in the dropdown's mode switch.
-    fileprivate var segmentTitle: String {
-        switch self {
-        case .hold: "Hold to talk"
-        case .toggle: "Tap to toggle"
-        }
-    }
-}
 
 extension HotkeyKey {
     /// Short keycap label, e.g. "Right ⌘" (the mockup's form of `displayName`).

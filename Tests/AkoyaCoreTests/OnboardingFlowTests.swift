@@ -226,11 +226,10 @@ private final class OnboardingRig {
     private(set) var finishedHaptics = 0
     private(set) var controller: OnboardingWindowController!
 
-    /// Toggle mode lets a test stop a recording without waiting out the minimum hold.
-    init(mode: DictationMode = .hold) {
+    init() {
         coordinator = AppCoordinator(
             audio: audio, transcriber: WordsTranscriber(), inserter: inserter, model: model,
-            mode: { mode }, errorDisplay: 0.01)
+            errorDisplay: 0.01)
         controller = OnboardingWindowController(
             coordinator: coordinator, model: model, settings: settings, hotkeyName: { "Right ⌥" },
             finishedHaptic: { [unowned self] in self.finishedHaptics += 1 })
@@ -310,7 +309,7 @@ private final class OnboardingRig {
 
 @MainActor @Test func closingMidRecordingCancelsInsteadOfPasting() async {
     for exit in [OnboardingExit.closed, .skipped, .done] {
-        let rig = OnboardingRig(mode: .toggle)
+        let rig = OnboardingRig()
         rig.coordinator.destination = .practice { _, _ in }
         rig.coordinator.handle(.pressed)
         rig.audio.onLevel?(1.0)  // speech, so the silence gate would let it through
@@ -330,11 +329,12 @@ private final class OnboardingRig {
 @MainActor @Test func closingWhilePracticeTranscribesNeverPastesTheFinal() async {
     final class Received { var finals: [String] = [] }
     let received = Received()
-    let rig = OnboardingRig(mode: .toggle)
+    let rig = OnboardingRig()
     rig.coordinator.destination = .practice { text, isFinal in if isFinal { received.finals.append(text) } }
     rig.coordinator.handle(.pressed)
     rig.audio.onLevel?(1.0)
-    rig.coordinator.handle(.pressed)  // toggle stop: the final pass starts
+    rig.coordinator.handle(.released)  // a quick tap latches the recording...
+    rig.coordinator.handle(.pressed)  // ...and the next press stops it: the final pass starts
     #expect(rig.coordinator.phase == .transcribing)
     rig.controller.close()
     await rig.coordinator.pendingWork?.value

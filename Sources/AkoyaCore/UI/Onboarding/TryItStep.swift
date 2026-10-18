@@ -77,21 +77,19 @@ struct TryItStep: View {
     @ObservedObject var model: WaveformModel
     @StateObject private var glow: VoiceGlowDriver
     let hotkeyLabel: String
-    let mode: DictationMode
     let modelState: ModelState
     let retryModel: () -> Void
     let done: () -> Void
     let skip: () -> Void
 
     init(
-        session: TryItSession, model: WaveformModel, hotkeyLabel: String, mode: DictationMode,
+        session: TryItSession, model: WaveformModel, hotkeyLabel: String,
         modelState: ModelState, retryModel: @escaping () -> Void, done: @escaping () -> Void,
         skip: @escaping () -> Void
     ) {
         self.session = session
         self.model = model
         self.hotkeyLabel = hotkeyLabel
-        self.mode = mode
         self.modelState = modelState
         self.retryModel = retryModel
         self.done = done
@@ -106,7 +104,7 @@ struct TryItStep: View {
                 .font(AkoyaFonts.outfit(12, .medium))
                 .kerning(0.96)
                 .foregroundStyle(AkoyaTheme.textEyebrow)
-            HotkeyHint(verb: mode == .hold ? "Hold" : "Tap", keycap: hotkeyLabel)
+            HotkeyHint(verb: "Hold", keycap: hotkeyLabel)
                 // The coordinator ignores presses until the model is ready.
                 .opacity(modelState == .ready ? 1 : 0.4)
             TryItWaveform(columns: model.columns, live: model.phase == .recording)
