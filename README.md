@@ -28,7 +28,9 @@ For a stable code signature, so these permissions survive rebuilds and updates, 
 
 Hold Right Option, speak, release. Akoya transcribes and pastes. Or tap the key once to start and again to stop. Press Esc while recording to cancel.
 
-Click the Akoya item in the menu bar to open the dropdown. Everything is there: current status, your last dictation (with a Copy button), the hotkey (click the keycap to choose Right Option, Command or Control), the microphone, the menu bar icon options (waveform look, red while recording, hide when idle), Launch at login and Quit. If you hide the idle icon, open Akoya from Spotlight to get the dropdown back.
+Click the Akoya item in the menu bar to open the dropdown. There is no separate Settings window: everything is there. That is the current status, your last dictation (with a Copy button), the hotkey (click the keycap to choose Right Option, Command or Control), the microphone, the menu bar icon options (waveform look, red while recording, hide when idle; they fold away until you open the Menu bar icon row), Launch at login and Quit.
+
+The Microphone row uses the system default input unless you pick one. If the microphone you picked is unplugged or disconnected (AirPods, say), the row shows it as "(unavailable)" and Akoya records from the system default until it is back. If you hide the idle icon, or just reopen Akoya from Spotlight, the dropdown opens under the menu bar item.
 
 ## Upgrading from Silk
 
