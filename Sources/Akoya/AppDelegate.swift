@@ -36,8 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = AkoyaSettings()
         let model = WaveformModel()
         let transcriber = ParakeetTranscriber()
+        let audioCapture = AudioCapture()
+        audioCapture.preferredDeviceUID = { settings.inputDeviceUID }
         let coordinator = AppCoordinator(
-            audio: AudioCapture(), transcriber: transcriber, inserter: PasteTextInserter(),
+            audio: audioCapture, transcriber: transcriber, inserter: PasteTextInserter(),
             model: model)
         self.settings = settings
         self.model = model

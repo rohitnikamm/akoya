@@ -65,4 +65,18 @@ struct AkoyaSettingsTests {
         let second = AkoyaSettings(defaults: defaults)
         #expect(second.onboardingCompleted)
     }
+
+    @Test func inputDeviceUIDDefaultsToNilAndRoundTrips() {
+        let defaults = makeDefaults()
+        let first = AkoyaSettings(defaults: defaults)
+        #expect(first.inputDeviceUID == nil)
+
+        first.inputDeviceUID = "AppleUSBAudioEngine:1234"
+        #expect(defaults.string(forKey: "akoya.inputDeviceUID") == "AppleUSBAudioEngine:1234")
+        #expect(AkoyaSettings(defaults: defaults).inputDeviceUID == "AppleUSBAudioEngine:1234")
+
+        first.inputDeviceUID = nil
+        #expect(defaults.object(forKey: "akoya.inputDeviceUID") == nil)
+        #expect(AkoyaSettings(defaults: defaults).inputDeviceUID == nil)
+    }
 }

@@ -1,5 +1,7 @@
 @preconcurrency import AVFoundation
+import CoreAudio
 import Foundation
+import os
 
 public enum AudioCaptureError: Error, LocalizedError {
     case microphoneNotAuthorized
@@ -53,7 +55,7 @@ private final class CaptureBuffer: @unchecked Sendable {
     }
 }
 
-/// Records the default microphone as 16 kHz mono Float32 and reports live RMS levels.
+/// Records the chosen (or default) microphone as 16 kHz mono Float32 and reports live RMS levels.
 /// `onLevel` and `onInterrupted` are always invoked on the main actor.
 @MainActor
 public final class AudioCapture: AudioRecording {
@@ -61,6 +63,10 @@ public final class AudioCapture: AudioRecording {
 
     public var onLevel: ((Float) -> Void)?
     public var onInterrupted: (() -> Void)?
+    /// UID of the microphone to record from, read at each `start()`. nil = system default.
+    public var preferredDeviceUID: () -> String? = { nil }
+
+    private static let log = Logger(subsystem: "com.rohitnikamm.akoya", category: "audio")
 
     private var engine: AVAudioEngine?
     private let buffer = CaptureBuffer()
@@ -69,8 +75,11 @@ public final class AudioCapture: AudioRecording {
     private var isRecording: Bool
     private let authorizationStatus: () -> AVAuthorizationStatus
     private let requestAccess: () -> Void
+    private let listInputs: () -> [AudioInputDevice]
+    private let defaultInputID: () -> UInt32?
+    private let applyDevice: (AVAudioEngine, AudioInputDevice) -> Bool
 
-    public init(
+    public convenience init(
         authorizationStatus: @escaping () -> AVAuthorizationStatus = {
             AVCaptureDevice.authorizationStatus(for: .audio)
         },
@@ -78,8 +87,25 @@ public final class AudioCapture: AudioRecording {
             AVCaptureDevice.requestAccess(for: .audio) { _ in }
         }
     ) {
+        self.init(
+            authorizationStatus: authorizationStatus, requestAccess: requestAccess,
+            listInputs: AudioDevices.inputs, defaultInputID: AudioDevices.defaultInputID,
+            applyDevice: Self.setInputDevice)
+    }
+
+    /// Fully injectable initializer, so tests never touch audio hardware.
+    init(
+        authorizationStatus: @escaping () -> AVAuthorizationStatus,
+        requestAccess: @escaping () -> Void,
+        listInputs: @escaping () -> [AudioInputDevice],
+        defaultInputID: @escaping () -> UInt32?,
+        applyDevice: @escaping (AVAudioEngine, AudioInputDevice) -> Bool
+    ) {
         self.authorizationStatus = authorizationStatus
         self.requestAccess = requestAccess
+        self.listInputs = listInputs
+        self.defaultInputID = defaultInputID
+        self.applyDevice = applyDevice
         isRecording = false
     }
 
@@ -87,6 +113,9 @@ public final class AudioCapture: AudioRecording {
     init(testingRecording: Bool) {
         authorizationStatus = { AVCaptureDevice.authorizationStatus(for: .audio) }
         requestAccess = {}
+        listInputs = AudioDevices.inputs
+        defaultInputID = AudioDevices.defaultInputID
+        applyDevice = Self.setInputDevice
         isRecording = testingRecording
     }
 
@@ -111,6 +140,8 @@ public final class AudioCapture: AudioRecording {
         discardSamples()
 
         let engine = AVAudioEngine()
+        // Must happen before the input format is read or the tap installed.
+        _ = applyPreferredDevice(to: engine)
         let input = engine.inputNode
         let hardwareFormat = input.outputFormat(forBus: 0)
         guard hardwareFormat.channelCount > 0, hardwareFormat.sampleRate > 0 else {
@@ -151,6 +182,34 @@ public final class AudioCapture: AudioRecording {
             MainActor.assumeIsolated { self?.handleConfigurationChange() }
         }
         isRecording = true
+    }
+
+    /// Points the engine at the user's chosen microphone. Does nothing (and returns true) when no
+    /// microphone is chosen or the chosen one is not connected, so the engine uses the system
+    /// default. Returns false when switching failed; recording then continues on the default.
+    func applyPreferredDevice(to engine: AVAudioEngine) -> Bool {
+        guard let uid = preferredDeviceUID() else { return true }
+        let choice = MicrophoneResolver.resolve(
+            selectedUID: uid, inputs: listInputs(), defaultID: defaultInputID())
+        guard !choice.isFallback, let device = choice.device else {
+            Self.log.notice("Selected microphone is not connected; using the system default")
+            return true
+        }
+        guard applyDevice(engine, device) else {
+            Self.log.error("Could not switch to \(device.name, privacy: .public); using the system default")
+            return false
+        }
+        return true
+    }
+
+    /// Sets the engine's input node to a specific CoreAudio device.
+    private nonisolated static func setInputDevice(_ engine: AVAudioEngine, _ device: AudioInputDevice) -> Bool {
+        guard let unit = engine.inputNode.audioUnit else { return false }
+        var deviceID = device.id
+        let status = AudioUnitSetProperty(
+            unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+            &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size))
+        return status == noErr
     }
 
     public func stop() -> [Float] {

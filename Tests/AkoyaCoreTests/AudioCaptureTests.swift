@@ -95,3 +95,53 @@ import Testing
     #expect(capture.stop() == [0.1, 0.2, 0.3, 0.4])
     #expect(capture.snapshot().isEmpty)
 }
+
+@MainActor
+struct AudioCaptureDeviceSelectionTests {
+    private let builtIn = AudioInputDevice(id: 10, uid: "builtin", name: "Built-in")
+    private let airpods = AudioInputDevice(id: 20, uid: "airpods", name: "AirPods")
+
+    private func makeCapture(
+        preferred: String?, applied: @escaping (AudioInputDevice) -> Void, succeed: Bool = true
+    ) -> AudioCapture {
+        let capture = AudioCapture(
+            authorizationStatus: { .authorized }, requestAccess: {},
+            listInputs: { [builtIn, airpods] }, defaultInputID: { builtIn.id },
+            applyDevice: { _, device in
+                applied(device)
+                return succeed
+            })
+        capture.preferredDeviceUID = { preferred }
+        return capture
+    }
+
+    @Test func appliesTheSelectedDevice() {
+        var applied: [AudioInputDevice] = []
+        let capture = makeCapture(preferred: "airpods") { applied.append($0) }
+        #expect(capture.applyPreferredDevice(to: AVAudioEngine()))
+        #expect(applied == [airpods])
+    }
+
+    @Test func doesNotApplyWhenNothingIsSelected() {
+        var applied: [AudioInputDevice] = []
+        let capture = makeCapture(preferred: nil) { applied.append($0) }
+        #expect(capture.applyPreferredDevice(to: AVAudioEngine()))
+        #expect(applied.isEmpty)
+    }
+
+    @Test func doesNotApplyWhenSelectionIsMissing() {
+        var applied: [AudioInputDevice] = []
+        let capture = makeCapture(preferred: "unplugged") { applied.append($0) }
+        #expect(capture.applyPreferredDevice(to: AVAudioEngine()))
+        #expect(applied.isEmpty)
+    }
+
+    @Test func failureToApplyIsReportedNotThrown() {
+        let capture = makeCapture(preferred: "airpods", applied: { _ in }, succeed: false)
+        #expect(capture.applyPreferredDevice(to: AVAudioEngine()) == false)
+    }
+
+    @Test func preferredDeviceDefaultsToSystemDefault() {
+        #expect(AudioCapture().preferredDeviceUID() == nil)
+    }
+}
