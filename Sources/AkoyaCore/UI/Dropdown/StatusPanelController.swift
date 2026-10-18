@@ -5,6 +5,7 @@ import SwiftUI
 /// panel never becomes key, so the frontmost app keeps keyboard focus (and dictated ⌘V keeps
 /// landing there) even after a click inside. It closes on a click outside (in another app or
 /// another Akoya window), on Esc, on a Space change, and on a second click of the item.
+/// Native menus popped up from the content (`PopUpMenuAction`) track without activating Akoya.
 ///
 /// The content is hosted only while the panel is shown, so a closed panel does no rendering
 /// work while the waveform model changes during dictation.
@@ -12,20 +13,26 @@ import SwiftUI
 public final class StatusPanelController {
     /// Gap between the menu bar item and the top of the panel.
     static let gap: CGFloat = 8
+    /// Gap between a control and the menu popped up under it.
+    static let menuGap: CGFloat = 4
+    /// How long a shrinking panel keeps its old height, so a collapse animation (the Menu bar
+    /// icon options) plays out inside the window instead of being cut off by it.
+    static let shrinkDelay: TimeInterval = 0.4
     private static let escapeKeyCode: UInt16 = 53
 
     private let content: AnyView
     private let panel = DropdownPanel()
     private var hostingView: NSView?
     private weak var anchorButton: NSButton?
+    /// The panel's current size (the content's size, or larger while a shrink is pending).
     private var contentSize: CGSize = .zero
+    private var pendingShrink: DispatchWorkItem?
     /// Event monitors and the Space observer, installed in `show` and removed in `close`.
     private var monitors: [Any] = []
     private var spaceObserver: NSObjectProtocol?
 
     /// Called with `true` once the panel is shown and `false` once it is closed, on every path
     /// (outside click, Esc, second click of the item, Space change, `close()` from an action).
-    /// Called with true when the panel is shown and false on every close.
     public var onVisibilityChange: ((Bool) -> Void)?
 
     public init(content: some View) {
@@ -33,6 +40,9 @@ public final class StatusPanelController {
     }
 
     public var isShown: Bool { hostingView != nil }
+
+    /// The panel's frame on screen (for tests).
+    var frame: CGRect { panel.frame }
 
     public func toggle(relativeTo button: NSButton) {
         if isShown {
@@ -42,8 +52,16 @@ public final class StatusPanelController {
         }
     }
 
+    /// Shows the panel under `button` unless it is already shown.
+    public func open(relativeTo button: NSButton) {
+        guard !isShown else { return }
+        show(relativeTo: button)
+    }
+
     public func close() {
         guard isShown else { return }
+        pendingShrink?.cancel()
+        pendingShrink = nil
         removeMonitors()
         panel.orderOut(nil)
         panel.contentView = nil
@@ -55,10 +73,15 @@ public final class StatusPanelController {
     private func show(relativeTo button: NSButton) {
         anchorButton = button
         let root = content
+            .environment(\.popUpMenu, PopUpMenuAction { [weak self] menu, rect, alignment in
+                self?.popUp(menu, below: rect, alignment: alignment)
+            })
             .fixedSize()
             .onGeometryChange(for: CGSize.self, of: { $0.size }) { [weak self] size in
                 self?.contentSizeChanged(to: size)
             }
+            // Pinned to the top while a shrink is pending and the window is still taller.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         let hosting = FirstClickHostingView(rootView: root)
         // Measure with the default sizing options (with none, `fittingSize` is zero), then
         // drop them: the controller sizes the panel itself, without Auto Layout constraints.
@@ -76,18 +99,54 @@ public final class StatusPanelController {
         onVisibilityChange?(true)
     }
 
+    /// Grows at once; shrinks after `shrinkDelay`, so collapsing content animates inside the
+    /// window. The top stays anchored under the item either way.
     private func contentSizeChanged(to size: CGSize) {
-        guard isShown, size != contentSize, size.width > 0, size.height > 0 else { return }
+        guard isShown, size.width > 0, size.height > 0 else { return }
+        pendingShrink?.cancel()
+        pendingShrink = nil
+        guard size != contentSize else { return }
+        if size.height < contentSize.height {
+            let work = DispatchWorkItem { [weak self] in
+                MainActor.assumeIsolated { self?.resize(to: size) }
+            }
+            pendingShrink = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.shrinkDelay, execute: work)
+        } else {
+            resize(to: size)
+        }
+    }
+
+    private func resize(to size: CGSize) {
+        pendingShrink = nil
+        guard isShown else { return }
         contentSize = size
         place()
     }
 
+    /// Pops `menu` up under `rect` (hosting view coordinates), leading- or trailing-aligned.
+    /// Menu tracking runs in its own loop and returns when the menu closes; it neither
+    /// activates Akoya nor makes the panel key.
+    private func popUp(_ menu: NSMenu, below rect: CGRect, alignment: PopUpMenuAction.Alignment) {
+        guard let hostingView else { return }
+        menu.appearance = NSAppearance(named: .darkAqua)
+        let x = alignment == .leading ? rect.minX : rect.maxX - menu.size.width
+        let y = hostingView.isFlipped
+            ? rect.maxY + Self.menuGap : hostingView.bounds.height - rect.maxY - Self.menuGap
+        menu.popUp(positioning: nil, at: CGPoint(x: x, y: y), in: hostingView)
+    }
+
     /// Right-aligns the panel to the item, `gap` below it, clamped to the screen's visible frame.
+    /// An item that is on no screen (a 0-width item while the idle icon is hidden can be) puts
+    /// the panel at the top right of the main screen instead.
     private func place() {
         guard let button = anchorButton, let buttonWindow = button.window else { return }
         let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let size = contentSize
         var origin = CGPoint(x: anchor.maxX - size.width, y: anchor.minY - Self.gap - size.height)
+        if buttonWindow.screen == nil, let visible = NSScreen.main?.visibleFrame {
+            origin = CGPoint(x: visible.maxX - Self.gap - size.width, y: visible.maxY - Self.gap - size.height)
+        }
         if let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame {
             origin.x = min(max(origin.x, visible.minX), visible.maxX - size.width)
             origin.y = max(min(origin.y, visible.maxY - size.height), visible.minY)
@@ -119,16 +178,18 @@ public final class StatusPanelController {
         {
             monitors.append(monitor)
         }
-        // Clicks in another Akoya window (Settings, onboarding). Clicks on the item itself are
-        // left to its hosting view, which toggles on mouse-down; this monitor runs before
-        // that dispatch, so closing here would make the toggle reopen the panel.
+        // Clicks in another Akoya window (onboarding). Clicks on the item itself are left to
+        // its hosting view, which toggles on mouse-down; this monitor runs before that
+        // dispatch, so closing here would make the toggle reopen the panel. Clicks in a menu
+        // popped up from the panel (menu windows sit at pop-up menu level) keep it open.
         if let monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
             handler: { [weak self] event in
                 let window = event.window
                 MainActor.assumeIsolated {
                     guard let self, let window, window !== self.panel,
-                          window !== self.anchorButton?.window
+                          window !== self.anchorButton?.window,
+                          window.level.rawValue < NSWindow.Level.popUpMenu.rawValue
                     else { return }
                     self.close()
                 }
@@ -169,6 +230,8 @@ private final class DropdownPanel: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        // The dropdown is dark only; its native menus follow the panel.
+        appearance = NSAppearance(named: .darkAqua)
     }
 
     override var canBecomeKey: Bool { false }

@@ -4,18 +4,21 @@ import SwiftUI
 
 /// What the dropdown's controls do. The app supplies these; the view only calls them.
 public struct DropdownActions {
-    public var openSettings: () -> Void
+    public var selectHotkey: (HotkeyKey) -> Void
+    /// The chosen microphone's UID; nil for System default.
+    public var selectMicrophone: (String?) -> Void
     public var quit: () -> Void
     public var retryModel: () -> Void
     public var finishSetup: () -> Void
     public var copyLast: (String) -> Void
 
     public init(
-        openSettings: @escaping () -> Void, quit: @escaping () -> Void,
-        retryModel: @escaping () -> Void, finishSetup: @escaping () -> Void,
+        selectHotkey: @escaping (HotkeyKey) -> Void, selectMicrophone: @escaping (String?) -> Void,
+        quit: @escaping () -> Void, retryModel: @escaping () -> Void, finishSetup: @escaping () -> Void,
         copyLast: @escaping (String) -> Void
     ) {
-        self.openSettings = openSettings
+        self.selectHotkey = selectHotkey
+        self.selectMicrophone = selectMicrophone
         self.quit = quit
         self.retryModel = retryModel
         self.finishSetup = finishSetup
@@ -23,41 +26,68 @@ public struct DropdownActions {
     }
 }
 
-/// The menu bar dropdown (docs/design/dropdown-mockup.html): status card, mode switch, last
-/// dictation, and a footer with Settings and Quit. Dark only, 320 pt wide, height to content.
+/// The all-in-one menu bar dropdown (docs/design/all-in-one-dropdown-target.html): status
+/// card with the hotkey keycap button, last dictation, the options card, and a quiet Quit row.
+/// Dark only, 320 pt wide, height to content.
 public struct DropdownView: View {
     static let width: CGFloat = 320
 
     @ObservedObject private var model: WaveformModel
     @ObservedObject private var settings: AkoyaSettings
     @StateObject private var glow: VoiceGlowDriver
+    @StateObject private var disclosure: DisclosureState
     private let modelState: ModelState
     private let permissionsGranted: Bool
+    private let inputs: [AudioInputDevice]
+    private let defaultInputID: UInt32?
     private let actions: DropdownActions
 
+    /// - Parameters:
+    ///   - inputs: the connected input devices (`AudioDevices.inputs()`).
+    ///   - defaultInputID: the system default input (`AudioDevices.defaultInputID()`).
     public init(
-        model: WaveformModel, settings: AkoyaSettings, modelState: ModelState,
-        permissionsGranted: Bool, actions: DropdownActions
+        model: WaveformModel, settings: AkoyaSettings, modelState: ModelState, permissionsGranted: Bool,
+        inputs: [AudioInputDevice], defaultInputID: UInt32?, actions: DropdownActions
+    ) {
+        self.init(
+            model: model, settings: settings, modelState: modelState, permissionsGranted: permissionsGranted,
+            inputs: inputs, defaultInputID: defaultInputID, actions: actions, optionsExpanded: false)
+    }
+
+    /// `optionsExpanded` starts with the Menu bar icon options open (for renders and tests).
+    init(
+        model: WaveformModel, settings: AkoyaSettings, modelState: ModelState, permissionsGranted: Bool,
+        inputs: [AudioInputDevice], defaultInputID: UInt32?, actions: DropdownActions, optionsExpanded: Bool
     ) {
         self.model = model
         self.settings = settings
         self.modelState = modelState
         self.permissionsGranted = permissionsGranted
+        self.inputs = inputs
+        self.defaultInputID = defaultInputID
         self.actions = actions
         _glow = StateObject(wrappedValue: VoiceGlowDriver(model: model))
+        _disclosure = StateObject(wrappedValue: DisclosureState(isExpanded: optionsExpanded))
     }
 
     public var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             let state = StatusCardState.from(
                 phase: model.phase, model: modelState, permissionsGranted: permissionsGranted)
             StatusCard(
-                state: state, showsRetry: state.showsRetry(model: modelState), hotkey: settings.hotkey, glowOpacity: glow.opacity,
+                state: state, showsRetry: state.showsRetry(model: modelState), hotkey: settings.hotkey,
+                glowOpacity: glow.opacity, selectHotkey: actions.selectHotkey,
                 retry: actions.retryModel, finishSetup: actions.finishSetup)
             if let text = model.lastDictation {
                 LastDictationCard(text: text, copy: actions.copyLast)
             }
-            Footer(openSettings: actions.openSettings, quit: actions.quit)
+            OptionsGroup(
+                settings: settings,
+                microphone: MicrophoneMenuModel(
+                    selectedUID: settings.inputDeviceUID, selectedName: settings.inputDeviceName,
+                    inputs: inputs, defaultID: defaultInputID),
+                selectMicrophone: actions.selectMicrophone, disclosure: disclosure)
+            QuitRow(quit: actions.quit)
         }
         .padding(14)
         .frame(width: Self.width)
@@ -85,11 +115,12 @@ private struct StatusCard: View {
     let hotkey: HotkeyKey
     /// Rim glow opacity (0 at rest); see `VoiceGlowDriver`.
     let glowOpacity: Double
+    let selectHotkey: (HotkeyKey) -> Void
     let retry: () -> Void
     let finishSetup: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             HStack {
                 Text("Akoya")
                     .font(AkoyaFonts.outfit(14, .semibold))
@@ -98,16 +129,19 @@ private struct StatusCard: View {
                 Spacer()
                 StatusChip(title: state.chipTitle)
             }
-            DotLogo(dotSize: 6)
-                .frame(height: 56)
-            HStack(spacing: 8) {
+            DotLogo(dotSize: 5)
+                .frame(height: 44)
+                .padding(.vertical, 2)
+            HStack(spacing: 7) {
                 Text("Hold")
-                Keycap(label: hotkey.keycapLabel)
+                KeycapButton(hotkey: hotkey, select: selectHotkey)
                 Text("to talk")
             }
             .font(AkoyaFonts.outfit(13))
             .foregroundStyle(AkoyaTheme.textHint)
-            .accessibilityElement(children: .combine)
+            Text("or tap it once to start, again to stop")
+                .font(AkoyaFonts.outfit(11.5))
+                .foregroundStyle(AkoyaTheme.textHintSecondary)
             switch state {
             case .downloading(let fraction?):
                 DownloadProgress(fraction: fraction)
@@ -122,9 +156,9 @@ private struct StatusCard: View {
                 EmptyView()
             }
         }
-        .padding(EdgeInsets(top: 18, leading: 16, bottom: 16, trailing: 16))
+        .padding(EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16))
         .frame(maxWidth: .infinity)
-        .akoyaDotGrid(pitch: 10, opacity: 0.08)
+        .akoyaDotGrid(pitch: 10, opacity: 0.07)
         // Layers, bottom to top: V1 card, glow base (cross-fades in with the glow), rim glow,
         // dot grid, content. Every kit modifier draws as a background, so the glow and the
         // glow base are applied before `akoyaV1Card` to sit above its opaque fill. Neither is
@@ -151,10 +185,10 @@ private struct StatusChip: View {
         HStack(spacing: 6) {
             Circle()
                 .fill(AkoyaTheme.accentLight)
-                .frame(width: 6, height: 6)
-                .shadow(color: AkoyaTheme.chipGlow, radius: 4)
+                .frame(width: 7, height: 7)
+                .shadow(color: AkoyaTheme.chipGlow, radius: 3)
             Text(title)
-                .font(AkoyaFonts.outfit(11))
+                .font(AkoyaFonts.outfit(12))
                 .foregroundStyle(AkoyaTheme.textHint)
                 .monospacedDigit()
         }
@@ -162,19 +196,39 @@ private struct StatusChip: View {
     }
 }
 
-private struct Keycap: View {
-    let label: String
+/// The hotkey keycap in "Hold [Right ⌥ ▾] to talk". Clicking it pops up the native hotkey
+/// menu below it; the keycap brightens while the menu is open.
+private struct KeycapButton: View {
+    let hotkey: HotkeyKey
+    let select: (HotkeyKey) -> Void
+    @StateObject private var anchor = MenuAnchor()
+    @Environment(\.popUpMenu) private var popUpMenu
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-        Text(label)
-            .font(AkoyaFonts.outfit(12, .semibold))
-            .foregroundStyle(AkoyaTheme.textPrimary)
-            // CSS padding 2px 9px plus the 1px border.
-            .padding(.vertical, 3)
-            .padding(.horizontal, 10)
-            .background(AkoyaTheme.keycapFill, in: shape)
-            .overlay(shape.strokeBorder(AkoyaTheme.keycapBorder, lineWidth: 1))
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        Button {
+            anchor.present(DropdownMenus.hotkey(current: hotkey, select: select), alignment: .leading, with: popUpMenu)
+        } label: {
+            HStack(spacing: 6.5) {
+                Text(hotkey.keycapLabel)
+                    .font(AkoyaFonts.outfit(13, .semibold))
+                    .foregroundStyle(AkoyaTheme.textPrimary)
+                DropMark()
+                    .foregroundStyle(Color.white.opacity(0.6))
+            }
+            // CSS padding 3px 8px 3px 10px plus the 1px border; the "▾" glyph's side bearings
+            // are folded into the spacing and the trailing padding.
+            .padding(EdgeInsets(top: 4, leading: 11, bottom: 4, trailing: 10))
+            .background(anchor.isOpen ? AkoyaTheme.keycapButtonOpenFill : AkoyaTheme.keycapButtonFill, in: shape)
+            .overlay(shape.strokeBorder(
+                anchor.isOpen ? AkoyaTheme.keycapButtonOpenBorder : AkoyaTheme.keycapButtonBorder, lineWidth: 1))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .trackFrame(in: anchor)
+        .accessibilityLabel("Hotkey")
+        .accessibilityValue(hotkey.displayName)
+        .accessibilityHint("Choose the key to hold or tap")
     }
 }
 
@@ -230,19 +284,18 @@ private struct LastDictationCard: View {
     @StateObject private var feedback = CopyFeedback()
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("LAST DICTATION")
                     .font(AkoyaFonts.outfit(11, .medium))
-                    .kerning(0.44)
-                    .foregroundStyle(AkoyaTheme.textCaption)
+                    .kerning(0.55)
+                    .foregroundStyle(AkoyaTheme.textLabel)
                 Spacer()
                 Button(feedback.isShowing ? "Copied" : "Copy") {
                     copy(text)
                     feedback.flash()
                 }
-                .font(AkoyaFonts.outfit(11))
+                .font(AkoyaFonts.outfit(12))
                 .foregroundStyle(AkoyaTheme.accentLight)
                 .buttonStyle(.plain)
                 .accessibilityLabel("Copy last dictation")
@@ -260,11 +313,7 @@ private struct LastDictationCard: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(
-            LinearGradient(
-                colors: [AkoyaTheme.innerCardTop, AkoyaTheme.innerCardBottom], startPoint: .top, endPoint: .bottom),
-            in: shape)
-        .overlay(shape.strokeBorder(AkoyaTheme.hairline, lineWidth: 1))
+        .background(AkoyaTheme.innerFlat, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -282,74 +331,6 @@ private final class CopyFeedback: ObservableObject {
             try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled else { return }
             self?.isShowing = false
-        }
-    }
-}
-
-// MARK: - Footer
-
-private struct Footer: View {
-    let openSettings: () -> Void
-    let quit: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button(action: openSettings) {
-                Text("Settings")
-                    .font(AkoyaFonts.outfit(13))
-                    .foregroundStyle(AkoyaTheme.textControl)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(AkoyaTheme.pill, in: Capsule())
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            Button(action: quit) {
-                PowerGlyph()
-                    .stroke(AkoyaTheme.quitGlyph, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                    .frame(width: 14, height: 14)
-                    .frame(width: 36, height: 36)
-                    .background(AkoyaTheme.quitFill, in: Circle())
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Quit Akoya")
-        }
-    }
-}
-
-/// The mockup's 14×14 power icon: `M7 1.8v4.6` and `M4.2 3.6a4.6 4.6 0 1 0 5.6 0`.
-private struct PowerGlyph: Shape {
-    func path(in rect: CGRect) -> Path {
-        let unit = min(rect.width, rect.height) / 14
-        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit)
-        }
-        var path = Path()
-        path.move(to: point(7, 1.8))
-        path.addLine(to: point(7, 6.4))
-        // The arc's ends sit at (4.2, 3.6) and (9.8, 3.6); its centre is below the chord.
-        let radius: CGFloat = 4.6
-        let drop = (radius * radius - 2.8 * 2.8).squareRoot()
-        let center = point(7, 3.6 + drop)
-        let startAngle = Angle(radians: atan2(-drop, -2.8))
-        let endAngle = Angle(radians: atan2(-drop, 2.8))
-        // The long way round, through the bottom.
-        path.move(to: point(4.2, 3.6))
-        path.addArc(center: center, radius: radius * unit, startAngle: startAngle, endAngle: endAngle, clockwise: true)
-        return path
-    }
-}
-
-// MARK: - Labels
-
-extension HotkeyKey {
-    /// Short keycap label, e.g. "Right ⌘" (the mockup's form of `displayName`).
-    public var keycapLabel: String {
-        switch self {
-        case .rightOption: "Right ⌥"
-        case .rightCommand: "Right ⌘"
-        case .rightControl: "Right ⌃"
         }
     }
 }

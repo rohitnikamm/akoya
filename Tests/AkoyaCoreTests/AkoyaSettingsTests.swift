@@ -79,4 +79,17 @@ struct AkoyaSettingsTests {
         #expect(defaults.object(forKey: "akoya.inputDeviceUID") == nil)
         #expect(AkoyaSettings(defaults: defaults).inputDeviceUID == nil)
     }
+
+    @Test func inputDeviceNameDefaultsToNilAndRoundTrips() {
+        let defaults = makeDefaults()
+        let first = AkoyaSettings(defaults: defaults)
+        #expect(first.inputDeviceName == nil)
+
+        first.inputDeviceName = "Rohit's AirPods Pro"
+        #expect(AkoyaSettings(defaults: defaults).inputDeviceName == "Rohit's AirPods Pro")
+
+        first.inputDeviceName = nil
+        #expect(defaults.object(forKey: "akoya.inputDeviceName") == nil)
+        #expect(AkoyaSettings(defaults: defaults).inputDeviceName == nil)
+    }
 }

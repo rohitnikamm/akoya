@@ -26,9 +26,9 @@ For a stable code signature, so these permissions survive rebuilds and updates, 
 
 ## Usage
 
-Hold Right Option, speak, release. Akoya transcribes and pastes. Press Esc while recording to cancel.
+Hold Right Option, speak, release. Akoya transcribes and pastes. Or tap the key once to start and again to stop. Press Esc while recording to cancel.
 
-Click the Akoya item in the menu bar to open the dropdown: current status, the hotkey, a Hold to talk / Tap to toggle switch, your last dictation (with a Copy button), Settings and Quit. Settings also has the hotkey (Right Option, Command or Control), the waveform look and Launch at login.
+Click the Akoya item in the menu bar to open the dropdown. Everything is there: current status, your last dictation (with a Copy button), the hotkey (click the keycap to choose Right Option, Command or Control), the microphone, the menu bar icon options (waveform look, red while recording, hide when idle), Launch at login and Quit. If you hide the idle icon, open Akoya from Spotlight to get the dropdown back.
 
 ## Upgrading from Silk
 

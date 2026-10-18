@@ -122,6 +122,9 @@ public final class StatusItemController {
         statusItem.length = WaveformGeometry.itemWidth(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
     }
 
+    /// The item's button, which the dropdown panel anchors to (also while the item is 0 wide).
+    public var button: NSStatusBarButton? { statusItem.button }
+
     /// Applies `WaveformGeometry.itemWidth` for the model's current state to the item length.
     public func refreshWidth() {
         apply(phase: model.phase, hideIdleIcon: model.hideIdleIcon)

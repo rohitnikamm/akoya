@@ -14,7 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings: AkoyaSettings
     private let model: WaveformModel
     private let transcriber: ParakeetTranscriber
-    private let windows = WindowPresenter()
     private let coordinator: AppCoordinator
     private let hotkeyMonitor: HotkeyMonitor
     private let panelStatus = PanelStatus()
@@ -31,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var hotkeyRetryTimer: Timer?
     private var becameActiveObserver: NSObjectProtocol?
+    /// Keeps the audio device listeners alive; see `refreshInputs`.
+    private var inputDevicesObservation: AnyObject?
 
     override init() {
         let settings = AkoyaSettings()
@@ -70,8 +71,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
 
-        panel = StatusPanelController(
+        refreshInputs()
+        inputDevicesObservation = AudioDevices.observeChanges { [weak self] in self?.refreshInputs() }
+
+        let panel = StatusPanelController(
             content: DropdownRoot(model: model, settings: settings, status: panelStatus, actions: dropdownActions()))
+        // Reopening from Spotlight activates Akoya; hand focus back once the panel closes.
+        panel.onVisibilityChange = { isShown in
+            if !isShown { WindowPresenter.handBackFocusIfActive() }
+        }
+        self.panel = panel
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
@@ -88,10 +97,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onboarding.close()
     }
 
-    /// Reopening the app (e.g. from Finder) is the way back in when the idle icon is hidden.
+    /// Reopening the app (Spotlight, Finder) opens the dropdown under the menu bar item: the
+    /// way back in when the idle icon is hidden (the item is then 0 wide but still anchors).
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        windows.showSettings(settings)
+        guard let panel, let button = statusController?.button else { return false }
+        if !panel.isShown { panelStatus.permissionsGranted = Permissions.allGranted }
+        panel.open(relativeTo: button)
         return false
+    }
+
+    // MARK: - Microphones
+
+    /// Reloads the input list and system default for the Microphone menu (at launch and
+    /// whenever devices come and go or the default changes).
+    private func refreshInputs() {
+        panelStatus.inputs = AudioDevices.inputs()
+        panelStatus.defaultInputID = AudioDevices.defaultInputID()
     }
 
     // MARK: - Onboarding
@@ -179,17 +200,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func dropdownActions() -> DropdownActions {
         DropdownActions(
-            openSettings: { [weak self] in
+            selectHotkey: { [weak self] key in self?.settings.hotkey = key },
+            selectMicrophone: { [weak self] uid in
                 guard let self else { return }
-                panel?.close()
-                windows.showSettings(settings)
+                // The name is kept so the menu can still name the device while it is unplugged.
+                settings.inputDeviceName = uid.flatMap { uid in panelStatus.inputs.first { $0.uid == uid }?.name }
+                settings.inputDeviceUID = uid
             },
             quit: { NSApp.terminate(nil) },
             // The panel stays open so the card shows the download starting again.
             retryModel: { [weak self] in self?.prepareModel() },
             finishSetup: { [weak self] in
-                self?.panel?.close()
+                // Onboarding first: closing the panel hands focus back unless a window is showing.
                 self?.onboarding.show(startAt: OnboardingFlow.firstIncomplete(granted: Permissions.isGranted))
+                self?.panel?.close()
             },
             copyLast: { text in
                 let pasteboard = NSPasteboard.general
@@ -204,6 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private final class PanelStatus: ObservableObject {
     @Published var modelState: ModelState = .notReady
     @Published var permissionsGranted = Permissions.allGranted
+    @Published var inputs: [AudioInputDevice] = []
+    @Published var defaultInputID: UInt32?
 }
 
 /// Feeds `PanelStatus` into `DropdownView`, which takes those values as plain parameters.
@@ -216,6 +242,7 @@ private struct DropdownRoot: View {
     var body: some View {
         DropdownView(
             model: model, settings: settings, modelState: status.modelState,
-            permissionsGranted: status.permissionsGranted, actions: actions)
+            permissionsGranted: status.permissionsGranted, inputs: status.inputs,
+            defaultInputID: status.defaultInputID, actions: actions)
     }
 }

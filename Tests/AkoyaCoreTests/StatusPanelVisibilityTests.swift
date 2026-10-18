@@ -26,56 +26,65 @@ private final class EventLog {
     var values: [Bool] = []
 }
 
+/// Every panel test shares one serialized suite: the Space-change test posts a workspace
+/// notification that closes every shown panel, so panel tests must not run side by side.
 @MainActor
-@Test func visibilityChangeFiresTrueOnShowAndFalseOnClose() {
-    let h = Harness()
-    h.panel.toggle(relativeTo: h.button)
-    #expect(h.panel.isShown)
-    #expect(h.events.values == [true])
+@Suite(.serialized) struct StatusPanelTests {
+    @Test func visibilityChangeFiresTrueOnShowAndFalseOnClose() {
+        let h = Harness()
+        h.panel.toggle(relativeTo: h.button)
+        #expect(h.panel.isShown)
+        #expect(h.events.values == [true])
 
-    h.panel.close()
-    #expect(!h.panel.isShown)
-    #expect(h.events.values == [true, false])
+        h.panel.close()
+        #expect(!h.panel.isShown)
+        #expect(h.events.values == [true, false])
+    }
+
+    @Test func secondToggleClosesWithoutReopening() {
+        let h = Harness()
+        h.panel.toggle(relativeTo: h.button)
+        h.panel.toggle(relativeTo: h.button)
+        #expect(!h.panel.isShown)
+        #expect(h.events.values == [true, false])
+    }
+
+    @Test func closingAnAlreadyClosedPanelReportsNothing() {
+        let h = Harness()
+        h.panel.close()
+        #expect(h.events.values.isEmpty)
+        h.panel.toggle(relativeTo: h.button)
+        h.panel.close()
+        h.panel.close()
+        #expect(h.events.values == [true, false])
+    }
+
+    @Test func spaceChangeClosesAndReports() async {
+        let h = Harness()
+        h.panel.toggle(relativeTo: h.button)
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        // The observer is delivered on the main queue; let it run.
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(!h.panel.isShown)
+        #expect(h.events.values == [true, false])
+    }
+
+    @Test func reopenAfterCloseReportsAgain() {
+        let h = Harness()
+        h.panel.toggle(relativeTo: h.button)
+        h.panel.close()
+        h.panel.toggle(relativeTo: h.button)
+        #expect(h.events.values == [true, false, true])
+        h.panel.close()
+    }
+
+    /// Reopening the app opens the panel; a second reopen leaves it open (it never toggles).
+    @Test func openShowsThePanelAndLeavesAnOpenPanelAlone() {
+        let h = Harness()
+        h.panel.open(relativeTo: h.button)
+        h.panel.open(relativeTo: h.button)
+        #expect(h.panel.isShown)
+        #expect(h.events.values == [true])
+        h.panel.close()
+    }
 }
-
-@MainActor
-@Test func secondToggleClosesWithoutReopening() {
-    let h = Harness()
-    h.panel.toggle(relativeTo: h.button)
-    h.panel.toggle(relativeTo: h.button)
-    #expect(!h.panel.isShown)
-    #expect(h.events.values == [true, false])
-}
-
-@MainActor
-@Test func closingAnAlreadyClosedPanelReportsNothing() {
-    let h = Harness()
-    h.panel.close()
-    #expect(h.events.values.isEmpty)
-    h.panel.toggle(relativeTo: h.button)
-    h.panel.close()
-    h.panel.close()
-    #expect(h.events.values == [true, false])
-}
-
-@MainActor
-@Test func spaceChangeClosesAndReports() async {
-    let h = Harness()
-    h.panel.toggle(relativeTo: h.button)
-    NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
-    // The observer is delivered on the main queue; let it run.
-    try? await Task.sleep(for: .milliseconds(100))
-    #expect(!h.panel.isShown)
-    #expect(h.events.values == [true, false])
-}
-
-@MainActor
-@Test func reopenAfterCloseReportsAgain() {
-    let h = Harness()
-    h.panel.toggle(relativeTo: h.button)
-    h.panel.close()
-    h.panel.toggle(relativeTo: h.button)
-    #expect(h.events.values == [true, false, true])
-    h.panel.close()
-}
-

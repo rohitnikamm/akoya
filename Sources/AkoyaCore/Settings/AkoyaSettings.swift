@@ -15,6 +15,7 @@ public final class AkoyaSettings: ObservableObject {
         static let hideIdleIcon = "akoya.hideIdleIcon"
         static let onboardingCompleted = "akoya.onboardingCompleted"
         static let inputDeviceUID = "akoya.inputDeviceUID"
+        static let inputDeviceName = "akoya.inputDeviceName"
     }
 
     private static let log = Logger(subsystem: "com.rohitnikamm.akoya", category: "settings")
@@ -47,6 +48,16 @@ public final class AkoyaSettings: ObservableObject {
             }
         }
     }
+    /// Name of the chosen microphone, so the menu can name it while it is disconnected.
+    @Published public var inputDeviceName: String? {
+        didSet {
+            if let inputDeviceName {
+                defaults.set(inputDeviceName, forKey: Key.inputDeviceName)
+            } else {
+                defaults.removeObject(forKey: Key.inputDeviceName)
+            }
+        }
+    }
     @Published public var launchAtLogin: Bool {
         didSet {
             guard !isRevertingLaunchAtLogin, launchAtLogin != oldValue else { return }
@@ -73,6 +84,7 @@ public final class AkoyaSettings: ObservableObject {
         hideIdleIcon = defaults.bool(forKey: Key.hideIdleIcon)
         onboardingCompleted = defaults.bool(forKey: Key.onboardingCompleted)
         inputDeviceUID = defaults.string(forKey: Key.inputDeviceUID)
+        inputDeviceName = defaults.string(forKey: Key.inputDeviceName)
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }

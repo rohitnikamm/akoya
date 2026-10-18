@@ -10,7 +10,7 @@ public enum AkoyaTheme {
     public static let panelBottom = Color(hex: 0x070A12)
     /// Pills and inner cards, `rgba(30,36,58,0.6)` (the spec allows 0.6–0.8).
     public static let inner = Color(rgba: 30, 36, 58, 0.6)
-    /// Selected segment and primary button gradient, electric blue `#2F6BFF` → `#1D4ED8`.
+    /// Primary button gradient (Retry, Finish setup), electric blue `#2F6BFF` → `#1D4ED8`.
     public static let accentTop = Color(hex: 0x2F6BFF)
     public static let accentBottom = Color(hex: 0x1D4ED8)
     /// Small accents (chip dot, progress, Copy link), light blue `#93C5FD`; softer `#BFDBFE`.
@@ -19,32 +19,32 @@ public enum AkoyaTheme {
     public static let textPrimary = Color.white
     public static let textSecondary = Color.white.opacity(0.7)
 
-    // Dropdown panel (docs/design/dropdown-mockup.html, blue values from blue-glow-target.html).
+    // Dropdown panel (docs/design/all-in-one-dropdown-target.html, blue values from
+    // blue-glow-target.html).
     /// Near-black blue base the status card cross-fades to while its rim glow shows, `#020611`.
     public static let glowBase = Color(hex: 0x020611)
-    /// Mode switch track and Settings pill, `rgba(30,36,58,0.8)`.
-    public static let pill = Color(rgba: 30, 36, 58, 0.8)
-    /// Last-dictation card gradient, `#171D33` → `#0B0F1C`.
-    public static let innerCardTop = Color(hex: 0x171D33)
-    public static let innerCardBottom = Color(hex: 0x0B0F1C)
-    /// Round Quit button fill `#E8E8F0` and its glyph `#111111`.
-    public static let quitFill = Color(hex: 0xE8E8F0)
-    public static let quitGlyph = Color(hex: 0x111111)
+    /// Last-dictation card and options card fill, `rgba(30,36,58,0.55)`.
+    public static let innerFlat = Color(rgba: 30, 36, 58, 0.55)
     /// Glow around the status chip's dot, `#60A5FA`.
     public static let chipGlow = Color(hex: 0x60A5FA)
-    /// Keycap fill (white 0.10) and border `rgba(140,180,255,0.35)`.
+    /// Onboarding keycap fill (white 0.10) and border `rgba(140,180,255,0.35)`.
     public static let keycapFill = Color.white.opacity(0.10)
     public static let keycapBorder = Color(rgba: 140, 180, 255, 0.35)
-    /// Hairline border on inner cards (white 0.06) and top highlight on the panel (white 0.07).
-    public static let hairline = Color.white.opacity(0.06)
+    /// The dropdown's neutral keycap button: fill white 0.08 and border white 0.16, brighter
+    /// (0.16 / 0.30) while its menu is open.
+    public static let keycapButtonFill = Color.white.opacity(0.08)
+    public static let keycapButtonBorder = Color.white.opacity(0.16)
+    public static let keycapButtonOpenFill = Color.white.opacity(0.16)
+    public static let keycapButtonOpenBorder = Color.white.opacity(0.30)
+    /// Top highlight on the panel (white 0.07).
     public static let topHighlight = Color.white.opacity(0.07)
-    /// Dropdown text levels: last-dictation body 0.88, pill labels 0.85, chip and hint 0.75,
-    /// unselected segment 0.6, section caption 0.45.
-    public static let textBody = Color.white.opacity(0.88)
-    public static let textControl = Color.white.opacity(0.85)
-    public static let textHint = Color.white.opacity(0.75)
+    /// Dropdown text levels: last-dictation body 0.9, chip and hint 0.78, last-dictation
+    /// label 0.62 (≥ 4.5:1 at 11 pt), the hint's second line 0.55; onboarding muted text 0.6.
+    public static let textBody = Color.white.opacity(0.9)
+    public static let textHint = Color.white.opacity(0.78)
+    public static let textLabel = Color.white.opacity(0.62)
+    public static let textHintSecondary = Color.white.opacity(0.55)
     public static let textMuted = Color.white.opacity(0.6)
-    public static let textCaption = Color.white.opacity(0.45)
     /// Download progress track, white 0.10.
     public static let progressTrack = Color.white.opacity(0.10)
 
