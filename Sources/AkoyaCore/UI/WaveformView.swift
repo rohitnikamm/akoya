@@ -14,8 +14,6 @@ public final class WaveformModel: ObservableObject {
     /// Set by `StatusItemController` while the item cross-fades from one content to another;
     /// nil otherwise.
     @Published public var fade: ContentFade?
-    /// True while the dropdown panel is open; draws the item's own selected background.
-    @Published public var isSelected: Bool = false
     /// Current voice loudness, 0...1 (`(level step - 1) / 7` of the latest RMS); 0 when not
     /// recording. Drives the onboarding rim glow.
     @Published public var voiceLevel: Double = 0
@@ -53,18 +51,6 @@ public enum WaveformLayout {
     public static let scannerCells = 2
     /// How long the error glyph stays red after entering `.error`.
     public static let errorFlashDuration: TimeInterval = 0.6
-
-    public static let selectionHeight: CGFloat = 22
-    public static let selectionInset: CGFloat = 2
-    public static let selectionCornerRadius: CGFloat = 6
-
-    /// The selected background: the item width minus `selectionInset` on each side, 22 pt tall
-    /// (at most the item height minus 2 pt), centered vertically.
-    public static func selectionRect(in size: CGSize) -> CGRect {
-        let height = max(0, min(selectionHeight, size.height - 2))
-        let width = max(0, size.width - 2 * selectionInset)
-        return CGRect(x: selectionInset, y: (size.height - height) / 2, width: width, height: height)
-    }
 
     /// The five-bar idle glyph: 16 pt wide, bars 2 pt wide spread evenly, centered in `size`.
     public static func idleBarRects(in size: CGSize) -> [CGRect] {
@@ -237,12 +223,6 @@ public struct WaveformView: View {
 
     private func draw(into context: inout GraphicsContext, size: CGSize, now: Date) {
         context.clip(to: Path(CGRect(origin: .zero, size: size)))
-        if model.isSelected {
-            let pill = Path(
-                roundedRect: WaveformLayout.selectionRect(in: size),
-                cornerRadius: WaveformLayout.selectionCornerRadius, style: .continuous)
-            context.fill(pill, with: .color(Color.primary.opacity(0.16)))
-        }
         let current = StatusItemContent(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
         let elapsed = now.timeIntervalSince(model.phaseEnteredAt)
         let glyphColor: Color =

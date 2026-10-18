@@ -5,7 +5,8 @@ import SwiftUI
 
 /// Hosts `WaveformView` in the status button and takes the item's clicks itself, so the
 /// `NSStatusBarButton` underneath never tracks a click and never draws the system dark
-/// "pressed" capsule. The selected look is drawn by `WaveformView` (`WaveformModel.isSelected`).
+/// "pressed" capsule. The item deliberately has no selected background: the open panel itself
+/// shows that it's open.
 ///
 /// Opens on mouse-down (like native items). It is a subview of the button, so it lives in the
 /// same window, which the dropdown panel's click monitor skips for the anchor button.

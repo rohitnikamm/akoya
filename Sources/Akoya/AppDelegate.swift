@@ -73,8 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
-        // The item draws its own selected background exactly while the panel is open.
-        panel?.bindSelection(to: model)
 
         quitLegacySilk()
         showOnboardingIfNeeded()

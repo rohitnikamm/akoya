@@ -25,13 +25,8 @@ public final class StatusPanelController {
 
     /// Called with `true` once the panel is shown and `false` once it is closed, on every path
     /// (outside click, Esc, second click of the item, Space change, `close()` from an action).
-    /// The owner drives the menu bar item's selected look from this, so the two cannot drift.
+    /// Called with true when the panel is shown and false on every close.
     public var onVisibilityChange: ((Bool) -> Void)?
-
-    /// Makes `model.isSelected` follow the panel's visibility, which draws the item's selected look.
-    public func bindSelection(to model: WaveformModel) {
-        onVisibilityChange = { [weak model] visible in model?.isSelected = visible }
-    }
 
     public init(content: some View) {
         self.content = AnyView(content)

@@ -79,17 +79,3 @@ private final class EventLog {
     h.panel.close()
 }
 
-@MainActor
-@Test func isSelectedFollowsPanelVisibility() {
-    let h = Harness()
-    let model = WaveformModel()
-    h.panel.bindSelection(to: model)
-    #expect(!model.isSelected)
-    h.panel.toggle(relativeTo: h.button)
-    #expect(model.isSelected)
-    h.panel.toggle(relativeTo: h.button)
-    #expect(!model.isSelected)
-    h.panel.toggle(relativeTo: h.button)
-    h.panel.close()
-    #expect(!model.isSelected)
-}
