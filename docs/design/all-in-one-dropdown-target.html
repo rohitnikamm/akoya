@@ -1,0 +1,108 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap"><style>
+body{margin:0;background:radial-gradient(circle at 20% 80%,#0d1a3a 0,transparent 50%),#05070d;font-family:Outfit,system-ui,sans-serif;color:#fff;display:flex;gap:60px;padding:40px;align-items:flex-start}
+.cap{font-size:13px;color:#8b93a7;margin-bottom:12px}
+.panel{position:relative;width:320px;padding:14px;box-sizing:border-box;border-radius:30px;background:linear-gradient(180deg,#0E1424,#070A12);box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;gap:10px}
+.card{position:relative;overflow:hidden;border-radius:24px;padding:16px 16px 14px;background:radial-gradient(ellipse at 50% 0%,rgba(40,90,200,.22) 0,transparent 62%),#03060F;display:flex;flex-direction:column;align-items:center;gap:8px}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.2px);background-size:10px 10px}
+.row{position:relative;width:100%;display:flex;align-items:center;justify-content:space-between}
+.wm{font-weight:600;font-size:14px}
+.chip{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.78)} .chip i{width:7px;height:7px;border-radius:4px;background:#93C5FD;box-shadow:0 0 6px #60A5FA}
+.logo{position:relative;height:44px;display:flex;align-items:center;margin:2px 0}
+.hint{position:relative;font-size:13px;color:rgba(255,255,255,.78);display:flex;align-items:center;gap:7px}
+.kc{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 10px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-weight:600;color:#fff} .kc b{font-size:9px;color:rgba(255,255,255,.6);font-weight:400}
+.kc-open{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.sub{position:relative;font-size:11.5px;color:rgba(255,255,255,.55)}
+.last{padding:12px 14px;border-radius:20px;background:rgba(30,36,58,.55);display:flex;flex-direction:column;gap:6px}
+.lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:500} .copy{font-size:12px;color:#93C5FD}
+.txt{font-size:13px;line-height:1.4;color:rgba(255,255,255,.9)}
+.group{border-radius:18px;background:rgba(30,36,58,.55);padding:2px 0}
+.gi{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:13px}
+.gl{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.88)} .gl svg{color:rgba(255,255,255,.6)}
+.gv{color:rgba(255,255,255,.62);font-size:12.5px} .gv b{font-size:9px;font-weight:400}
+.sep{height:1px;margin:0 14px;background:rgba(255,255,255,.07)}
+.sw{width:34px;height:20px;border-radius:10px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);position:relative}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:rgba(255,255,255,.55)}
+.sw.on{background:rgba(255,255,255,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)} .sw.on i{left:16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.quit{display:flex;justify-content:space-between;padding:6px 14px 4px;font-size:13px;color:rgba(255,255,255,.62)} .sc{color:rgba(255,255,255,.4)}
+.mi{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;color:rgba(255,255,255,.88)} .mi span:first-child{flex-grow:1}
+.mi.sel{background:rgba(255,255,255,.10)} .mi .k{color:rgba(255,255,255,.5);width:14px;text-align:center} .mi .ck{width:12px;color:#fff}
+.sub2{margin:0 10px 6px;padding:2px 0;border-radius:12px;background:rgba(255,255,255,.035)}
+.gi.in{padding:8px 12px}
+.gl2{font-size:12.5px;color:rgba(255,255,255,.8)}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:12px}
+.seg span{padding:3px 10px;border-radius:6px;color:rgba(255,255,255,.55)}
+.seg span.on{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);color:#fff;font-weight:600}
+.note{padding:2px 12px 8px;font-size:11px;color:rgba(255,255,255,.5)}
+</style></head><body>
+<div><div class="cap">All-in-one dropdown · ready</div><div class="panel">
+  <div class="card">
+    <div class="grid"></div>
+    <div class="row top"><span class="wm">Akoya</span><span class="chip"><i></i>Ready</span></div>
+    <div class="logo"><div style="display:flex;align-items:center;gap:6px"><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div></div></div>
+    <div class="hint">Hold <span class="kc">Right ⌥ <b>▾</b></span> to talk</div>
+    <div class="sub">or tap it once to start, again to stop</div>
+  </div>
+  
+  <div class="last">
+    <div class="row"><span class="lbl">Last dictation</span><span class="copy">Copy</span></div>
+    <div class="txt">Okay, this is actually really smooth. I could get used to talking to my Mac.</div>
+  </div>
+  <div class="group">
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+    <div class="sep"></div><div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv">Pixel <b>›</b></span></div><div class="sep"></div>
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+  </div>
+  <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div>
+</div></div>
+<div><div class="cap">Click the keycap to change the hotkey</div><div class="panel">
+  <div class="card">
+    <div class="grid"></div>
+    <div class="row top"><span class="wm">Akoya</span><span class="chip"><i></i>Ready</span></div>
+    <div class="logo"><div style="display:flex;align-items:center;gap:6px"><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div></div></div>
+    <div class="hint">Hold <span class="kc kc-open">Right ⌥ <b>▾</b></span> to talk</div>
+    <div class="sub">or tap it once to start, again to stop</div>
+  </div>
+  <div style="position:absolute;top:150px;left:118px;width:178px;padding:5px;border-radius:12px;background:#161B2C;box-shadow:0 14px 34px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.09);z-index:5;isolation:isolate;font-size:13px">
+      <div style="padding:4px 8px 6px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.55)">Hotkey</div>
+      <div class="mi sel"><span>Right Option</span><span class="k">⌥</span><span class="ck">✓</span></div>
+      <div class="mi"><span>Right Command</span><span class="k">⌘</span><span class="ck"></span></div>
+      <div class="mi"><span>Right Control</span><span class="k">⌃</span><span class="ck"></span></div>
+    </div>
+  <div class="last">
+    <div class="row"><span class="lbl">Last dictation</span><span class="copy">Copy</span></div>
+    <div class="txt">Okay, this is actually really smooth. I could get used to talking to my Mac.</div>
+  </div>
+  <div class="group">
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+    <div class="sep"></div><div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv">Pixel <b>›</b></span></div><div class="sep"></div>
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+  </div>
+  <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div>
+</div></div>
+<div><div class="cap">Menu bar icon options, expanded</div><div class="panel">
+  <div class="card">
+    <div class="grid"></div>
+    <div class="row top"><span class="wm">Akoya</span><span class="chip"><i></i>Ready</span></div>
+    <div class="logo"><div style="display:flex;align-items:center;gap:6px"><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div><div style="display:flex;flex-direction:column;gap:3px"><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i><i style="display:block;width:5px;height:5px;border-radius:5px;background:#BFDBFE;box-shadow:0 0 4px rgba(147,197,253,.6)"></i></div></div></div>
+    <div class="hint">Hold <span class="kc">Right ⌥ <b>▾</b></span> to talk</div>
+    <div class="sub">or tap it once to start, again to stop</div>
+  </div>
+  
+  <div class="last">
+    <div class="row"><span class="lbl">Last dictation</span><span class="copy">Copy</span></div>
+    <div class="txt">Okay, this is actually really smooth. I could get used to talking to my Mac.</div>
+  </div>
+  <div class="group">
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+    <div class="sep"></div><div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv"><b style="display:inline-block;transform:rotate(90deg)">›</b></span></div>
+<div class="sub2">
+  <div class="gi in"><span class="gl2">Waveform</span><span class="seg"><span class="on">Pixel</span><span>Solid</span></span></div>
+  <div class="gi in"><span class="gl2">Red while recording</span><span class="sw"><i></i></span></div>
+  <div class="gi in"><span class="gl2">Hide when idle</span><span class="sw"><i></i></span></div>
+  <div class="note">Hidden? Open Akoya from Spotlight to get back here.</div>
+</div><div class="sep"></div>
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+  </div>
+  <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div>
+</div></div>
+</body></html>
