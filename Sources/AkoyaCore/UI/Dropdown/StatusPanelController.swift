@@ -231,7 +231,7 @@ public final class StatusPanelController {
 /// Borderless, non-activating, transparent floating panel at status bar level. It never
 /// becomes key or main: if it did, a click inside would leave it key, and dictation's ⌘V and
 /// the user's typing would go to the panel instead of the frontmost app.
-private final class DropdownPanel: NSPanel {
+final class DropdownPanel: NSPanel {
     init() {
         super.init(
             contentRect: .zero, styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: true)
@@ -241,6 +241,8 @@ private final class DropdownPanel: NSPanel {
         isOpaque = false
         hasShadow = true
         hidesOnDeactivate = false
+        // Hiding Akoya (to hand focus back) must not hide the panel.
+        canHide = false
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         // The dropdown is dark only; its native menus follow the panel.

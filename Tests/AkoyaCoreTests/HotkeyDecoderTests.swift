@@ -20,3 +20,4 @@ import Testing
 @Test func reconcileReleasesWhenHeldButKeyUp() { #expect(HotkeyDecoder.reconcile(isHeld: true, currentFlags: 0x80000, key: .rightOption) == .released) }
 @Test func reconcileKeepsHeldWhenKeyStillDown() { #expect(HotkeyDecoder.reconcile(isHeld: true, currentFlags: 0x40 | 0x80000, key: .rightOption) == nil) }
 @Test func reconcileNoopWhenNotHeld() { #expect(HotkeyDecoder.reconcile(isHeld: false, currentFlags: 0, key: .rightOption) == nil) }
+@Test func hotkeyChangedWhileOldKeyHeldReleases() { #expect(HotkeyDecoder.decode(type: .flagsChanged, keyCode: 61, flags: 0, key: .rightCommand, isRecording: true, isHeld: true).event == .released) }

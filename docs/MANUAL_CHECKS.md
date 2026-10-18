@@ -70,6 +70,8 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Esc while recording cancels and doesn't close a dialog (a long-held Esc may still auto-repeat into the app).
 - [ ] Copy an image first; it's still on the clipboard after dictating.
 - [ ] Close the dropdown, then dictate right away: text lands in the previous app, not in Akoya.
+- [ ] Open the panel, open the Hotkey or Microphone menu, then dictate (also with the menu still open): the paste lands in the frontmost app.
+- [ ] Reopen Akoya from Spotlight, then dictate with the panel open: the paste lands in the previously frontmost app.
 - [ ] Deny the microphone, then press: red cue, no system dialog mid-dictation.
 
 ## Edge cases

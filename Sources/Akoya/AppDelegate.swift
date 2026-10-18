@@ -103,6 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let panel, let button = statusController?.button else { return false }
         if !panel.isShown { panelStatus.permissionsGranted = Permissions.allGranted }
         panel.open(relativeTo: button)
+        // Spotlight/Finder activated Akoya; hand focus back now so a dictation with the panel
+        // open pastes into the previous app (the panel survives the hide: canHide is false).
+        WindowPresenter.handBackFocusIfActive()
         return false
     }
 

@@ -88,3 +88,9 @@ private final class EventLog {
         h.panel.close()
     }
 }
+
+/// Hiding Akoya hands focus back after a reopen; the panel must stay visible through it.
+@MainActor
+@Test func dropdownPanelSurvivesAppHide() {
+    #expect(DropdownPanel().canHide == false)
+}
