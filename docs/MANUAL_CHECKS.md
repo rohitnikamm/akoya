@@ -40,9 +40,9 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Footer: "Settings" closes the panel and opens the "Akoya Settings" window; the round Quit button quits.
 
 ## Settings
-- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey, mode), Appearance (waveform, red tint, hide icon, expand animation) and General (launch at login), and check the toggles show the blue accent when switched on.
+- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey, mode), Appearance (waveform, red tint, hide icon) and General (launch at login), and check the toggles show the blue accent when switched on.
 - [ ] Right Command and Right Control work when chosen; toggle mode works; Launch at login adds Akoya to System Settings > General > Login Items.
-- [ ] Appearance changes (look, red tint, hide idle icon, expand animation) apply live.
+- [ ] Appearance changes (look, red tint, hide idle icon) apply live.
 
 ## App icon
 - [ ] Finder shows `build/Akoya.app` with the dark rounded icon and the glowing dot logo.
@@ -65,6 +65,10 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 
 ## Look
 - [ ] Light and dark menu bars, including a wallpaper-tinted menu bar; no clipping at the tallest column.
+- [ ] Expand/collapse (always on): pressing the hotkey widens the item leftwards in about a fifth of a second. The waveform stays put and is uncovered from the left; it never slides sideways or shows only its middle columns, and the bars do not shimmer. The idle glyph fades out over the start of the expand. On release the scanner cross-fades in with no width change. When the item collapses back to idle, the glyph stays at the right while the scanner fades and is covered from the left. Check on a 120 Hz (ProMotion) display too.
+- [ ] With "Hide icon when idle" on, the item grows from nothing to the waveform the same way, and shrinks back to nothing.
+- [ ] Reduce Motion on (System Settings > Accessibility > Display): the width jumps with no tween and the content only cross-fades briefly.
+- [ ] Open the dropdown while recording, then let dictation finish: the selected background shrinks with the item and stays within its bounds.
 - [ ] Item sits left of Control Center and remembers a command-dragged position after relaunch.
 - [ ] With "Hide icon when idle" on, opening Akoya again from Finder/Spotlight opens Settings.
 - [ ] VoiceOver reads the item as "Akoya".

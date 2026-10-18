@@ -23,7 +23,6 @@ public struct SettingsView: View {
                 }
                 Toggle("Red tint while recording", isOn: $settings.redTint)
                 Toggle("Hide icon when idle", isOn: $settings.hideIdleIcon)
-                Toggle("Expand animation", isOn: $settings.expandAnimation)
             }
             Section("General") {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)

@@ -67,7 +67,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
-        settings.$expandAnimation.assign(to: &model.$expandAnimation)
 
         panel = StatusPanelController(
             content: DropdownRoot(model: model, settings: settings, status: panelStatus, actions: dropdownActions()))

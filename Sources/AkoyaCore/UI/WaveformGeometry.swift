@@ -44,3 +44,27 @@ public enum WaveformGeometry {
         }
     }
 }
+
+/// What the menu bar item draws. Each content is laid out at its own natural width, pinned
+/// to the item's trailing edge (the edge that stays put on screen while the item resizes).
+public enum StatusItemContent: Equatable, Sendable {
+    case none, glyph, waveform, scanner
+
+    public init(phase: DictationPhase, hideIdleIcon: Bool) {
+        switch phase {
+        case .idle: self = hideIdleIcon ? .none : .glyph
+        case .error: self = .glyph
+        case .recording: self = .waveform
+        case .transcribing: self = .scanner
+        }
+    }
+
+    /// The item width this content is laid out in.
+    public var naturalWidth: CGFloat {
+        switch self {
+        case .none: 0
+        case .glyph: WaveformGeometry.idleItemWidth
+        case .waveform, .scanner: WaveformGeometry.activeItemWidth
+        }
+    }
+}

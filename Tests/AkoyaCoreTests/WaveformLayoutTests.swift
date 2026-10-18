@@ -46,12 +46,82 @@ private let barSize = CGSize(width: 77, height: 22)
     #expect(rects.first?.minX == 6 && rects.last?.maxX == 22)  // 16 pt wide, centered in 28
 }
 
-@Test func easedLengthHitsEndpointsAndMidpoint() {
-    #expect(WaveformLayout.easedLength(from: 28, to: 77, progress: 0) == 28)
-    #expect(WaveformLayout.easedLength(from: 28, to: 77, progress: 1) == 77)
-    #expect(WaveformLayout.easedLength(from: 28, to: 77, progress: 0.5) == 52.5)
-    #expect(WaveformLayout.easedLength(from: 28, to: 77, progress: 3) == 77)  // clamped
-    #expect(WaveformLayout.easedLength(from: 77, to: 28, progress: -1) == 77)
+@Test func cubicBezierHitsEndpointsAndIsMonotonic() {
+    #expect(WaveformLayout.expandEase(0) == 0)
+    #expect(WaveformLayout.expandEase(1) == 1)
+    #expect(WaveformLayout.expandEase(-2) == 0)  // clamped
+    #expect(WaveformLayout.expandEase(3) == 1)
+    let samples = (0...200).map { WaveformLayout.expandEase(Double($0) / 200) }
+    #expect(zip(samples, samples.dropFirst()).allSatisfy { $1 >= $0 })
+}
+
+@Test func expandEaseMatchesCSSCurve() {
+    // Reference values for CSS cubic-bezier(0.2, 0.8, 0.2, 1), solved by bisection.
+    #expect(abs(WaveformLayout.expandEase(0.5) - 0.94608) < 1e-4)
+    #expect(abs(WaveformLayout.expandEase(0.25) - 0.76728) < 1e-4)
+    #expect(abs(WaveformLayout.expandEase(0.1) - 0.39669) < 1e-4)
+}
+
+@Test func cubicBezierWithLinearControlPointsIsIdentity() {
+    for t in stride(from: 0.0, through: 1.0, by: 0.05) {
+        #expect(abs(WaveformLayout.cubicBezier(x1: 1.0 / 3, y1: 1.0 / 3, x2: 2.0 / 3, y2: 2.0 / 3, at: t) - t) < 1e-6)
+    }
+}
+
+@Test func tweenLengthRoundsToWholePointsAndHitsEndpoints() {
+    #expect(WaveformLayout.tweenLength(from: 28, to: 77, progress: 0) == 28)
+    #expect(WaveformLayout.tweenLength(from: 28, to: 77, progress: 1) == 77)
+    #expect(WaveformLayout.tweenLength(from: 28, to: 77, progress: 3) == 77)  // clamped
+    #expect(WaveformLayout.tweenLength(from: 77, to: 28, progress: -1) == 77)
+    for i in 0...100 {
+        let length = WaveformLayout.tweenLength(from: 28, to: 77, progress: Double(i) / 100)
+        #expect(length == length.rounded())
+    }
+}
+
+@Test func itemTweenResizesThenSettles() {
+    let tween = ItemTween(fromLength: 28, toLength: 77, reduceMotion: false)
+    #expect(tween.resizes)
+    #expect(tween.length(at: 0) == 28)
+    #expect(tween.length(at: ItemTween.resizeDuration) == 77)
+    #expect(tween.fadeProgress(at: 0) == 0)
+    #expect(tween.fadeProgress(at: ItemTween.resizeDuration * ItemTween.resizeFadeFraction) == 1)
+    #expect(!tween.isFinished(at: 0.1) && tween.isFinished(at: ItemTween.resizeDuration))
+}
+
+@Test func itemTweenWithoutWidthChangeOrWithReduceMotionOnlyFades() {
+    let same = ItemTween(fromLength: 77, toLength: 77, reduceMotion: false)
+    #expect(!same.resizes && same.duration == ItemTween.fadeOnlyDuration)
+    let reduced = ItemTween(fromLength: 28, toLength: 77, reduceMotion: true)
+    #expect(!reduced.resizes)
+    #expect(reduced.length(at: 0) == 77)  // jumps
+    #expect(reduced.fadeProgress(at: ItemTween.fadeOnlyDuration / 2) == 0.5)
+}
+
+@Test func contentIsPinnedToTrailingEdgeOnWholePixelsEveryFrame() {
+    // Sample a 120 Hz expand: columns never move on screen (the item's trailing edge is fixed)
+    // and land on whole pixels at 2x.
+    let tween = ItemTween(fromLength: 28, toLength: 77, reduceMotion: false)
+    let finalX = (0..<22).map { WaveformLayout.columnX(index: $0, count: 22, width: 77) - 77 }
+    for frame in 0...27 {
+        let width = tween.length(at: Double(frame) / 120)
+        let origin = WaveformLayout.trailingOriginX(naturalWidth: StatusItemContent.waveform.naturalWidth, in: width)
+        let xs = (0..<22).map { origin + WaveformLayout.columnX(index: $0, count: 22, width: 77) }
+        #expect(xs.map { $0 - width } == finalX)  // same offset from the trailing edge
+        #expect(xs.allSatisfy { ($0 * 2) == ($0 * 2).rounded() })
+        let glyphOrigin = WaveformLayout.trailingOriginX(naturalWidth: StatusItemContent.glyph.naturalWidth, in: width)
+        #expect(WaveformLayout.idleBarRects(in: CGSize(width: 28, height: 22))
+            .allSatisfy { (($0.minX + glyphOrigin) * 2).rounded() == ($0.minX + glyphOrigin) * 2 })
+    }
+}
+
+@Test func itemContentFollowsPhase() {
+    #expect(StatusItemContent(phase: .idle, hideIdleIcon: false) == .glyph)
+    #expect(StatusItemContent(phase: .idle, hideIdleIcon: true) == StatusItemContent.none)
+    #expect(StatusItemContent(phase: .error, hideIdleIcon: true) == .glyph)
+    #expect(StatusItemContent(phase: .recording, hideIdleIcon: false) == .waveform)
+    #expect(StatusItemContent(phase: .transcribing, hideIdleIcon: false) == .scanner)
+    #expect(StatusItemContent.glyph.naturalWidth == 28 && StatusItemContent.scanner.naturalWidth == 77)
 }
 
 @Test func selectionRectInsetsWidthAndCentersVertically() {

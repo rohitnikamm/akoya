@@ -14,7 +14,6 @@ public final class AkoyaSettings: ObservableObject {
         static let look = "akoya.look"
         static let redTint = "akoya.redTint"
         static let hideIdleIcon = "akoya.hideIdleIcon"
-        static let expandAnimation = "akoya.expandAnimation"
         static let onboardingCompleted = "akoya.onboardingCompleted"
     }
 
@@ -37,9 +36,6 @@ public final class AkoyaSettings: ObservableObject {
     }
     @Published public var hideIdleIcon: Bool {
         didSet { defaults.set(hideIdleIcon, forKey: Key.hideIdleIcon) }
-    }
-    @Published public var expandAnimation: Bool {
-        didSet { defaults.set(expandAnimation, forKey: Key.expandAnimation) }
     }
     @Published public var onboardingCompleted: Bool {
         didSet { defaults.set(onboardingCompleted, forKey: Key.onboardingCompleted) }
@@ -69,7 +65,6 @@ public final class AkoyaSettings: ObservableObject {
         look = defaults.string(forKey: Key.look).flatMap(WaveLook.init(rawValue:)) ?? .pixel
         redTint = defaults.bool(forKey: Key.redTint)
         hideIdleIcon = defaults.bool(forKey: Key.hideIdleIcon)
-        expandAnimation = defaults.bool(forKey: Key.expandAnimation)
         onboardingCompleted = defaults.bool(forKey: Key.onboardingCompleted)
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }

@@ -15,7 +15,6 @@ struct AkoyaSettingsTests {
         #expect(settings.look == .pixel)
         #expect(settings.redTint == false)
         #expect(settings.hideIdleIcon == false)
-        #expect(settings.expandAnimation == false)
     }
 
     @Test func valuesPersist() {
@@ -26,7 +25,6 @@ struct AkoyaSettingsTests {
         first.mode = .toggle
         first.redTint = true
         first.hideIdleIcon = true
-        first.expandAnimation = true
 
         let second = AkoyaSettings(defaults: defaults)
         #expect(second.hotkey == .rightCommand)
@@ -34,7 +32,6 @@ struct AkoyaSettingsTests {
         #expect(second.mode == .toggle)
         #expect(second.redTint)
         #expect(second.hideIdleIcon)
-        #expect(second.expandAnimation)
     }
 
     @Test func invalidStoredValuesFallBackToDefaults() {
@@ -58,14 +55,12 @@ struct AkoyaSettingsTests {
         settings.look = .solid
         settings.redTint = true
         settings.hideIdleIcon = true
-        settings.expandAnimation = true
 
         #expect(defaults.string(forKey: "akoya.hotkey") == HotkeyKey.rightCommand.rawValue)
         #expect(defaults.string(forKey: "akoya.mode") == DictationMode.toggle.rawValue)
         #expect(defaults.string(forKey: "akoya.look") == WaveLook.solid.rawValue)
         #expect(defaults.bool(forKey: "akoya.redTint"))
         #expect(defaults.bool(forKey: "akoya.hideIdleIcon"))
-        #expect(defaults.bool(forKey: "akoya.expandAnimation"))
     }
 
     @Test func onboardingCompletedPersists() {
