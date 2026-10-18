@@ -178,6 +178,19 @@ public final class StatusPanelController {
         {
             monitors.append(monitor)
         }
+        // When Akoya itself is active (reopened from Spotlight), Esc comes to Akoya, which
+        // global monitors never see.
+        if let monitor = NSEvent.addLocalMonitorForEvents(
+            matching: .keyDown,
+            handler: { [weak self] event in
+                if event.keyCode == Self.escapeKeyCode {
+                    MainActor.assumeIsolated { self?.close() }
+                }
+                return event
+            })
+        {
+            monitors.append(monitor)
+        }
         // Clicks in another Akoya window (onboarding). Clicks on the item itself are left to
         // its hosting view, which toggles on mouse-down; this monitor runs before that
         // dispatch, so closing here would make the toggle reopen the panel. Clicks in a menu

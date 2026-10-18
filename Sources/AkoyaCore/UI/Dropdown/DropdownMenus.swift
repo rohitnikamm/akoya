@@ -5,7 +5,8 @@ import SwiftUI
 
 /// What the Microphone row and its menu show: "System default (<name>)", then every input
 /// device, with a check on the current choice. A chosen device that is not connected stays
-/// listed (checked, disabled, "(unavailable)") while recording falls back to the system default.
+/// listed and shown (checked, disabled, "(unavailable)") while recording falls back to the
+/// system default.
 public struct MicrophoneMenuModel: Equatable {
     public struct Item: Equatable {
         public let title: String
@@ -23,7 +24,8 @@ public struct MicrophoneMenuModel: Equatable {
     }
 
     /// The row's value: the chosen device, the default's name when following the system
-    /// default, or "System default" when falling back (or when there is no default device).
+    /// default ("System default" when there is none), or "<name> (unavailable)" while the
+    /// chosen device is disconnected.
     public let rowValue: String
     public let systemDefault: Item
     public let devices: [Item]
@@ -35,8 +37,9 @@ public struct MicrophoneMenuModel: Equatable {
         let choice = MicrophoneResolver.resolve(selectedUID: selectedUID, inputs: inputs, defaultID: defaultID)
         let systemDefaultDevice = defaultID.flatMap { id in inputs.first { $0.id == id } }
 
+        let unavailableTitle = "\(selectedName ?? "Selected microphone") (unavailable)"
         if choice.isFallback {
-            rowValue = "System default"
+            rowValue = unavailableTitle
         } else {
             rowValue = choice.device?.name ?? "System default"
         }
@@ -45,9 +48,7 @@ public struct MicrophoneMenuModel: Equatable {
             uid: nil, isChecked: selectedUID == nil)
         var devices = inputs.map { Item(title: $0.name, uid: $0.uid, isChecked: $0.uid == selectedUID) }
         if let selectedUID, choice.isFallback {
-            devices.append(Item(
-                title: "\(selectedName ?? "Selected microphone") (unavailable)", uid: selectedUID,
-                isChecked: true, isEnabled: false))
+            devices.append(Item(title: unavailableTitle, uid: selectedUID, isChecked: true, isEnabled: false))
         }
         self.devices = devices
     }

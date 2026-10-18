@@ -25,10 +25,10 @@ struct MicrophoneMenuModelTests {
         #expect(menu.devices.map(\.isChecked) == [false, true])
     }
 
-    @Test func missingSelectionIsListedAsUnavailableAndRowFallsBack() {
+    @Test func missingSelectionIsListedAndShownAsUnavailable() {
         let menu = MicrophoneMenuModel(
             selectedUID: "airpods", selectedName: "Rohit's AirPods Pro", inputs: [builtIn], defaultID: builtIn.id)
-        #expect(menu.rowValue == "System default")
+        #expect(menu.rowValue == "Rohit's AirPods Pro (unavailable)")
         #expect(!menu.systemDefault.isChecked)
         #expect(menu.devices == [
             .init(title: "MacBook Pro Microphone", uid: "builtin", isChecked: false),
@@ -38,6 +38,7 @@ struct MicrophoneMenuModelTests {
 
     @Test func missingSelectionWithoutAStoredNameStillReadsAsUnavailable() {
         let menu = MicrophoneMenuModel(selectedUID: "gone", selectedName: nil, inputs: [builtIn], defaultID: builtIn.id)
+        #expect(menu.rowValue == "Selected microphone (unavailable)")
         #expect(menu.devices.last == .init(
             title: "Selected microphone (unavailable)", uid: "gone", isChecked: true, isEnabled: false))
     }

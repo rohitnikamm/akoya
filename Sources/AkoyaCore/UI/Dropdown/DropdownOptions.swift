@@ -247,16 +247,28 @@ final class MenuAnchor: ObservableObject {
 
     /// Shows the open state, then pops the menu up on the next turn of the run loop, so the
     /// button's tap finishes and the open state draws first. `popUp` returns when the menu closes.
+    ///
+    /// Scheduled with `RunLoop.main.perform`, never `DispatchQueue.main.async`: the menu's
+    /// tracking loop would then run inside a main-queue block, and the serial main queue
+    /// would stall until the menu closed (hotkey events, audio levels, transcription results).
     func present(_ menu: NSMenu, alignment: PopUpMenuAction.Alignment, with popUp: PopUpMenuAction) {
         guard !isOpen else { return }
         isOpen = true
-        DispatchQueue.main.async {
+        // Held here so the scheduled block captures only this (main actor, so Sendable) object.
+        pendingMenu = menu
+        RunLoop.main.perform(inModes: [.common]) {
             MainActor.assumeIsolated {
+                guard let menu = self.pendingMenu else { return }
+                self.pendingMenu = nil
                 popUp(menu, below: self.frame, alignment: alignment)
                 self.isOpen = false
             }
         }
+        // A scheduled block does not wake a sleeping run loop by itself.
+        CFRunLoopWakeUp(CFRunLoopGetMain())
     }
+
+    private var pendingMenu: NSMenu?
 }
 
 extension View {
