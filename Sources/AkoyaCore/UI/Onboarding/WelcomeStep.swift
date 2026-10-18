@@ -11,7 +11,7 @@ struct WelcomeStep: View {
                 .frame(height: 96)
                 .padding(.top, 18)
             VStack(spacing: 8) {
-                Text("akoya")
+                Text("Akoya")
                     .font(AkoyaFonts.outfit(34, .semibold))
                     .kerning(0.34)
                     .foregroundStyle(AkoyaTheme.textPrimary)

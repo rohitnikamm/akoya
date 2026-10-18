@@ -13,9 +13,6 @@ public struct SettingsView: View {
                 Picker("Hotkey", selection: $settings.hotkey) {
                     ForEach(HotkeyKey.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Picker("Mode", selection: $settings.mode) {
-                    ForEach(DictationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                }
             }
             Section("Appearance") {
                 Picker("Waveform", selection: $settings.look) {
@@ -42,15 +39,6 @@ public extension HotkeyKey {
         case .rightOption: "Right Option"
         case .rightCommand: "Right Command"
         case .rightControl: "Right Control"
-        }
-    }
-}
-
-private extension DictationMode {
-    var displayName: String {
-        switch self {
-        case .hold: "Hold to talk"
-        case .toggle: "Press to start, press to stop"
         }
     }
 }

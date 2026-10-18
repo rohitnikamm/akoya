@@ -13,7 +13,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] If `~/Library/Application Support/Silk/Models` existed, it is moved to `~/Library/Application Support/Akoya/Models` on first launch (`ls` both), with no ~450 MB re-download. The dropdown chip says "Preparing…" while the existing model loads (it may skip the download percentage entirely), then Ready. Old Silk preferences are untouched.
 
 ## Onboarding (first launch, or after the reset in Setup step 3)
-- [ ] The 420x520 dark card opens centred, with the dot logo, "akoya", and "Get started". Drag it by its background; the x in the corner closes it.
+- [ ] The 420x520 dark card opens centred, with the dot logo, "Akoya", and "Get started". Drag it by its background; the x in the corner closes it.
 - [ ] "Get started" goes to the first missing permission. Order is Microphone, then Accessibility; already-granted ones are skipped. Chips at the top show granted (green), current (blue) and pending (grey).
 - [ ] Microphone: "Allow" shows the system prompt. After you click Allow in the prompt, the step advances on its own within about half a second. (If it was denied earlier, the button opens the Microphone pane instead.)
 - [ ] Accessibility: "Open System Settings" opens the right pane with Akoya in the list (with the new app icon). The status reads "Waiting for the switch…"; flipping Akoya on advances to the next step on its own, with no button press. The hotkey and dictation work from this permission alone.
@@ -31,16 +31,16 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 ## Dropdown
 - [ ] Click the Akoya menu bar item: a dark 320 pt panel opens under it, right-aligned. The app you were typing in stays frontmost and keeps its text cursor (the panel never steals focus).
 - [ ] Click outside, press Esc, or click the item again: the panel closes.
-- [ ] Status card at rest shows "akoya", the "Ready" chip, the dot logo and "Hold [Right ⌥] to talk" with no rim glow. Changing the hotkey in Settings updates the keycap.
+- [ ] Status card at rest shows "Akoya", the "Ready" chip, the dot logo and "Hold [Right ⌥] to talk" with no rim glow. Changing the hotkey in Settings updates the keycap.
 - [ ] While you hold the hotkey with the panel open: the chip says "Listening" and the blue rim glow follows your voice; it says "Transcribing" while the model works, then returns to Ready with no glow.
 - [ ] First launch (no model yet): chip "Preparing…" until the first progress report, then "Downloading 42%" with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
 - [ ] With a permission revoked: chip "Setup needed" and a "Finish setup" button, which closes the panel and opens onboarding at the first missing permission. Open the panel after granting it in System Settings: the state is re-checked on open and becomes Ready.
-- [ ] Mode switch: "Hold to talk" / "Tap to toggle" changes the behaviour immediately (and in Settings).
+- [ ] Mode switch: "Hold to talk" / "Tap to toggle" changes the behaviour immediately. (It is the only place to change the mode; Settings has no Mode picker.)
 - [ ] "Last dictation" is hidden until you dictate; then it shows the inserted text. "Copy" copies it (the label flips to "Copied") and pasting elsewhere gives that text. It is cleared when you quit Akoya.
 - [ ] Footer: "Settings" closes the panel and opens the "Akoya Settings" window; the round Quit button quits.
 
 ## Settings
-- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey, mode), Appearance (waveform, red tint, hide icon) and General (launch at login), and check the toggles show the blue accent when switched on.
+- [ ] Window title is "Akoya Settings", grouped into Dictation (hotkey), Appearance (waveform, red tint, hide icon) and General (launch at login), and check the toggles show the blue accent when switched on.
 - [ ] Right Command and Right Control work when chosen; toggle mode works; Launch at login adds Akoya to System Settings > General > Login Items.
 - [ ] Appearance changes (look, red tint, hide idle icon) apply live.
 

@@ -93,7 +93,7 @@ private struct StatusCard: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("akoya")
+                Text("Akoya")
                     .font(AkoyaFonts.outfit(14, .semibold))
                     .kerning(0.14)
                     .foregroundStyle(AkoyaTheme.textPrimary)
