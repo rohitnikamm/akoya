@@ -109,6 +109,9 @@ fi
 mkdir -p "$TAP_DIR/Casks"
 cp "$CASK_OUT" "$TAP_DIR/Casks/akoya.rb"
 git -C "$TAP_DIR" add Casks/akoya.rb
-git -C "$TAP_DIR" diff --cached --quiet || git -C "$TAP_DIR" commit -m "akoya $VERSION"
+# Commit as this repo's author (the tap clone may have no identity configured).
+AUTHOR_NAME="$(git config user.name)"
+AUTHOR_EMAIL="$(git config user.email)"
+git -C "$TAP_DIR" diff --cached --quiet || git -C "$TAP_DIR" -c user.name="$AUTHOR_NAME" -c user.email="$AUTHOR_EMAIL" commit -m "akoya $VERSION"
 git -C "$TAP_DIR" push
 echo "Released Akoya $VERSION"
