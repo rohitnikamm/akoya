@@ -66,19 +66,19 @@ scripts/build-app.sh release "$VERSION"
 # A release must carry the stable self-signed identity, or users re-grant permissions on every update.
 # "Silk Self-Signed" is the pre-rename identity and is still accepted.
 # Capture first: grep -q closing the pipe early would SIGPIPE codesign and fail under pipefail.
-SIGNATURE="$(codesign -dvv build/Akoya.app 2>&1 || true)"
+SIGNATURE="$(codesign -dvv build/products.noindex/Akoya.app 2>&1 || true)"
 if grep -qE "Authority=(Akoya|Silk) Self-Signed" <<<"$SIGNATURE"; then
     :
 elif [ "$DRY_RUN" -eq 1 ]; then
-    echo "WARNING: build/Akoya.app is signed ad-hoc, not with 'Akoya Self-Signed' (or 'Silk Self-Signed'); a real release would refuse. Run scripts/make-signing-cert.sh first." >&2
+    echo "WARNING: build/products.noindex/Akoya.app is signed ad-hoc, not with 'Akoya Self-Signed' (or 'Silk Self-Signed'); a real release would refuse. Run scripts/make-signing-cert.sh first." >&2
 else
-    echo "error: build/Akoya.app is not signed with 'Akoya Self-Signed' (or 'Silk Self-Signed'); refusing to release." >&2
+    echo "error: build/products.noindex/Akoya.app is not signed with 'Akoya Self-Signed' (or 'Silk Self-Signed'); refusing to release." >&2
     echo "Run scripts/make-signing-cert.sh once, then re-run this script." >&2
     exit 1
 fi
 
 rm -f "$ZIP"
-ditto -c -k --keepParent build/Akoya.app "$ZIP"
+ditto -c -k --keepParent build/products.noindex/Akoya.app "$ZIP"
 SHA256="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 echo "$ZIP sha256: $SHA256"
 

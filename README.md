@@ -47,6 +47,6 @@ Akoya uses a new bundle identifier, so macOS asks for Microphone and Accessibili
 ## Development
 
     swift test                          # run the tests
-    scripts/build-app.sh debug          # -> build/Akoya.app
+    scripts/build-app.sh debug          # -> build/products.noindex/Akoya.app
 
 Releases: `scripts/release.sh VERSION` builds, publishes a GitHub release, and updates the Homebrew tap. Use `--dry-run` to try it locally.

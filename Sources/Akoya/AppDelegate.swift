@@ -137,6 +137,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if count > 0 {
             Self.log.info("Asked \(count, privacy: .public) running Silk instance(s) to quit")
         }
+        // A second copy of Akoya (e.g. a dev build next to the Homebrew install) would double
+        // every dictation; the newest launch wins.
+        let others = OtherInstances.quitRunning()
+        if others > 0 {
+            Self.log.info("Asked \(others, privacy: .public) other Akoya instance(s) to quit")
+        }
     }
 
     // MARK: - Model

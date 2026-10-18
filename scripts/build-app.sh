@@ -6,7 +6,8 @@ cd "$(dirname "$0")/.."
 CONFIG="${1:-debug}"
 VERSION="${2:-0.0.1}"
 IDENTITIES=("Akoya Self-Signed" "Silk Self-Signed") # Silk is the pre-rename identity, kept as a fallback.
-APP="build/Akoya.app"
+# ".noindex" keeps Spotlight from listing dev builds next to the installed app.
+APP="build/products.noindex/Akoya.app"
 
 swift build -c "$CONFIG" --arch arm64
 BIN_DIR="$(swift build -c "$CONFIG" --arch arm64 --show-bin-path)"

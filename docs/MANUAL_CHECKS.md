@@ -4,7 +4,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 
 ## Setup
 1. Optional, but recommended so permissions survive rebuilds: `scripts/make-signing-cert.sh`, then run the trust command it prints. Do this BEFORE granting any permissions, or skip it if the "Silk Self-Signed" identity already exists (it keeps permissions across rebuilds too). Switching identities after granting requires granting again.
-2. `scripts/build-app.sh debug 0.2.0 && open build/Akoya.app`
+2. `scripts/build-app.sh debug 0.2.0 && open build/products.noindex/Akoya.app`
 3. To see the first-run flow again: quit Akoya, `defaults delete com.rohitnikamm.akoya`, and revoke Akoya's Microphone and Accessibility entries in System Settings > Privacy & Security.
 
 ## Upgrading from Silk (once)
@@ -59,7 +59,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] The "Launch at login" switch adds Akoya to System Settings > General > Login Items when on and removes it when off.
 
 ## App icon
-- [ ] Finder shows `build/Akoya.app` with the dark rounded icon and the glowing dot logo.
+- [ ] Finder shows `build/products.noindex/Akoya.app` with the dark rounded icon and the glowing dot logo.
 - [ ] System Settings > Privacy & Security > Microphone / Accessibility list "Akoya" with that icon, so it is easy to find.
 
 ## Core flow
