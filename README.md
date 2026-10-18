@@ -1,52 +1,63 @@
+<div align="center">
+
+<img src="docs/assets/icon.png" width="128" alt="Akoya icon">
+
 # Akoya
 
-macOS menu bar dictation: hold a key, speak, release. Transcribes on-device (Parakeet via FluidAudio) and pastes into the focused app. Apple Silicon, macOS 14+.
+**Hold a key, speak, release. Your words appear in any app.**
+
+On-device dictation for the macOS menu bar.
+
+[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
+
+<img src="docs/assets/hero.png" alt="Akoya listening in the menu bar, with its dropdown and the Try it card" width="100%">
+
+</div>
+
+## Features
+
+- **Hold or tap.** Hold Right Option to talk, or tap once to start and again to stop. Esc cancels.
+- **Private.** Transcription runs on your Mac with NVIDIA's Parakeet model. No audio leaves the device.
+- **Works everywhere.** Text is pasted into whatever app has focus, and your clipboard is put back afterwards.
+- **Lives in the menu bar.** A live waveform while you speak, and every setting in one dropdown: hotkey, microphone, icon style, launch at login.
 
 ## Install
 
-    brew install --cask rohitnikamm/tap/akoya
+```bash
+brew install --cask rohitnikamm/tap/akoya
+```
 
-Akoya is not notarized. The cask removes the quarantine flag after install (as AeroSpace does), so it opens without a Gatekeeper prompt.
+Open Akoya and follow the short setup: it asks for Microphone and Accessibility access and downloads the speech model (about 450 MB). Akoya is not notarized; the cask clears the quarantine flag so it opens without a Gatekeeper warning.
 
-## First run
-
-Akoya opens a short three-step setup the first time it launches:
-
-1. **Welcome**: press "Get started".
-2. **Permissions**, one at a time, in this order. Each step advances by itself once the switch is on:
-   - **Microphone**: to record your voice.
-   - **Accessibility**: to detect the hotkey (Right Option by default) and paste the transcription into the focused app.
-3. **Try it**: hold the hotkey and say anything; your words appear live in the card. Press Done (or Skip).
-
-The speech model (about 450 MB) downloads in the background during setup. If it fails to load, a Retry button appears in setup and in the menu bar dropdown.
-
-If you close setup before it is done, the menu bar dropdown shows "Setup needed" with a "Finish setup" button that reopens setup at the first permission still missing. Relaunching Akoya does the same once at least one permission is already on (otherwise setup starts again from the welcome step). Closing setup with the x on the Try it step, or once both permissions are on, counts as Skip.
-
-For a stable code signature, so these permissions survive rebuilds and updates, run `scripts/make-signing-cert.sh` once and follow its trust instructions. Do this before you grant any permissions, or skip it if the "Silk Self-Signed" identity is already in your keychain: that identity keeps permissions across rebuilds too. Switching signing identities after granting means granting the permissions again. Without any identity, builds sign ad-hoc and macOS may ask again.
+<div align="center">
+<img src="docs/assets/in-use.png" alt="A sentence dictated into Notes, with the Akoya dropdown open in the menu bar" width="100%">
+</div>
 
 ## Usage
 
-Hold Right Option, speak, release. Akoya transcribes and pastes. Or tap the key once to start and again to stop. Press Esc while recording to cancel.
+| Action | How |
+| --- | --- |
+| Dictate | Hold **Right ⌥**, speak, release |
+| Hands-free | Tap **Right ⌥** to start, tap again to stop |
+| Cancel | **Esc** while recording |
+| Settings | Click the Akoya icon in the menu bar |
 
-Click the Akoya item in the menu bar to open the dropdown. There is no separate Settings window: everything is there. That is the current status, your last dictation (with a Copy button), the hotkey (click the keycap to choose Right Option, Command or Control), the microphone, the menu bar icon options (waveform look, red while recording, hide when idle; they fold away until you open the Menu bar icon row), Launch at login and Quit.
+See the [guide](docs/GUIDE.md) for setup details, microphone handling and upgrading from Silk.
 
-The Microphone row uses the system default input unless you pick one. If the microphone you picked is unplugged or disconnected (AirPods, say), the row shows it as "(unavailable)" and Akoya records from the system default until it is back. If you hide the idle icon, or just reopen Akoya from Spotlight, the dropdown opens under the menu bar item.
+## Build from source
 
-## Upgrading from Silk
+Requires macOS 14+ on Apple Silicon and Swift 6 (the Command Line Tools are enough).
 
-Akoya was called Silk before 0.2.0. Before you open Akoya for the first time:
+```bash
+git clone https://github.com/rohitnikamm/akoya && cd akoya
+swift test
+scripts/build-app.sh debug   # builds build/products.noindex/Akoya.app
+```
 
-1. Quit Silk.
-2. Turn off Silk's Launch at Login (Silk Settings, or System Settings > General > Login Items).
-3. Delete the old Silk.app.
+## Acknowledgements
 
-Akoya also asks a running Silk to quit when it starts, since both listening for the hotkey would paste every dictation twice, but removing Silk for good is the reliable fix.
+Inspired by [Voxtype](https://github.com/peteonrails/voxtype) in [Omarchy](https://omarchy.org). Speech recognition by [FluidAudio](https://github.com/FluidInference/FluidAudio) running [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2).
 
-Akoya uses a new bundle identifier, so macOS asks for Microphone and Accessibility again once (setup walks you through it). Speech models already downloaded under Silk are moved to Akoya's folder automatically, with no re-download. Old Silk preferences are left alone.
+## License
 
-## Development
-
-    swift test                          # run the tests
-    scripts/build-app.sh debug          # -> build/products.noindex/Akoya.app
-
-Releases: `scripts/release.sh VERSION` builds, publishes a GitHub release, and updates the Homebrew tap. Use `--dry-run` to try it locally.
+[MIT](LICENSE)
