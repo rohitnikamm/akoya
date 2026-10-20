@@ -84,6 +84,9 @@ public sealed class DictationCoordinator
     /// <summary>True once a quick tap released the key: the next press stops.</summary>
     private bool _latched;
 
+    /// <summary>The session locked while this dictation was transcribing: don't paste it.</summary>
+    private bool _lockedWhileTranscribing;
+
     /// <summary>Bumped per recording so late timers and partials from an earlier one are ignored.</summary>
     private int _generation;
 
@@ -116,6 +119,13 @@ public sealed class DictationCoordinator
 
     /// <summary>RMS forwarded while recording; 0 once the recording stops or is cancelled.</summary>
     public event Action<float>? Level;
+
+    /// <summary>
+    /// An unexpected failure the coordinator recovered from (a start failure other than the two
+    /// microphone exceptions, a transcription or insert error, an <c>OnText</c> callback that
+    /// threw). For logging: the phase has already moved on as documented.
+    /// </summary>
+    public event Action<Exception>? Faulted;
 
     /// <summary>
     /// When the current recording started (from <see cref="IScheduler.Now"/>). Set while
@@ -166,11 +176,17 @@ public sealed class DictationCoordinator
         }
     }
 
-    /// <summary>The workstation locked: cancel a recording like Esc.</summary>
+    /// <summary>
+    /// The workstation locked: cancel a recording like Esc. A dictation already transcribing is
+    /// not pasted into whatever has focus after unlock; its text is kept as
+    /// <see cref="LastDictation"/>.
+    /// </summary>
     public void SessionLocked()
     {
         if (Phase == DictationPhase.Recording)
             CancelRecording();
+        else if (Phase == DictationPhase.Transcribing)
+            _lockedWhileTranscribing = true;
     }
 
     // Recording
@@ -192,8 +208,11 @@ public sealed class DictationCoordinator
         _generation++;
         _loudestStep = 1;
         _latched = false;
+        _lockedWhileTranscribing = false;
         _preview = new LivePreviewScheduler();
 
+        // The hold time counts from the press, so a slow device start doesn't eat into it.
+        var startedAt = _scheduler.Now;
         try
         {
             _audio.Start(_deviceId());
@@ -208,14 +227,15 @@ public sealed class DictationCoordinator
             ShowFor(DictationPhase.MicMissing, AlertDisplay);
             return;
         }
-        catch (Exception)
+        catch (Exception e)
         {
             // Any other start failure: the device can't be used, so it reads as not detected.
+            Fault(e);
             ShowFor(DictationPhase.MicMissing, AlertDisplay);
             return;
         }
 
-        RecordingStartedAt = _scheduler.Now;
+        RecordingStartedAt = startedAt;
         SetPhase(DictationPhase.Recording);
 
         var generation = _generation;
@@ -229,69 +249,87 @@ public sealed class DictationCoordinator
             ArmPreviewTick(generation);
     }
 
+    // Both leave Recording before calling the port, so anything the adapter raises from inside
+    // Stop/Cancel (Interrupted, Level) or a re-entrant Handle sees a finished recording.
+
     private void CancelRecording()
     {
         EndRecordingTimers();
+        SetPhase(DictationPhase.Idle);
         _audio.Cancel();
         Level?.Invoke(0);
-        SetPhase(DictationPhase.Idle);
     }
 
     private void StopRecording()
     {
         EndRecordingTimers();
+        var silent = _loudestStep <= SilenceMaxStep; // nothing was said: the pill just fades
+        var destination = _destination;
+        SetPhase(silent ? DictationPhase.Idle : DictationPhase.Transcribing);
         var samples = _audio.Stop();
         Level?.Invoke(0);
-        var destination = _destination;
-        if (_loudestStep <= SilenceMaxStep)
-        {
-            SetPhase(DictationPhase.Idle); // nothing was said: the pill just fades
-            return;
-        }
-        SetPhase(DictationPhase.Transcribing);
-        _ = FinishAsync(samples, destination);
+        if (!silent)
+            _ = FinishAsync(samples, destination);
     }
 
     private async Task FinishAsync(float[] samples, Destination destination)
     {
-        string text;
         try
         {
-            // A partial pass may still be running; never run two transcriptions at once.
-            if (_inFlight is { } partial)
+            await DeliverAsync(samples, destination);
+        }
+        catch (Exception e)
+        {
+            // Only an OnText callback can get here; the dictation is over either way.
+            Fault(e);
+            if (Phase == DictationPhase.Transcribing)
+                SetPhase(DictationPhase.Idle);
+        }
+    }
+
+    private async Task DeliverAsync(float[] samples, Destination destination)
+    {
+        // A partial pass may still be running; never run two transcriptions at once.
+        if (_inFlight is { } partial)
+        {
+            try
             {
-                try
-                {
-                    await partial;
-                }
-                catch (Exception)
-                {
-                    // The partial's failure is the preview's business.
-                }
+                await partial;
             }
+            catch (Exception)
+            {
+                // Already reported through Faulted by PreviewAsync.
+            }
+        }
+
+        string? text;
+        try
+        {
             text = (await TranscribeExclusive(samples)).Trim();
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            SetPhase(DictationPhase.Idle); // like an empty transcript: the pill fades
-            return;
+            Fault(e);
+            text = null; // like an empty transcript: the pill fades
         }
 
         if (destination is Destination.Practice practice)
         {
-            try
-            {
-                practice.OnText(text, true);
-            }
-            finally
-            {
-                SetPhase(DictationPhase.Idle);
-            }
+            practice.OnText(text ?? "", true);
+            SetPhase(DictationPhase.Idle);
             return;
         }
 
-        if (text.Length == 0)
+        if (string.IsNullOrEmpty(text))
         {
+            SetPhase(DictationPhase.Idle);
+            return;
+        }
+
+        if (_lockedWhileTranscribing)
+        {
+            // Never paste into whatever has focus after the lock; keep the text for the panel.
+            LastDictation = text;
             SetPhase(DictationPhase.Idle);
             return;
         }
@@ -301,8 +339,9 @@ public sealed class DictationCoordinator
         {
             result = await _inserter.InsertAsync(text + " ");
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            Fault(e);
             result = InsertResult.Failed;
         }
         LastDictation = text;
@@ -356,17 +395,26 @@ public sealed class DictationCoordinator
         {
             text = await TranscribeExclusive(samples);
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            text = "";
+            Fault(e);
+            return; // a failed partial is skipped; the next tick may try again
         }
         // The final pass owns the result once the recording has stopped.
         if (generation != _generation || Phase != DictationPhase.Recording
             || _destination is not Destination.Practice practice)
             return;
         var trimmed = text.Trim();
-        if (trimmed.Length > 0)
+        if (trimmed.Length == 0)
+            return;
+        try
+        {
             practice.OnText(trimmed, false);
+        }
+        catch (Exception e)
+        {
+            Fault(e); // the recording carries on
+        }
     }
 
     /// <summary>Runs one transcription, tracked in <see cref="_inFlight"/> until it settles.</summary>
@@ -423,6 +471,8 @@ public sealed class DictationCoordinator
                 SetPhase(DictationPhase.Idle);
         });
     }
+
+    private void Fault(Exception e) => Faulted?.Invoke(e);
 
     private void SetPhase(DictationPhase phase)
     {

@@ -15,10 +15,20 @@ public sealed class FakeRecorder : IAudioRecorder
     public int CancelCount { get; private set; }
     public List<string?> StartedWith { get; } = [];
 
+    /// <summary>Runs inside Start, e.g. to simulate a slow device by advancing the scheduler.</summary>
+    public Action? DuringStart { get; set; }
+
+    /// <summary>Runs inside Stop, e.g. to raise events re-entrantly like a misbehaving adapter.</summary>
+    public Action? DuringStop { get; set; }
+
+    /// <summary>Runs inside Cancel.</summary>
+    public Action? DuringCancel { get; set; }
+
     public void Start(string? deviceId)
     {
         StartCount++;
         StartedWith.Add(deviceId);
+        DuringStart?.Invoke();
         if (StartError is not null)
             throw StartError;
     }
@@ -26,12 +36,17 @@ public sealed class FakeRecorder : IAudioRecorder
     public float[] Stop()
     {
         StopCount++;
+        DuringStop?.Invoke();
         return Samples;
     }
 
     public float[] Snapshot() => Samples;
 
-    public void Cancel() => CancelCount++;
+    public void Cancel()
+    {
+        CancelCount++;
+        DuringCancel?.Invoke();
+    }
 
     public void RaiseLevel(float rms) => Level?.Invoke(rms);
 

@@ -25,6 +25,7 @@ public class DictationCoordinatorTests
                 Audio, Transcriber, Inserter, Scheduler, () => Model, () => DeviceId);
             Coordinator.PhaseChanged += Phases.Add;
             Coordinator.Level += Levels.Add;
+            Coordinator.Faulted += Faults.Add;
         }
 
         public FakeRecorder Audio { get; } = new();
@@ -36,6 +37,7 @@ public class DictationCoordinatorTests
         public DictationCoordinator Coordinator { get; }
         public List<DictationPhase> Phases { get; } = [];
         public List<float> Levels { get; } = [];
+        public List<Exception> Faults { get; } = [];
         public List<(string Text, bool IsFinal)> Practice { get; } = [];
 
         public DictationPhase Phase => Coordinator.Phase;
@@ -857,17 +859,20 @@ public class DictationCoordinatorTests
     }
 
     [Fact]
-    public void Practice_TranscriberFailure_GoesIdle_WithoutText()
+    public void Practice_TranscriberFailure_ReportsEmptyFinal_ThenIdle()
     {
         using var rig = new Rig();
         rig.UsePractice();
-        rig.Transcriber.Error = new InvalidOperationException("engine");
+        var error = new InvalidOperationException("engine");
+        rig.Transcriber.Error = error;
         rig.Press();
         rig.Speak();
-        rig.Advance(310);
+        rig.Advance(310); // the preview at 0.1 s fails too
         rig.Release();
         Assert.Equal(Idle, rig.Phase);
-        Assert.Empty(rig.Practice);
+        Assert.Equal(new[] { "" }, rig.PracticeTexts);
+        Assert.Equal(new[] { true }, rig.PracticeFinals);
+        Assert.Equal(new[] { error, error }, rig.Faults);
     }
 
     [Fact]
@@ -1078,9 +1083,39 @@ public class DictationCoordinatorTests
 
         rig.Transcriber.Gated = true;
         rig.Dictate();
-        rig.Coordinator.SessionLocked(); // transcribing: the dictation finishes
+        rig.Coordinator.SessionLocked(); // transcribing: finishes, but is not pasted
         Assert.Equal(1, rig.Audio.CancelCount);
         rig.Transcriber.Finish(0, "hello");
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Empty(rig.Inserter.Inserted);
+        Assert.Equal("hello", rig.Coordinator.LastDictation);
+    }
+
+    [Fact]
+    public void SessionLockedWhileTranscribing_EmptyText_KeepsTheEarlierLastDictation()
+    {
+        using var rig = new Rig("first");
+        rig.Dictate();
+        rig.Advance(DictationCoordinator.PastedDisplay);
+        rig.Transcriber.Gated = true;
+        rig.Dictate();
+        rig.Coordinator.SessionLocked();
+        rig.Transcriber.Finish(1, "  ");
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Equal("first", rig.Coordinator.LastDictation);
+    }
+
+    [Fact]
+    public void SessionLock_OnlyAffectsTheDictationItHappenedDuring()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Gated = true;
+        rig.Dictate();
+        rig.Coordinator.SessionLocked();
+        rig.Transcriber.Finish(0, "locked");
+        rig.Dictate(); // after unlock
+        rig.Transcriber.Finish(1, "unlocked");
+        Assert.Equal(new[] { "unlocked " }, rig.Inserter.Inserted);
         Assert.Equal(Pasted, rig.Phase);
     }
 
@@ -1158,5 +1193,261 @@ public class DictationCoordinatorTests
         Assert.NotNull(rig.Coordinator.RecordingStartedAt);
         rig.Cancel();
         Assert.Null(rig.Coordinator.RecordingStartedAt);
+    }
+
+    // MARK: - Fix round 1: more phase cases
+
+    [Fact]
+    public void PressDuringCopied_StartsNewRecording()
+    {
+        using var rig = new Rig();
+        rig.Inserter.Result = InsertResult.CopiedOnly;
+        rig.Dictate();
+        Assert.Equal(Copied, rig.Phase);
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+        Assert.Equal(2, rig.Audio.StartCount);
+        rig.Advance(DictationCoordinator.PastedDisplay);
+        Assert.Equal(Recording, rig.Phase);
+    }
+
+    [Fact]
+    public void PressDuringPasteFailed_StartsNewRecording()
+    {
+        using var rig = new Rig();
+        rig.Inserter.Result = InsertResult.Failed;
+        rig.Dictate();
+        Assert.Equal(PasteFailed, rig.Phase);
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+        Assert.Equal(2, rig.Audio.StartCount);
+        rig.Advance(DictationCoordinator.AlertDisplay);
+        Assert.Equal(Recording, rig.Phase);
+    }
+
+    [Fact]
+    public void EscDuringTranscribing_IsIgnored()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Gated = true;
+        rig.Dictate();
+        rig.Cancel();
+        Assert.Equal(Transcribing, rig.Phase);
+        Assert.Equal(0, rig.Audio.CancelCount);
+        rig.Transcriber.Finish(0, "hello");
+        Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
+        Assert.Equal(Pasted, rig.Phase);
+    }
+
+    [Fact]
+    public void InterruptedDuringTranscribing_IsIgnored()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Gated = true;
+        rig.Dictate();
+        rig.Audio.RaiseInterrupted();
+        Assert.Equal(Transcribing, rig.Phase);
+        Assert.Equal(1, rig.Audio.StopCount);
+        rig.Transcriber.Finish(0, "hello");
+        Assert.Equal(1, rig.Transcriber.CallCount);
+        Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
+    }
+
+    // MARK: - Fix round 1: hold time counts from the press
+
+    [Fact]
+    public void SlowStart_DoesNotEatTheHoldTime()
+    {
+        using var rig = new Rig();
+        var pressedAt = rig.Scheduler.Now;
+        rig.Audio.DuringStart = () => rig.Advance(500); // the device takes 0.5 s to open
+        rig.Press();
+        Assert.Equal(pressedAt, rig.Coordinator.RecordingStartedAt);
+        rig.Speak();
+        rig.Release(); // released right after Start returned: held 0.5 s since the press
+        Assert.Equal(1, rig.Audio.StopCount);
+        Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
+    }
+
+    // MARK: - Fix round 1: re-entrant adapter events
+
+    [Fact]
+    public void InterruptedRaisedInsideCancel_PastesNothing()
+    {
+        using var rig = new Rig();
+        rig.Audio.DuringCancel = () =>
+        {
+            rig.Audio.RaiseLevel(1.0f);
+            rig.Audio.RaiseInterrupted();
+        };
+        rig.Press();
+        rig.Speak();
+        rig.Advance(1000);
+        rig.Cancel();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Equal(0, rig.Audio.StopCount);
+        Assert.Empty(rig.Transcriber.Received);
+        Assert.Empty(rig.Inserter.Inserted);
+        Assert.Equal(new[] { 1.0f, 0f }, rig.Levels); // the re-entrant level was not forwarded
+    }
+
+    [Fact]
+    public void InterruptedRaisedInsideStop_PastesOnce()
+    {
+        using var rig = new Rig();
+        rig.Audio.DuringStop = () =>
+        {
+            rig.Audio.RaiseLevel(1.0f);
+            rig.Audio.RaiseInterrupted();
+            rig.Coordinator.Handle(HotkeyEvent.Pressed);
+            rig.Coordinator.Handle(HotkeyEvent.Cancel);
+        };
+        rig.Dictate();
+        Assert.Equal(1, rig.Audio.StopCount);
+        Assert.Equal(0, rig.Audio.CancelCount);
+        Assert.Equal(1, rig.Audio.StartCount);
+        Assert.Single(rig.Transcriber.Received);
+        Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
+        Assert.Equal(Pasted, rig.Phase);
+    }
+
+    [Fact]
+    public void InterruptedRaisedInsideSilentStop_IsIgnored()
+    {
+        using var rig = new Rig();
+        rig.Audio.DuringStop = () => rig.Audio.RaiseInterrupted();
+        rig.Press();
+        rig.Advance(1000);
+        rig.Release();
+        Assert.Equal(1, rig.Audio.StopCount);
+        Assert.Equal(new[] { Recording, Idle }, rig.Phases);
+    }
+
+    // MARK: - Fix round 1: Faulted, one test per catch site
+
+    [Fact]
+    public void Faulted_UnknownStartFailure()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("device busy");
+        rig.Audio.StartError = error;
+        rig.Press();
+        Assert.Equal(MicMissing, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+    }
+
+    [Fact]
+    public void Faulted_NotRaisedForTheTwoMicrophoneExceptions()
+    {
+        // These are expected states with their own alerts, not faults.
+        using var rig = new Rig();
+        rig.Audio.StartError = new MicrophoneMissingException();
+        rig.Press();
+        rig.Advance(DictationCoordinator.AlertDisplay);
+        rig.Audio.StartError = new MicrophoneBlockedException();
+        rig.Press();
+        Assert.Empty(rig.Faults);
+    }
+
+    [Fact]
+    public void Faulted_TranscriberFailure()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Gated = true;
+        rig.Dictate();
+        var error = new InvalidOperationException("engine");
+        rig.Transcriber.Fail(0, error);
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+    }
+
+    [Fact]
+    public void Faulted_TranscriberThrowingSynchronously()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("engine");
+        var coordinator = new DictationCoordinator(rig.Audio, new ThrowingTranscriber(error),
+            rig.Inserter, rig.Scheduler, () => ModelState.Ready, () => null);
+        var faults = new List<Exception>();
+        coordinator.Faulted += faults.Add;
+        coordinator.Handle(HotkeyEvent.Pressed);
+        rig.Speak();
+        rig.Advance(1000);
+        coordinator.Handle(HotkeyEvent.Released);
+        Assert.Equal(Idle, coordinator.Phase);
+        Assert.Same(error, Assert.Single(faults));
+    }
+
+    [Fact]
+    public void Faulted_InserterThrows()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("clipboard");
+        rig.Inserter.Error = error;
+        rig.Dictate();
+        Assert.Equal(PasteFailed, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+    }
+
+    [Fact]
+    public void Faulted_PreviewFailure_ReportedOnce()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Gated = true;
+        rig.UsePractice();
+        rig.Press();
+        rig.Speak();
+        rig.Tick();
+        rig.Advance(310);
+        rig.Release(); // the final pass waits on the failing partial
+        var error = new InvalidOperationException("engine");
+        rig.Transcriber.Fail(0, error);
+        rig.Transcriber.Finish(1, "final");
+        Assert.Same(error, Assert.Single(rig.Faults));
+        Assert.Equal(new[] { "final" }, rig.PracticeTexts);
+    }
+
+    [Fact]
+    public void Faulted_FinalOnTextThrows_StillGoesIdle()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("card");
+        rig.Coordinator.Destination = new Destination.Practice((_, isFinal) =>
+        {
+            if (isFinal)
+                throw error;
+        });
+        rig.Dictate();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+    }
+
+    [Fact]
+    public void Faulted_PartialOnTextThrows_RecordingCarriesOn()
+    {
+        using var rig = new Rig("words");
+        var error = new InvalidOperationException("card");
+        var finals = new List<string>();
+        rig.Audio.Samples = new float[16_000];
+        rig.Coordinator.Destination = new Destination.Practice((text, isFinal) =>
+        {
+            if (!isFinal)
+                throw error;
+            finals.Add(text);
+        });
+        rig.Press();
+        rig.Speak();
+        rig.Tick();
+        Assert.Equal(Recording, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+        rig.Advance(310);
+        rig.Release();
+        Assert.Equal(new[] { "words" }, finals);
+        Assert.Equal(Idle, rig.Phase);
+    }
+
+    private sealed class ThrowingTranscriber(Exception error) : ITranscriber
+    {
+        public Task<string> TranscribeAsync(float[] samples16k, CancellationToken ct = default) => throw error;
     }
 }

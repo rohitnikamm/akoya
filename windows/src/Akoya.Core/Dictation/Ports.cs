@@ -2,7 +2,9 @@ namespace Akoya.Core.Dictation;
 
 /// <summary>
 /// Microphone capture. Events are raised on the coordinator's thread (the app's UI thread):
-/// the adapter marshals them there.
+/// the adapter marshals them there. Events must not be raised synchronously from inside
+/// <see cref="Start"/>, <see cref="Stop"/> or <see cref="Cancel"/> (the coordinator ignores them
+/// there, but an adapter that does so is wrong); post them instead.
 /// </summary>
 public interface IAudioRecorder
 {
@@ -48,6 +50,10 @@ public enum InsertResult
 
 public interface ITextInserter
 {
+    /// <summary>
+    /// Inserts <paramref name="text"/> into the foreground app. The task completes only after the
+    /// clipboard has been restored, so the caller can treat its completion as the end of the paste.
+    /// </summary>
     Task<InsertResult> InsertAsync(string text);
 }
 
