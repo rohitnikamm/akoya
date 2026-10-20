@@ -26,6 +26,58 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Force out | Out-Null
 
+      - name: Restore speech model cache
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/model
+          key: parakeet-tdt-0.6b-v2-int8
+
+      # The model steps must not stop the build and test steps: they record why they failed in
+      # out/model-failure.txt (shown by the summary) and the run is failed at the end.
+      - name: Download speech model (cache miss only)
+        id: model-download
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          try {
+            $dest = Join-Path $env:RUNNER_TEMP 'model'
+            New-Item -ItemType Directory -Force $dest | Out-Null
+            $tarball = Join-Path $env:RUNNER_TEMP 'parakeet.tar.bz2'
+            curl.exe -L --fail --retry 3 -o $tarball https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2
+            if ($LASTEXITCODE -ne 0) { throw 'model download failed' }
+            $size = (Get-Item $tarball).Length
+            $sha = (Get-FileHash $tarball -Algorithm SHA256).Hash.ToLowerInvariant()
+            Write-Host "::notice::size=$size sha256=$sha"
+            # The pins in ModelManifest.cs must match the real file.
+            $manifest = Get-Content windows/src/Akoya.Core/Model/ModelManifest.cs -Raw
+            $pinnedSize = [regex]::Match($manifest, 'TarballBytes\s*=\s*(\d+)').Groups[1].Value
+            $pinnedSha = [regex]::Match($manifest, 'TarballSha256\s*=\s*"([0-9a-f]{64})"').Groups[1].Value
+            if ($pinnedSize -ne "$size" -or $pinnedSha -ne $sha) { throw "ModelManifest pins ($pinnedSize, $pinnedSha) do not match the tarball ($size, $sha)" }
+            tar -xjf $tarball -C $dest
+            if ($LASTEXITCODE -ne 0) { throw 'model extraction failed' }
+            Remove-Item $tarball
+          } catch {
+            Add-Content -Path out/model-failure.txt -Value "model download step: $($_.Exception.Message)"
+            throw
+          }
+
+      - name: Point tests at the speech model
+        id: model-point
+        if: steps.model-download.outcome != 'failure'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          try {
+            $dir = Join-Path $env:RUNNER_TEMP 'model/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
+            if (-not (Test-Path (Join-Path $dir 'encoder.int8.onnx'))) { throw "model missing at $dir" }
+            "AKOYA_MODEL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } catch {
+            Add-Content -Path out/model-failure.txt -Value "model setup step: $($_.Exception.Message)"
+            throw
+          }
+
       - name: Build
         id: build
         continue-on-error: true
@@ -65,6 +117,7 @@ jobs:
           work="$RUNNER_TEMP/ci-output"
           rm -rf "$work"
           mkdir -p "$work/runs/$SHA"
+          mkdir -p out
           cp -r out/. "$work/runs/$SHA/"
           cd "$work"
           git init -q -b "$results"
@@ -76,8 +129,8 @@ jobs:
           git push --force origin "$results"
 
       - name: Fail if build or tests failed
-        if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success') }}
+        if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success' || steps.model-download.outcome == 'failure' || steps.model-point.outcome == 'failure') }}
         shell: pwsh
         run: |
-          Write-Host "build: ${{ steps.build.outcome }}, test: ${{ steps.test.outcome }}"
+          Write-Host "build: ${{ steps.build.outcome }}, test: ${{ steps.test.outcome }}, model download: ${{ steps.model-download.outcome }}, model setup: ${{ steps.model-point.outcome }}"
           exit 1
