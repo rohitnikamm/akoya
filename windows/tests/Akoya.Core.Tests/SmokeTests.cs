@@ -11,5 +11,5 @@ public class SmokeTests
     }
 
     [Fact]
-    public void TEMP_Fails() => Assert.Equal(1, 2);
+    public void TEMP_Fails() => Assert.Equal(1, undefinedSymbol);
 }
