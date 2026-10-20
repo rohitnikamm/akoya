@@ -65,7 +65,9 @@ foreach ($trx in $trxFiles) {
 
     $counters = $doc.SelectSingleNode('//t:ResultSummary/t:Counters', $ns)
     if ($counters) {
-        $lines.Add("- $($trx.Name): total $($counters.total), passed $($counters.passed), failed $($counters.failed), not executed $($counters.notExecuted)")
+        $unit = $doc.SelectSingleNode('//t:TestDefinitions/t:UnitTest', $ns)
+        $project = if ($unit -and $unit.storage) { [System.IO.Path]::GetFileNameWithoutExtension($unit.storage) } else { $trx.Name }
+        $lines.Add("- ${project}: total $($counters.total), passed $($counters.passed), failed $($counters.failed), not executed $($counters.notExecuted)")
     }
     else {
         $lines.Add("- $($trx.Name): no counters in file")
