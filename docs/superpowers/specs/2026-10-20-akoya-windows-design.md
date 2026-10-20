@@ -131,8 +131,9 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
 - **AltGr layouts:** Windows injects a fake `VK_LCONTROL` down (scan code 0x21D) right before
   Right Alt and its up right after. When Right Alt is the hotkey, those fake LCtrl events are
   swallowed too, so apps never see a stray Ctrl.
-- **Copilot key:** arrives as LWin + LShift + F23. The decoder treats that sequence as the key
-  (press on F23 down, release on F23 up) and swallows all three.
+- **Copilot key:** arrives as LWin + LShift + F23. The decoder treats F23 (with LWin + LShift
+  held) as the key, swallows F23 and injects a mask key so Windows doesn't open Start on Win-up;
+  LWin and LShift pass through.
 - Esc is swallowed only while recording.
 - Key repeat (auto-repeat key-downs while held) is ignored.
 - If the hook is removed by Windows (hook timeout), it is re-installed; hook callbacks do no work
@@ -268,6 +269,7 @@ Windows.
 | Model download/load failed | Red, "Speech model failed" | Status + Retry |
 | Transcription error / empty text | Fades (Mac shows its error cue the same way) | — |
 | Foreground app is elevated | Blue, "Copied. Press Ctrl+V" | — |
+| Clipboard busy (another app holds it) | Red, "Couldn't paste" (text kept as Last dictation) | Last dictation with Copy |
 | Keyboard hook can't install | — | Status "Hotkey unavailable" + Retry |
 
 ## Testing
