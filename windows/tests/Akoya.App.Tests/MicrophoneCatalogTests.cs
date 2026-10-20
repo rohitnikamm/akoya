@@ -48,7 +48,7 @@ public class MicrophoneCatalogTests
     [InlineData("HDAUDIO", null, null, true)]
     [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", null, false)]
     [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"USB\VID_046D&PID_0825\5&1&0&2", true)]
-    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{2}.\\?\bthhfenum#...", false)]
+    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{2}.\\?\bthhfenum#...", true)]
     [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"BTHENUM\{0000111E-0000-1000-8000-00805F9B34FB}", true)]
     [InlineData("SWD", @"SWD\MMDEVAPI\x", @"HDAUDIO\FUNC_01&VEN_10EC&DEV_0256\4&2&0&0001", true)]
     [InlineData("ROOT", @"ROOT\VBAUDIO\0000", null, false)]
@@ -58,6 +58,20 @@ public class MicrophoneCatalogTests
         string enumerator, string? instanceId, string? parentHint, bool expected)
     {
         Assert.Equal(expected, MicrophoneCatalog.HasPhysicalParent(enumerator, instanceId, parentHint));
+    }
+
+    [Theory]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"USB\VID_046D&PID_0825\5&1&0&2", "USB")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"HDAUDIO\FUNC_01&VEN_10EC\4&2&0&0001", "HDAUDIO")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"BTHENUM\{0000111E}", "BTHENUM")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", null, "SWD")]
+    [InlineData(@"ROOT\VBAUDIO\0000", @"ROOT\MEDIA\0000", "ROOT")]
+    [InlineData(@"USB\VID_046D&PID_0825\5&1&0&2", @"HDAUDIO\FUNC_01", "USB")]
+    [InlineData(null, null, "")]
+    public void ResolveEnumerator_PrefersTheRealBusOverTheSoftwareEndpoint(
+        string? instanceId, string? parentHint, string expected)
+    {
+        Assert.Equal(expected, MicrophoneCatalog.ResolveEnumerator(instanceId, parentHint));
     }
 
     [Theory]
