@@ -36,14 +36,16 @@ because Windows has no menu bar.
 - **Built on the Windows PC itself**, with Claude Code running there so it can run and test the app
   directly.
 - The Windows section of the README shows the pill animation (done; "in the works" for now).
+- **Settings in the tray** (confirmed 2026-10-20, as in the mockup). Akoya's dot logo sits in the
+  hidden tray overflow (behind the ⌃ arrow); the user can drag it onto the taskbar if they want.
+  Clicking it opens the same all-in-one panel as the Mac dropdown minus the Menu bar icon row:
+  status, hotkey keycap menu, last dictation with Copy, microphone picker, launch at startup, quit.
+- **Default hotkey: Right Alt** (confirmed 2026-10-20). The hook swallows it so apps never see a
+  lone Alt tap (no menu bar / Office key tips). Alternatives in the hotkey menu: Right Ctrl and the
+  Copilot key (many new keyboards have Copilot where Right Ctrl was). Left Alt stays untouched.
 
 ## Claude's guesses, not yet confirmed by Rohit
 
-- **Settings in the tray.** Akoya's dot logo sits in the hidden tray overflow (behind the ⌃
-  arrow). Clicking it opens the same all-in-one panel as the Mac dropdown: status, hotkey keycap
-  menu, last dictation with Copy, microphone picker, launch at startup, quit. (Mac-only menu bar
-  icon options would be replaced by pill options, if any.)
-- **Default hotkey: Right Alt**, with Right Ctrl as an option.
 - **Install:** an unsigned `.exe` installer attached to the GitHub release (the user clicks
   "More info" → "Run anyway" on the SmartScreen warning once). `winget` later, maybe.
 - **Setup:** shorter than the Mac's: welcome → microphone access → model download → try it.
