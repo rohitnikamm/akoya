@@ -9,7 +9,4 @@ public class SmokeTests
     {
         Assert.NotNull(typeof(Akoya.Core.Marker).Assembly);
     }
-
-    [Fact]
-    public void TEMP_Fails() => Assert.Equal(1, undefinedSymbol);
 }
