@@ -1,13 +1,80 @@
 name: windows
+
 on:
   push:
-    branches-ignore: [main]
     paths: ['windows/**', '.github/workflows/windows.yml']
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  probe:
+  build-test:
     runs-on: windows-latest
     steps:
-      - run: dotnet --list-sdks; nvidia-smi; echo done
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Prepare output folder
         shell: pwsh
+        run: New-Item -ItemType Directory -Force out | Out-Null
+
+      - name: Build
+        id: build
         continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet build windows/Akoya.Windows.slnx -c Release 2>&1 | Tee-Object -FilePath out/build.log
+          exit $LASTEXITCODE
+
+      - name: Test
+        id: test
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          AKOYA_SNAPSHOT_DIR: ${{ github.workspace }}\out\snapshots
+        run: |
+          dotnet test windows/Akoya.Windows.slnx -c Release --no-build --logger trx --results-directory out/tests
+          exit $LASTEXITCODE
+
+      - name: Summarize
+        if: always()
+        shell: pwsh
+        run: pwsh windows/scripts/ci-summary.ps1 out
+
+      - name: Publish results to ci-output
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/ci-output"
+          rm -rf "$work"
+          mkdir -p "$work/runs/$SHA"
+          cp -r out/. "$work/runs/$SHA/"
+          cd "$work"
+          git init -q -b ci-output
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "ci output for $SHA"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push --force origin ci-output
+
+      - name: Fail if build or tests failed
+        if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success') }}
+        shell: pwsh
+        run: |
+          Write-Host "build: ${{ steps.build.outcome }}, test: ${{ steps.test.outcome }}"
+          exit 1
