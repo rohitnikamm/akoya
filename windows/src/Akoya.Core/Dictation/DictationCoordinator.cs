@@ -256,7 +256,14 @@ public sealed class DictationCoordinator
     {
         EndRecordingTimers();
         SetPhase(DictationPhase.Idle);
-        _audio.Cancel();
+        try
+        {
+            _audio.Cancel();
+        }
+        catch (Exception e)
+        {
+            Fault(e); // already Idle: the recording is discarded either way
+        }
         Level?.Invoke(0);
     }
 
@@ -266,7 +273,19 @@ public sealed class DictationCoordinator
         var silent = _loudestStep <= SilenceMaxStep; // nothing was said: the pill just fades
         var destination = _destination;
         SetPhase(silent ? DictationPhase.Idle : DictationPhase.Transcribing);
-        var samples = _audio.Stop();
+        float[] samples;
+        try
+        {
+            samples = _audio.Stop();
+        }
+        catch (Exception e)
+        {
+            // No samples to transcribe; go Idle so the hotkey keeps working.
+            Fault(e);
+            Level?.Invoke(0);
+            SetPhase(DictationPhase.Idle);
+            return;
+        }
         Level?.Invoke(0);
         if (!silent)
             _ = FinishAsync(samples, destination);

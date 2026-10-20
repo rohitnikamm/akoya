@@ -1446,6 +1446,56 @@ public class DictationCoordinatorTests
         Assert.Equal(Idle, rig.Phase);
     }
 
+    [Fact]
+    public void Faulted_StopThrows_GoesIdle_AndTheNextPressRecords()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("device gone");
+        rig.Audio.DuringStop = () => throw error;
+        rig.Dictate();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+        Assert.Empty(rig.Transcriber.Received);
+        Assert.Equal(0f, rig.Levels[^1]);
+        rig.Audio.DuringStop = null;
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+        Assert.Equal(2, rig.Audio.StartCount);
+    }
+
+    [Fact]
+    public void Faulted_SilentStopThrows_GoesIdle_AndTheNextPressRecords()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("device gone");
+        rig.Audio.DuringStop = () => throw error;
+        rig.Press();
+        rig.Advance(1000);
+        rig.Release();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+    }
+
+    [Fact]
+    public void Faulted_CancelThrows_GoesIdle_AndTheNextPressRecords()
+    {
+        using var rig = new Rig();
+        var error = new InvalidOperationException("device gone");
+        rig.Audio.DuringCancel = () => throw error;
+        rig.Press();
+        rig.Speak();
+        rig.Cancel();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Same(error, Assert.Single(rig.Faults));
+        Assert.Equal(0f, rig.Levels[^1]);
+        rig.Audio.DuringCancel = null;
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+        Assert.Equal(2, rig.Audio.StartCount);
+    }
+
     private sealed class ThrowingTranscriber(Exception error) : ITranscriber
     {
         public Task<string> TranscribeAsync(float[] samples16k, CancellationToken ct = default) => throw error;
