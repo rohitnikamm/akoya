@@ -3,11 +3,42 @@ using Akoya.Core.Dictation;
 
 namespace Akoya.App.Platform;
 
+/// <summary>
+/// What was on the clipboard before Akoya borrowed it. <see cref="IsUnreadable"/> means the contents could
+/// not be read (e.g. another process holds the clipboard), which is different from an empty clipboard:
+/// restoring an empty snapshot clears the clipboard, while an unreadable one must never be overwritten.
+/// </summary>
+public sealed class ClipboardSnapshot
+{
+    private ClipboardSnapshot(IDataObject? data, bool isUnreadable)
+    {
+        Data = data;
+        IsUnreadable = isUnreadable;
+    }
+
+    /// <summary>The detached copy of the contents; null when empty or unreadable.</summary>
+    public IDataObject? Data { get; }
+
+    public bool IsUnreadable { get; }
+
+    public bool IsEmpty => Data is null && !IsUnreadable;
+
+    public static ClipboardSnapshot Empty { get; } = new(null, false);
+
+    public static ClipboardSnapshot Unreadable { get; } = new(null, true);
+
+    public static ClipboardSnapshot Of(IDataObject data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return new ClipboardSnapshot(data, false);
+    }
+}
+
 /// <summary>The clipboard operations the paste flow needs, so the flow can be tested without a real clipboard.</summary>
 public interface IClipboard
 {
-    /// <summary>A detached copy of everything readable on the clipboard, or null when it is empty or unreadable.</summary>
-    IDataObject? Snapshot();
+    /// <summary>A detached copy of everything readable on the clipboard; distinguishes empty from unreadable.</summary>
+    ClipboardSnapshot Snapshot();
 
     /// <summary>
     /// Replaces the clipboard with <paramref name="text"/> in a single attempt. False when another
@@ -16,10 +47,10 @@ public interface IClipboard
     bool TrySetText(string text, bool excludeFromHistory);
 
     /// <summary>
-    /// Puts a snapshot back (null clears the clipboard), unless something else has changed the clipboard
+    /// Puts a snapshot back (an empty snapshot clears the clipboard), unless something else has changed the clipboard
     /// since <see cref="TrySetText"/>: what the user copied meanwhile wins.
     /// </summary>
-    void Restore(IDataObject? data);
+    void Restore(ClipboardSnapshot snapshot);
 }
 
 /// <summary>
@@ -65,7 +96,13 @@ public sealed class ClipboardPasteInserter : ITextInserter
         var elevated = _foregroundIsElevated();
 
         // An elevated target cannot be pasted into, so there is nothing to restore: the user pastes by hand.
-        var snapshot = elevated ? null : _clipboard.Snapshot();
+        var snapshot = elevated ? ClipboardSnapshot.Empty : _clipboard.Snapshot();
+
+        // If we cannot read what is there we could not put it back: leave the clipboard alone.
+        if (snapshot.IsUnreadable)
+        {
+            return InsertResult.Failed;
+        }
 
         var set = false;
         for (var attempt = 1; attempt <= MaxSetAttempts; attempt++)

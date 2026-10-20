@@ -11,7 +11,7 @@ public class ClipboardTests
     [Fact]
     public async Task Insert_PastesAndRestores()
     {
-        var snapshot = new DataObject();
+        var snapshot = ClipboardSnapshot.Of(new DataObject());
         var clipboard = new FakeClipboard(snapshot);
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
@@ -34,7 +34,7 @@ public class ClipboardTests
     [Fact]
     public async Task Insert_Elevated_CopiesOnly_NoRestore()
     {
-        var clipboard = new FakeClipboard(new DataObject());
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Empty);
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
             clipboard, () => true, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
@@ -49,7 +49,7 @@ public class ClipboardTests
     [Fact]
     public async Task Insert_ClipboardBusy_RetriesThenReportsFailure()
     {
-        var clipboard = new FakeClipboard(new DataObject()) { AlwaysBusy = true };
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Empty) { AlwaysBusy = true };
         var scheduler = new ManualScheduler();
         var delays = new List<TimeSpan>();
         var inserter = new ClipboardPasteInserter(
@@ -72,9 +72,24 @@ public class ClipboardTests
     }
 
     [Fact]
+    public async Task Insert_SnapshotUnreadable_DoesNotClearClipboard()
+    {
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Unreadable);
+        var scheduler = new ManualScheduler();
+        var inserter = new ClipboardPasteInserter(
+            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
+
+        var result = await inserter.InsertAsync("hello");
+
+        Assert.Equal(InsertResult.Failed, result);
+        Assert.Equal(new[] { "snapshot" }, clipboard.Calls); // no set, no paste, no restore
+        Assert.Empty(scheduler.Pending);
+    }
+
+    [Fact]
     public async Task Insert_ClipboardFreesUpOnRetry_StillPastes()
     {
-        var clipboard = new FakeClipboard(new DataObject()) { BusyAttempts = 2 };
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Empty) { BusyAttempts = 2 };
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
             clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
@@ -89,7 +104,7 @@ public class ClipboardTests
     [Fact]
     public async Task Insert_CtrlVBlocked_KeepsTextOnClipboard()
     {
-        var clipboard = new FakeClipboard(new DataObject());
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Empty);
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
             clipboard, () => false, () => throw new InvalidOperationException("blocked"), scheduler, _ => Task.CompletedTask);
@@ -116,7 +131,8 @@ public class ClipboardTests
             Clipboard.SetDataObject(original, true);
 
             var snapshot = clipboard.Snapshot();
-            Assert.NotNull(snapshot);
+            Assert.False(snapshot.IsEmpty);
+            Assert.False(snapshot.IsUnreadable);
 
             Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
             Assert.Equal("temporary dictation", Clipboard.GetText());
@@ -162,8 +178,8 @@ public class ClipboardTests
             var snapshot = clipboard.Snapshot();
             Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "after"), true);
 
-            Assert.NotNull(snapshot);
-            Assert.Equal("before", snapshot.GetData(DataFormats.UnicodeText));
+            Assert.NotNull(snapshot.Data);
+            Assert.Equal("before", snapshot.Data.GetData(DataFormats.UnicodeText));
         });
     }
 
@@ -175,12 +191,29 @@ public class ClipboardTests
             using var clipboard = new SystemClipboard();
             Clipboard.Clear();
             var snapshot = clipboard.Snapshot();
-            Assert.Null(snapshot);
+            Assert.True(snapshot.IsEmpty);
 
             Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
             clipboard.Restore(snapshot);
 
             Assert.False(Clipboard.ContainsText());
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_TrySetText_Succeeds_AndFailureLeavesClipboardUntouched()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "mine"), true);
+
+            Assert.True(clipboard.TrySetText("one", excludeFromHistory: false));
+            Assert.Equal("one", Clipboard.GetText());
+            Assert.False(Clipboard.ContainsData(SystemClipboard.CanIncludeInHistoryFormat));
+
+            Assert.True(clipboard.TrySetText("two \u00e9", excludeFromHistory: true));
+            Assert.Equal("two \u00e9", Clipboard.GetText());
         });
     }
 
@@ -199,9 +232,9 @@ public class ClipboardTests
 
     private sealed class FakeClipboard : IClipboard
     {
-        private readonly IDataObject? _snapshot;
+        private readonly ClipboardSnapshot _snapshot;
 
-        public FakeClipboard(IDataObject? snapshot) => _snapshot = snapshot;
+        public FakeClipboard(ClipboardSnapshot snapshot) => _snapshot = snapshot;
 
         public List<string> Calls { get; } = new();
 
@@ -212,9 +245,9 @@ public class ClipboardTests
 
         public bool AlwaysBusy { get; init; }
 
-        public IDataObject? Restored { get; private set; }
+        public ClipboardSnapshot? Restored { get; private set; }
 
-        public IDataObject? Snapshot()
+        public ClipboardSnapshot Snapshot()
         {
             Calls.Add("snapshot");
             return _snapshot;
@@ -232,10 +265,10 @@ public class ClipboardTests
             return true;
         }
 
-        public void Restore(IDataObject? data)
+        public void Restore(ClipboardSnapshot snapshot)
         {
             Calls.Add("restore");
-            Restored = data;
+            Restored = snapshot;
         }
     }
 

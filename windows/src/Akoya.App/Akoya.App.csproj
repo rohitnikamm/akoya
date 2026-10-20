@@ -6,6 +6,9 @@
     <RootNamespace>Akoya.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Akoya.App.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Akoya.Core\Akoya.Core.csproj" />
   </ItemGroup>
 </Project>

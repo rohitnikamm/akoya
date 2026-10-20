@@ -36,9 +36,8 @@ public sealed class KeyboardHook : IDisposable
     private readonly NativeMethods.HookProc _proc; // kept in a field so the delegate is never collected
     private readonly object _gate = new();
 
-    private Thread? _thread;
-    private uint _threadId;
-    private IntPtr _hook; // hook thread only
+    private HookThread? _current;   // the live (or just-died) hook thread; changed under _gate
+    private HookThread? _abandoned;  // a thread that timed out starting; told to unhook and exit
     private volatile bool _disposed;
 
     /// <param name="decoder">Handed over: do not use it again after this call.</param>
@@ -54,48 +53,84 @@ public sealed class KeyboardHook : IDisposable
         _proc = HookCallback;
     }
 
+    /// <summary>True while the hook thread is alive.</summary>
+    internal bool IsRunning => _current?.Thread.IsAlive == true;
+
+    /// <summary>Test seam: ends the hook thread's message loop as if the thread had died.</summary>
+    internal void SimulateThreadExit()
+    {
+        var id = _current?.Id ?? 0;
+        if (id != 0)
+        {
+            NativeMethods.PostThreadMessage(id, NativeMethods.WmQuit, UIntPtr.Zero, IntPtr.Zero);
+        }
+    }
+
     /// <summary>Starts the hook thread and installs the hook. Throws <see cref="HotkeyUnavailableException"/> on failure.</summary>
     public void Install()
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_thread is not null)
+            if (_current is { Thread.IsAlive: true })
             {
                 return;
             }
 
+            _current = null;
+
+            // Never run two hook threads: they would share the (single-threaded) decoder.
+            if (_abandoned is { Thread.IsAlive: true })
+            {
+                throw new HotkeyUnavailableException("A previous keyboard hook thread has not exited yet.");
+            }
+
+            _abandoned = null;
+
             var ready = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var thread = new Thread(() => ThreadMain(ready)) { IsBackground = true, Name = "Akoya keyboard hook" };
-            thread.Start();
+            var state = new HookThread();
+            state.Thread = new Thread(() => ThreadMain(state, ready)) { IsBackground = true, Name = "Akoya keyboard hook" };
+            _current = state; // before Start, so settings posted meanwhile can wake the thread
+            state.Thread.Start();
 
             if (!ready.Task.Wait(StartTimeout))
             {
+                // The thread is still starting. It checks this flag after installing and unhooks and exits;
+                // if it is already in its loop, the quit message ends it.
+                state.Abandoned = true;
+                _abandoned = state;
+                _current = null;
+                if (state.Id != 0)
+                {
+                    NativeMethods.PostThreadMessage(state.Id, NativeMethods.WmQuit, UIntPtr.Zero, IntPtr.Zero);
+                }
+
                 throw new HotkeyUnavailableException("The keyboard hook thread did not start.");
             }
 
             var error = ready.Task.Result;
             if (error != 0)
             {
-                thread.Join();
+                state.Thread.Join();
+                _current = null;
                 throw new HotkeyUnavailableException("The keyboard hook could not be installed.", new Win32Exception(error));
             }
-
-            _thread = thread;
         }
     }
 
     /// <summary>
     /// Installs a fresh hook and drops the old one (Windows silently removes a hook that times out, e.g.
-    /// across a lock screen) and forgets held-key state. Installs for the first time if there is none.
+    /// across a lock screen) and forgets held-key state. Starts a new hook thread if there is none or it died.
     /// </summary>
     public void Reinstall()
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_thread is null)
+            var current = _current;
+            if (current is null || !current.Thread.IsAlive)
             {
+                _current = null;
                 Install();
                 return;
             }
@@ -110,8 +145,8 @@ public sealed class KeyboardHook : IDisposable
                     return;
                 }
 
-                var old = _hook;
-                _hook = fresh;
+                var old = current.Hook;
+                current.Hook = fresh;
                 if (old != IntPtr.Zero)
                 {
                     NativeMethods.UnhookWindowsHookEx(old);
@@ -121,9 +156,19 @@ public sealed class KeyboardHook : IDisposable
                 done.TrySetResult(0);
             });
 
-            if (!done.Task.Wait(ReinstallTimeout))
+            var deadline = DateTime.UtcNow + ReinstallTimeout;
+            while (!done.Task.Wait(100))
             {
-                throw new HotkeyUnavailableException("The keyboard hook thread did not respond.");
+                if (!current.Thread.IsAlive)
+                {
+                    _current = null; // the next Reinstall or Install starts a fresh thread
+                    throw new HotkeyUnavailableException("The keyboard hook thread exited.");
+                }
+
+                if (DateTime.UtcNow > deadline)
+                {
+                    throw new HotkeyUnavailableException("The keyboard hook thread did not respond.");
+                }
             }
 
             var error = done.Task.Result;
@@ -145,7 +190,8 @@ public sealed class KeyboardHook : IDisposable
 
     public void Dispose()
     {
-        Thread? thread;
+        HookThread? current;
+        HookThread? abandoned;
         lock (_gate)
         {
             if (_disposed)
@@ -154,22 +200,27 @@ public sealed class KeyboardHook : IDisposable
             }
 
             _disposed = true;
-            thread = _thread;
-            _thread = null;
+            current = _current;
+            abandoned = _abandoned;
+            _current = null;
+            _abandoned = null;
         }
 
-        if (thread is null)
+        foreach (var state in new[] { current, abandoned })
         {
-            return;
+            if (state is null)
+            {
+                continue;
+            }
+
+            state.Abandoned = true;
+            if (state.Id != 0)
+            {
+                NativeMethods.PostThreadMessage(state.Id, NativeMethods.WmQuit, UIntPtr.Zero, IntPtr.Zero);
+            }
         }
 
-        var id = _threadId;
-        if (id != 0)
-        {
-            NativeMethods.PostThreadMessage(id, NativeMethods.WmQuit, UIntPtr.Zero, IntPtr.Zero);
-        }
-
-        thread.Join(TimeSpan.FromSeconds(2));
+        current?.Thread.Join(TimeSpan.FromSeconds(2));
     }
 
     /// <summary>Queues work for the hook thread; before the thread exists it runs when the thread starts.</summary>
@@ -181,7 +232,7 @@ public sealed class KeyboardHook : IDisposable
         }
 
         _queued.Enqueue(action);
-        var id = _threadId;
+        var id = _current?.Id ?? 0;
         if (id != 0)
         {
             NativeMethods.PostThreadMessage(id, WmRunQueued, UIntPtr.Zero, IntPtr.Zero);
@@ -203,24 +254,31 @@ public sealed class KeyboardHook : IDisposable
         }
     }
 
-    private void ThreadMain(TaskCompletionSource<int> ready)
+    private void ThreadMain(HookThread state, TaskCompletionSource<int> ready)
     {
-        // Touching the message queue creates it, so PostThreadMessage to this thread cannot fail.
-        NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, NativeMethods.PmNoRemove);
-
-        _hook = NativeMethods.SetWindowsHookEx(NativeMethods.WhKeyboardLl, _proc, NativeMethods.GetModuleHandle(null), 0);
-        if (_hook == IntPtr.Zero)
-        {
-            ready.TrySetResult(Marshal.GetLastWin32Error());
-            return;
-        }
-
-        _threadId = NativeMethods.GetCurrentThreadId();
-        RunQueued(); // settings applied before Install
-        ready.TrySetResult(0);
-
         try
         {
+            // Touching the message queue creates it, so PostThreadMessage to this thread cannot fail.
+            NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, NativeMethods.PmNoRemove);
+            state.Id = NativeMethods.GetCurrentThreadId();
+
+            state.Hook = NativeMethods.SetWindowsHookEx(NativeMethods.WhKeyboardLl, _proc, NativeMethods.GetModuleHandle(null), 0);
+            if (state.Hook == IntPtr.Zero)
+            {
+                ready.TrySetResult(Marshal.GetLastWin32Error());
+                return;
+            }
+
+            // Install gave up waiting (or the hook was disposed) while the hook was being set up.
+            if (state.Abandoned)
+            {
+                ready.TrySetResult(-1);
+                return;
+            }
+
+            RunQueued(); // settings applied before Install
+            ready.TrySetResult(0);
+
             while (NativeMethods.GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
             {
                 if (message.Message == WmRunQueued)
@@ -231,12 +289,22 @@ public sealed class KeyboardHook : IDisposable
         }
         finally
         {
-            if (_hook != IntPtr.Zero)
+            if (state.Hook != IntPtr.Zero)
             {
-                NativeMethods.UnhookWindowsHookEx(_hook);
-                _hook = IntPtr.Zero;
+                NativeMethods.UnhookWindowsHookEx(state.Hook);
+                state.Hook = IntPtr.Zero;
             }
+
+            ready.TrySetResult(-1); // never leave Install waiting on a thread that is gone
         }
+    }
+
+    private sealed class HookThread
+    {
+        public Thread Thread = null!;
+        public volatile uint Id;
+        public volatile bool Abandoned;
+        public IntPtr Hook; // hook thread only
     }
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
