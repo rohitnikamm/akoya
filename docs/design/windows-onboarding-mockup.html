@@ -52,7 +52,7 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 .txt{width:100%;min-height:86px;padding:13px 15px;border-radius:20px;background:rgba(30,36,58,.6);font-size:15.5px;line-height:1.45}
 
 /* mic list: plain names, one line each */
-.list{width:100%;border-radius:20px;background:rgba(30,36,58,.55);padding:3px 0;margin-top:4px}
+.list{width:100%;overflow:hidden;border-radius:20px;background:rgba(30,36,58,.55);padding:3px 0;margin-top:4px}
 .dev{display:flex;align-items:center;gap:11px;padding:12px 14px;font-size:14px;color:rgba(255,255,255,.88)}
 .dev+.dev{border-top:1px solid rgba(255,255,255,.07)}
 .dev .r{width:16px;height:16px;border-radius:8px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);flex:none;display:grid;place-items:center}
@@ -84,6 +84,10 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 .pill{position:absolute;left:50%;bottom:54px;transform:translateX(-50%);height:34px;border-radius:17px;display:flex;align-items:center;gap:10px;padding:0 15px;white-space:nowrap;
  background:linear-gradient(180deg,rgba(14,18,34,.92),rgba(9,13,30,.94));
  box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5)}
+.pill.red{box-shadow:inset 0 0 0 1px rgba(255,150,150,.25),inset 0 -8px 14px -7px rgba(239,68,68,.95),inset 0 -2px 3px -1px rgba(255,170,170,.9),0 12px 40px rgba(239,68,68,.38),0 8px 24px rgba(0,0,0,.5)}
+.pill .alert{width:18px;height:18px;border-radius:9px;background:#EF4444;display:grid;place-items:center;font-size:12px;font-weight:700;box-shadow:0 0 12px rgba(239,68,68,.8)}
+.pill.red .pnote{color:#fff;font-size:13px}
+.orow.warnrow{background:rgba(251,191,36,.12);box-shadow:inset 0 0 0 1px rgba(251,191,36,.5);border-radius:16px}
 .pgrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,3px);gap:2px}
 .pgrid b{width:3px;height:3px;border-radius:50%;background:#dbe6ff;opacity:.12}
 .ptime{font-size:11.5px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
@@ -135,25 +139,24 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 
 <h2><span class="tag">Edge cases</span> Same screen, other situations</h2>
 <div class="row">
-  <div><div class="cap"><b>2</b> Windows defaulted to earbuds; Akoya moved the highlight</div>
+  <div><div class="cap"><b>2</b> Windows defaulted to earbuds: click the mic that moves</div>
     <div class="card"><div class="grid"></div><div class="in"><div class="x">✕</div>
       <span class="eyebrow">Microphone</span>
       <p class="title">Which mic do you talk into?</p>
       <p class="body">Say something. Pick the one that moves.</p>
-      <div class="list" data-list="laptop" data-sel="laptop"></div>
-      <div class="chip ok" style="margin-top:6px"><i></i>Hearing you</div>
+      <div class="list" data-list="laptop" data-sel="buds"></div>
+      <div class="chip wait" style="margin-top:6px"><i></i>Galaxy Buds isn't hearing you</div>
       <div class="spacer"></div>
       <div class="btn light">Continue</div>
       <div class="foot"><div class="pd"><i></i><i class="on"></i><i></i></div><span class="skip">Skip</span></div>
     </div></div></div>
-  <div><div class="cap"><b>2</b> Only one mic</div>
+  <div><div class="cap"><b>2</b> Only one mic: same screen, one row</div>
     <div class="card"><div class="grid"></div><div class="in"><div class="x">✕</div>
       <span class="eyebrow">Microphone</span>
-      <p class="title">Check your mic</p>
+      <p class="title">Is this the mic you want?</p>
       <p class="body">Say something. The dots should move.</p>
-      <div class="well" style="width:auto;height:auto;padding:18px 22px;border-radius:24px;margin-top:14px"><div class="bigmeter" id="bigmeter"></div></div>
-      <div style="font-size:14.5px;color:rgba(255,255,255,.88);margin-top:6px">This PC's microphone</div>
-      <div class="chip ok"><i></i>Hearing you</div>
+      <div class="list" data-list="single" data-sel="laptop"></div>
+      <div class="chip ok" style="margin-top:6px"><i></i>Hearing you</div>
       <div class="spacer"></div>
       <div class="btn light">Continue</div>
       <div class="foot"><div class="pd"><i></i><i class="on"></i><i></i></div><span class="skip">Skip</span></div>
@@ -169,7 +172,7 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
     </div></div></div>
 </div>
 <div class="row">
-  <div><div class="cap"><b>2</b> Lots of devices: extras tucked under "More"</div>
+  <div><div class="cap"><b>2</b> Lots of devices: extras folded into "More" at the bottom</div>
     <div class="card"><div class="grid"></div><div class="in"><div class="x">✕</div>
       <span class="eyebrow">Microphone</span>
       <p class="title">Which mic do you talk into?</p>
@@ -182,23 +185,23 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
     </div></div></div>
 </div>
 
-<h2><span class="tag">Later</span> Your saved mic is missing: where do we say so?</h2>
-<p class="sub">Your pick is saved as that exact device. If it's gone (say the headset dongle dropped), Akoya uses the Windows default and tells you, in one or both of these places.</p>
+<h2><span class="tag">Later</span> When the mic can't be found</h2>
+<p class="sub">The pill still shows up, but turns red with an alert. The tray panel's Microphone row is highlighted in yellow until it's fixed.</p>
 <div class="row">
-  <div><div class="cap"><b>X</b> On the pill, for the first 2 s of dictation</div>
+  <div><div class="cap">Saved mic unplugged: red for 2 s, keeps recording on the PC mic</div>
     <div class="scene">
-      <div class="pill"><div class="pgrid" data-pgrid="8"></div><span class="sep"></span><span class="pnote">Headset not found, using PC mic</span></div>
+      <div class="pill red"><span class="alert">!</span><span class="pnote">HyperX not detected, using PC mic</span></div>
       <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>
     </div></div>
-  <div><div class="cap"><b>X</b> …then it shrinks back to the normal pill</div>
+  <div><div class="cap">No mic at all: red alert, nothing is recorded</div>
     <div class="scene">
-      <div class="pill"><div class="pgrid" data-pgrid="23"></div><span class="ptime">0:03</span></div>
+      <div class="pill red"><span class="alert">!</span><span class="pnote">Microphone not detected</span></div>
       <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>
     </div></div>
-  <div><div class="cap"><b>Y</b> In the tray panel's Microphone row</div>
+  <div><div class="cap">Tray panel: Microphone row highlighted in yellow</div>
     <div class="scene">
       <div class="opts">
-        <div class="orow"><span>🎙</span><span>Microphone<span class="warn">HyperX Cloud III not connected</span></span><span class="v">This PC's mic ▾</span></div>
+        <div class="orow warnrow"><span>🎙</span><span>Microphone<span class="warn">HyperX Cloud III not detected</span></span><span class="v">This PC's mic ▾</span></div>
         <div class="orow"><span>⏻</span><span>Launch at startup</span><span class="sw"></span></div>
       </div>
       <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>
@@ -210,9 +213,9 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
     <li>One short instruction per screen: "Say something. Pick the one that moves."</li>
     <li>Plain names only ("This PC's microphone", "Webcam mic", "Galaxy Buds"). Windows' technical names never appear in setup.</li>
     <li>Virtual and loopback devices (NVIDIA Broadcast, Stereo Mix) sit behind "More", so most people see 2–3 rows.</li>
-    <li>In the usual case nothing needs choosing: you talk, see "Hearing you", press Continue.</li></ul></div>
+    <li>In the usual case nothing needs choosing: you talk, see "Hearing you", press Continue. With one mic it&rsquo;s the same screen with one row.</li></ul></div>
   <div class="note"><h3>Rules underneath</h3><ul>
-    <li>One mic is always highlighted. It starts on the Windows default; if that one hears nothing while another mic hears you, the highlight moves to the one hearing you (never to Stereo Mix). Once you click a row yourself, it never moves again. To change it, click a row.</li>
+    <li>One mic is always highlighted: the Windows default. Akoya never switches it on its own. If the highlighted mic hears nothing, the status turns amber ("Galaxy Buds isn't hearing you") and you click the row that moves.</li>
     <li>Your pick is saved as that device, so Discord or Voicemeeter changing the Windows default won't move it. The tray panel keeps the Mac's "System default" option for anyone who wants to follow Windows.</li></ul></div>
 </div>
 
@@ -237,20 +240,20 @@ const LISTS={
   {id:'cam',n:'Webcam mic',lvl:.3}]},
  desk:{rows:[
   {id:'hyperx',n:'HyperX Cloud III',lvl:1},
-  {id:'brio',n:'Webcam mic',lvl:.35},
-  {id:'nv',n:'NVIDIA Broadcast',lvl:.8,dim:true},
-  {id:'mix',n:'Stereo Mix',lvl:0,dim:true}],
-  after:2, more:'More'}
+  {id:'brio',n:'Webcam mic',lvl:.35}],
+  more:'More (2)'},
+ single:{rows:[{id:'laptop',n:"This PC's microphone",lvl:1}]}
 };
 const MC=10, meters=[];
 $('[data-list]').forEach(el=>{const L=LISTS[el.dataset.list],sel=el.dataset.sel;
   const row=d=>`<div class="dev${d.id===sel?' sel':''}${d.dim?' dim':''}"><span class="r"></span><span class="n">${d.n}</span><span class="meter">${'<i></i>'.repeat(MC)}</span></div>`;
   let h='';
-  L.rows.forEach((d,i)=>{if(L.after===i)h+=`<div class="dev more"><span class="r">⌄</span><span class="n">${L.more}</span></div>`;h+=row(d)});
+  L.rows.forEach(d=>{h+=row(d)});
+  if(L.more)h+=`<div class="dev more"><span class="r">⌄</span><span class="n">${L.more}</span></div>`;
   el.innerHTML=h;
   [...el.querySelectorAll('.meter')].forEach((m,i)=>meters.push({dots:[...m.querySelectorAll('i')],lvl:L.rows[i].lvl,seed:i}));
 });
-document.getElementById('bigmeter').innerHTML=Array.from({length:13},()=>'<div class="c">'+'<i></i>'.repeat(5)+'</div>').join('');
+const bm=document.getElementById('bigmeter');if(bm)bm.innerHTML=Array.from({length:13},()=>'<div class="c">'+'<i></i>'.repeat(5)+'</div>').join('');
 $('[data-pgrid]').forEach(g=>{g.innerHTML='<b></b>'.repeat(+g.dataset.pgrid*4)});
 
 const Q=new URLSearchParams(location.search),FIX=Q.has('t')?parseFloat(Q.get('t')):null;
