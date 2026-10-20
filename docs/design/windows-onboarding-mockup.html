@@ -52,7 +52,7 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 .txt{width:100%;min-height:86px;padding:13px 15px;border-radius:20px;background:rgba(30,36,58,.6);font-size:15.5px;line-height:1.45}
 
 /* mic list: plain names, one line each */
-.list{width:100%;overflow:hidden;border-radius:20px;background:rgba(30,36,58,.55);padding:3px 0;margin-top:4px}
+.list{width:100%;overflow:hidden;border-radius:20px;background:rgba(30,36,58,.55);padding:0;margin-top:4px}
 .dev{display:flex;align-items:center;gap:11px;padding:12px 14px;font-size:14px;color:rgba(255,255,255,.88)}
 .dev+.dev{border-top:1px solid rgba(255,255,255,.07)}
 .dev .r{width:16px;height:16px;border-radius:8px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);flex:none;display:grid;place-items:center}
@@ -186,14 +186,9 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 </div>
 
 <h2><span class="tag">Later</span> When the mic can't be found</h2>
-<p class="sub">The pill still shows up, but turns red with an alert. The tray panel's Microphone row is highlighted in yellow until it's fixed.</p>
-<div class="row">
-  <div><div class="cap">Saved mic unplugged: red for 2 s, keeps recording on the PC mic</div>
-    <div class="scene">
-      <div class="pill red"><span class="alert">!</span><span class="pnote">HyperX not detected, using PC mic</span></div>
-      <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>
-    </div></div>
-  <div><div class="cap">No mic at all: red alert, nothing is recorded</div>
+<p class="sub">If the chosen mic can't be found, nothing is recorded. The pill still shows up, but turns red with an alert, then fades. The tray panel's Microphone row is highlighted in yellow until it's fixed.</p>
+<div class="row" style="grid-template-columns:repeat(2,380px)">
+  <div><div class="cap">Pill: red alert, nothing is recorded</div>
     <div class="scene">
       <div class="pill red"><span class="alert">!</span><span class="pnote">Microphone not detected</span></div>
       <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>
@@ -201,7 +196,7 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
   <div><div class="cap">Tray panel: Microphone row highlighted in yellow</div>
     <div class="scene">
       <div class="opts">
-        <div class="orow warnrow"><span>🎙</span><span>Microphone<span class="warn">HyperX Cloud III not detected</span></span><span class="v">This PC's mic ▾</span></div>
+        <div class="orow warnrow"><span>🎙</span><span>Microphone<span class="warn">Not detected</span></span><span class="v">HyperX Cloud III ▾</span></div>
         <div class="orow"><span>⏻</span><span>Launch at startup</span><span class="sw"></span></div>
       </div>
       <div class="taskbar"><i></i><i></i><i></i><i></i><span class="chev">⌃</span><span class="clk">9:41 AM<br>10/20/2026</span></div>

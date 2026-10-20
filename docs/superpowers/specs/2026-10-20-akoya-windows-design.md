@@ -49,11 +49,32 @@ because Windows has no menu bar.
   clicks "More info" → "Run anyway" on the SmartScreen warning once. Updates come from the same
   GitHub releases: the tray panel shows "Update available" and applies it in one click. This also
   settles open question 4. `winget` later, maybe.
+- **Setup: Welcome → Microphone → Try it** (confirmed 2026-10-20, mockup:
+  `docs/design/windows-onboarding-mockup.html`). Guiding rule from Rohit: setup must be simple and
+  seamless, nothing to think hard about. Three Windows-user reviewers (developer, gamer/streamer,
+  everyday laptop user) all voted for this flow over a two-screen one.
+  - The speech model starts downloading on Welcome.
+  - Microphone screen, always shown, same layout in every case: "Which mic do you talk into?" /
+    "Say something. Pick the one that moves." A list of inputs, each with a live 10-dot level
+    meter, and a status chip ("Hearing you" green, or amber "<mic> isn't hearing you").
+  - One mic is always highlighted: the Windows default. **Akoya never switches it on its own**;
+    the user clicks a row to change it.
+  - Plain names only ("This PC's microphone", "Webcam mic", "Galaxy Buds"); Windows' technical
+    names never appear in setup. Virtual and loopback inputs (NVIDIA Broadcast, Stereo Mix) are
+    folded into a "More (n)" row at the bottom of the list.
+  - Only one mic: the same screen with one row, titled "Is this the mic you want?".
+  - Windows mic privacy switch off: "Turn on your mic" with an Open Settings button; it moves on by
+    itself once the switch is on.
+  - The pick is saved as that exact device, so Discord or Voicemeeter changing the Windows default
+    doesn't move it. The tray panel keeps the Mac's "System default (…)" option for anyone who
+    wants to follow Windows.
+- **Mic not detected** (confirmed 2026-10-20): if the chosen mic can't be found when the hotkey is
+  pressed, nothing is recorded (no silent fallback to another mic). The pill still appears, turns
+  red with an alert icon and "Microphone not detected", then fades. The tray panel's Microphone row
+  is highlighted in yellow ("Not detected") until it's fixed.
 
 ## Claude's guesses, not yet confirmed by Rohit
 
-- **Setup:** shorter than the Mac's: welcome → microphone access → model download → try it.
-  Windows has no Accessibility permission to grant.
 - **Code lives in this repo** (e.g. a `windows/` folder), sharing the README and releases.
 
 ## Open questions (continue here)
