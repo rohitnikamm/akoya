@@ -44,10 +44,14 @@ because Windows has no menu bar.
   lone Alt tap (no menu bar / Office key tips). Alternatives in the hotkey menu: Right Ctrl and the
   Copilot key (many new keyboards have Copilot where Right Ctrl was). Left Alt stays untouched.
 
+- **Install and updates: Velopack** (confirmed 2026-10-20). An unsigned `Setup.exe` on the GitHub
+  release installs per-user (no admin prompt) with a Start menu entry and an uninstaller. The user
+  clicks "More info" → "Run anyway" on the SmartScreen warning once. Updates come from the same
+  GitHub releases: the tray panel shows "Update available" and applies it in one click. This also
+  settles open question 4. `winget` later, maybe.
+
 ## Claude's guesses, not yet confirmed by Rohit
 
-- **Install:** an unsigned `.exe` installer attached to the GitHub release (the user clicks
-  "More info" → "Run anyway" on the SmartScreen warning once). `winget` later, maybe.
 - **Setup:** shorter than the Mac's: welcome → microphone access → model download → try it.
   Windows has no Accessibility permission to grant.
 - **Code lives in this repo** (e.g. a `windows/` folder), sharing the README and releases.
@@ -61,7 +65,7 @@ because Windows has no menu bar.
    keyboard hook for the hotkey; clipboard snapshot + `SendInput` Ctrl+V + restore for pasting;
    an Inno Setup or Velopack installer. Ask whether the PC has an NVIDIA GPU (optional speed-up).
 3. Pill position on multi-monitor setups (screen with the focused window, or the primary screen)?
-4. Updates: check GitHub releases and offer an update, or just reinstall?
+4. ~~Updates~~: settled, Velopack updates from GitHub releases (see Decided).
 
 ## Windows pitfalls to design for
 
