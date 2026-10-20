@@ -19,11 +19,19 @@ public class MicrophoneResolverTests
     }
 
     [Fact]
-    public void NullSavedId_WithNoDefault_ChoosesNothingAndIsNotMissing()
+    public void NullSavedId_WithNoDefault_IsMissing()
     {
         var choice = MicrophoneResolver.Resolve(null, new[] { Hyperx });
         Assert.Null(choice.Mic);
-        Assert.False(choice.Missing);
+        Assert.True(choice.Missing);
+    }
+
+    [Fact]
+    public void NullSavedId_WithNoMicsAtAll_IsMissing()
+    {
+        var choice = MicrophoneResolver.Resolve(null, Array.Empty<NamedMic>());
+        Assert.Null(choice.Mic);
+        Assert.True(choice.Missing);
     }
 
     [Fact]

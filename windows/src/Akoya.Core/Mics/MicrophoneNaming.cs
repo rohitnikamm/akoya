@@ -8,6 +8,7 @@ public static class MicrophoneNaming
     private const string BuiltInName = "This PC's microphone";
     private const string WebcamName = "Webcam mic";
     private const string VoicemeeterName = "Voicemeeter";
+    private const string HeadsetName = "Headset mic";
 
     private enum Kind
     {
@@ -31,7 +32,7 @@ public static class MicrophoneNaming
         @"\b(stereo mix|what u hear|wave out mix)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex VirtualVendors = new(
-        @"\b(voicemeeter|vb-audio|nvidia broadcast|steam|discord|obs|krisp)\b",
+        @"\b(vb-audio|nvidia broadcast|steam|discord|obs|krisp)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex VoicemeeterRx = new(
@@ -111,6 +112,11 @@ public static class MicrophoneNaming
             && f.FormFactor is EndpointFormFactor.Microphone or EndpointFormFactor.Unknown)
         {
             return new Classified(f, Kind.BuiltIn, BuiltInName);
+        }
+
+        if ((Is(enumerator, "HDAUDIO") || Is(enumerator, "INTELAUDIO")) && f.FormFactor is EndpointFormFactor.Headset)
+        {
+            return new Classified(f, Kind.Other, HeadsetName);
         }
 
         if (enumerator.StartsWith("BTH", StringComparison.OrdinalIgnoreCase))
