@@ -44,6 +44,14 @@ Open Akoya and follow the short setup: it asks for Microphone and Accessibility 
 
 See the [guide](docs/GUIDE.md) for setup details, microphone handling and upgrading from Silk.
 
+## Windows
+
+A Windows 11 version is in the works. It's the same hold-to-talk dictation, but with a slim pill above the taskbar in place of the menu bar icon.
+
+<div align="center">
+<img src="docs/assets/windows-preview.gif" alt="Mockup of Akoya on Windows: a pill above the taskbar shows a waveform, a transcribing scan, then Pasted" width="100%">
+</div>
+
 ## Build from source
 
 Requires macOS 14+ on Apple Silicon and Swift 6 (the Command Line Tools are enough).

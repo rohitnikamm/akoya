@@ -1,0 +1,219 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Akoya for Windows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+:root{--blue:#2F6BFF;--blue2:#1D4ED8}
+*{box-sizing:border-box}
+body{margin:0;background:#07090f;color:#e8ecf6;font-family:Inter,"Segoe UI Variable","Segoe UI",sans-serif;padding:36px 0 80px}
+.wrap{width:1200px;margin:0 auto}
+h1{font-family:Outfit,sans-serif;font-weight:600;font-size:28px;margin:0 0 6px}
+.sub{color:rgba(232,236,246,.6);margin:0 0 22px;font-size:15px}
+h2{font-family:Outfit,sans-serif;font-weight:500;font-size:20px;margin:44px 0 6px}
+
+/* ---------- desktop ---------- */
+.desk{position:relative;width:1200px;height:675px;border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 30px 80px rgba(0,0,0,.5);
+ background:radial-gradient(ellipse 50% 60% at 50% 115%,#2b5cff 0%,transparent 60%),radial-gradient(ellipse 40% 50% at 20% 90%,#13308f 0%,transparent 70%),radial-gradient(ellipse 45% 55% at 85% 80%,#1a2c7a 0%,transparent 70%),linear-gradient(180deg,#05070f 0%,#0a1236 100%)}
+.term{position:absolute;left:170px;top:60px;width:860px;height:470px;border-radius:9px;background:#0c0d12;box-shadow:0 0 0 1px rgba(255,255,255,.09),0 24px 60px rgba(0,0,0,.55);overflow:hidden;font-family:"JetBrains Mono",Consolas,monospace;font-size:13.5px}
+.tbar{height:38px;background:#16171d;display:flex;align-items:center;font-family:"Segoe UI Variable",Inter,sans-serif;font-size:12px;color:rgba(255,255,255,.8)}
+.tab{height:30px;margin:8px 0 0 10px;padding:0 14px;background:#0c0d12;border-radius:7px 7px 0 0;display:flex;align-items:center;gap:8px}
+.ctl{margin-left:auto;display:flex}.ctl span{width:46px;text-align:center;color:rgba(255,255,255,.65);font-size:14px}
+.tbody{padding:16px 18px;line-height:1.7;color:#c9d1e3}
+.dim{color:#6b7385}.grn{color:#6ee7a5}.blu{color:#7aa2ff}.ylw{color:#f2cc60}
+.pasted{background:rgba(47,107,255,.28);border-radius:3px;box-shadow:0 0 14px rgba(47,107,255,.25)}
+.cursor{display:inline-block;width:8px;height:16px;background:#c9d1e3;vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+.taskbar{position:absolute;left:0;right:0;bottom:0;height:48px;background:rgba(20,22,32,.82);backdrop-filter:blur(30px);border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;gap:6px}
+.tb-ic{width:40px;height:40px;border-radius:6px;display:grid;place-items:center}
+.tb-ic.on{background:rgba(255,255,255,.08)}
+.tb-ic i{display:block;width:22px;height:22px;border-radius:5px}
+.search{width:200px;height:32px;border-radius:16px;background:rgba(255,255,255,.07);display:flex;align-items:center;gap:8px;padding:0 12px;font-size:12px;color:rgba(255,255,255,.55);margin:0 4px}
+.tray{position:absolute;right:10px;top:0;bottom:0;display:flex;align-items:center;gap:4px;font-family:"Segoe UI Variable",Inter,sans-serif;font-size:12px;color:#fff}
+.tray .chev{width:28px;height:36px;border-radius:5px;display:grid;place-items:center;color:rgba(255,255,255,.85)}
+.tray .chev.on{background:rgba(255,255,255,.1)}
+.tray .sys{display:flex;gap:10px;align-items:center;padding:0 8px;height:36px}
+.tray .clock{text-align:right;line-height:1.3;padding:0 8px}
+
+/* ---------- pill ---------- */
+.pill{position:absolute;left:50%;bottom:66px;transform:translateX(-50%) translateY(0) scale(1);height:34px;border-radius:17px;display:flex;align-items:center;gap:10px;padding:0 15px;
+ background:linear-gradient(180deg,rgba(14,18,34,.92),rgba(9,13,30,.94));
+ box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5);
+ transition:opacity .28s cubic-bezier(.2,.8,.2,1),transform .28s cubic-bezier(.2,.8,.2,1),width .3s cubic-bezier(.2,.8,.2,1);font-family:Outfit,sans-serif}
+.pill.hide{opacity:0;transform:translateX(-50%) translateY(10px) scale(.94)}
+.grid{display:grid;grid-auto-flow:column;gap:2px}
+.grid b{width:3px;height:3px;border-radius:50%;background:#dbe6ff;opacity:.12;transition:opacity .06s}
+.ptxt{font-size:14px;color:rgba(255,255,255,.92);white-space:nowrap;overflow:hidden;max-width:330px;direction:rtl;text-align:left}
+.ptxt span{direction:ltr;unicode-bidi:bidi-override}
+.ptime{font-size:11.5px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;min-width:26px;text-align:right}
+.check{width:18px;height:18px;border-radius:50%;background:var(--blue);display:grid;place-items:center;box-shadow:0 0 14px rgba(47,107,255,.8)}
+.plabel{font-size:13px;color:rgba(255,255,255,.85)}
+
+.controls{display:flex;gap:8px;margin:14px 0 0;align-items:center;flex-wrap:wrap}
+.controls button{font:500 13px Inter,sans-serif;color:#e8ecf6;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 14px;cursor:pointer}
+.controls button.on{background:rgba(47,107,255,.22);border-color:rgba(47,107,255,.6)}
+.controls .note{color:rgba(232,236,246,.5);font-size:13px;margin-left:8px}
+
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.card{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px 20px;cursor:pointer;background:rgba(255,255,255,.03)}
+.card.selected{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue),0 0 30px rgba(47,107,255,.2)}
+.card h3{margin:0 0 6px;font:600 16px Outfit,sans-serif}.card p{margin:0;color:rgba(232,236,246,.65);font-size:14px;line-height:1.5}
+.card .k{display:inline-block;font:600 12px Inter;color:#9db8ff;background:rgba(47,107,255,.15);border-radius:5px;padding:2px 7px;margin-right:6px}
+
+/* ---------- tray scene ---------- */
+.desk2{position:relative;width:1200px;height:520px;border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.07);
+ background:radial-gradient(ellipse 40% 60% at 90% 120%,#2b5cff 0%,transparent 60%),linear-gradient(180deg,#05070f,#0a1236)}
+.overflow{position:absolute;right:58px;bottom:56px;padding:8px;border-radius:8px;background:rgba(32,34,44,.92);backdrop-filter:blur(30px);box-shadow:0 0 0 1px rgba(255,255,255,.08),0 16px 40px rgba(0,0,0,.5);display:grid;grid-template-columns:repeat(3,32px);gap:4px}
+.overflow div{width:32px;height:32px;border-radius:5px;display:grid;place-items:center}
+.overflow div.on{background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.overflow i{display:block;width:16px;height:16px;border-radius:4px}
+.panel{position:absolute;right:210px;bottom:58px;width:300px;filter:drop-shadow(0 26px 50px rgba(0,0,0,.6))}
+.callout{position:absolute;font-size:13px;color:rgba(232,236,246,.7);max-width:240px;line-height:1.5}
+.callout b{color:#fff;font-weight:600}
+body.gif{padding:0;background:#000}body.gif .wrap>:not(#desk){display:none}body.gif .wrap{width:1200px}body.gif .desk{border-radius:0;box-shadow:none}body.gif .pill{transition:none}body.gif .term{top:212px;height:300px}body.gif .cursor{animation:none}
+</style></head><body><div class="wrap">
+
+<h1>Akoya for Windows</h1>
+<p class="sub">Hold <b>Right Alt</b>, speak, release. A pill rises above the taskbar while you talk, then disappears once your words are pasted. It plays on a loop below; use the buttons to hold one state.</p>
+
+<div class="desk" id="desk">
+  <div class="term">
+    <div class="tbar"><div class="tab"><span class="blu">❯_</span> PowerShell</div><div class="ctl"><span>–</span><span>□</span><span>✕</span></div></div>
+    <div class="tbody">
+      <div><span class="grn">rohit@desktop</span> <span class="blu">~/dev/akoya-windows</span> <span class="ylw">(main)</span></div>
+      <div><span class="dim">❯</span> git status</div>
+      <div class="dim">On branch main · nothing to commit, working tree clean</div>
+      <div><span class="dim">❯</span> claude</div>
+      <div style="margin-top:6px"><span style="color:#e8a77f">✻</span> Welcome back. <span class="dim">What are we building today?</span></div>
+      <div style="margin-top:10px"><span class="blu">&gt;</span> <span id="typed"></span><span class="cursor"></span></div>
+    </div>
+  </div>
+
+  <div class="pill" id="pill"></div>
+
+  <div class="taskbar">
+    <div class="tb-ic"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="1" y="1" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="10.5" y="1" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="1" y="10.5" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="10.5" y="10.5" width="8.5" height="8.5" rx="1" fill="#4c9dff"/></svg></div>
+    <div class="search">⌕ &nbsp;Search</div>
+    <div class="tb-ic"><i style="background:linear-gradient(135deg,#ffd75e,#f2a33a)"></i></div>
+    <div class="tb-ic"><i style="background:linear-gradient(135deg,#3aa0ff,#1764d8)"></i></div>
+    <div class="tb-ic on"><i style="background:#1b1d26;box-shadow:inset 0 0 0 1.5px #7aa2ff"></i></div>
+    <div class="tb-ic"><i style="background:linear-gradient(135deg,#5c6cff,#8b5cf6)"></i></div>
+    <div class="tray">
+      <div class="chev">⌃</div>
+      <div class="sys">
+        <svg width="16" height="13" viewBox="0 0 17 14"><path d="M1.5 5.2a10 10 0 0 1 14 0M4 7.8a6.4 6.4 0 0 1 9 0M6.6 10.4a2.7 2.7 0 0 1 3.8 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg width="16" height="14" viewBox="0 0 16 14"><path d="M2 5h3l4-3v10l-4-3H2z" fill="#fff"/><path d="M11 4.5a3.5 3.5 0 0 1 0 5" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div class="clock">9:41 AM<br>10/20/2026</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls" id="controls">
+  <button data-s="loop" class="on">▶ Loop</button>
+  <button data-s="listening">Listening</button>
+  <button data-s="transcribing">Transcribing</button>
+  <button data-s="pasted">Pasted</button>
+  <span class="note">Esc cancels at any point, the same as on the Mac.</span>
+</div>
+
+<h2>Chosen: the compact pill</h2>
+<p class="sub">Waveform only, 4 dots tall, with a timer. (Considered and dropped: a wider pill that also shows live words.)</p>
+
+<h2>Settings live in the tray, out of sight</h2>
+<p class="sub">Akoya's tray icon stays tucked behind the ⌃ arrow, so there's no extra clutter. Clicking it opens the same all-in-one panel as on the Mac: hotkey, microphone, last dictation and launch at startup. Shown with the Mac panel for now; the Windows one would match it.</p>
+<div class="desk2">
+  <img class="panel" src="windows-tray-panel-placeholder.png">
+  <div class="overflow">
+    <div><i style="background:#58c27d"></i></div>
+    <div class="on"><svg width="16" height="16" viewBox="0 0 16 16" id="trayico"></svg></div>
+    <div><i style="background:#e5534b"></i></div>
+    <div><i style="background:#8b9bb4"></i></div>
+    <div><i style="background:#f2cc60"></i></div>
+  </div>
+  <div class="taskbar">
+    <div class="tb-ic"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="1" y="1" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="10.5" y="1" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="1" y="10.5" width="8.5" height="8.5" rx="1" fill="#4c9dff"/><rect x="10.5" y="10.5" width="8.5" height="8.5" rx="1" fill="#4c9dff"/></svg></div>
+    <div class="search">⌕ &nbsp;Search</div>
+    <div class="tb-ic"><i style="background:linear-gradient(135deg,#ffd75e,#f2a33a)"></i></div>
+    <div class="tb-ic"><i style="background:linear-gradient(135deg,#3aa0ff,#1764d8)"></i></div>
+    <div class="tb-ic on"><i style="background:#1b1d26;box-shadow:inset 0 0 0 1.5px #7aa2ff"></i></div>
+    <div class="tray">
+      <div class="chev on">⌃</div>
+      <div class="sys">
+        <svg width="16" height="13" viewBox="0 0 17 14"><path d="M1.5 5.2a10 10 0 0 1 14 0M4 7.8a6.4 6.4 0 0 1 9 0M6.6 10.4a2.7 2.7 0 0 1 3.8 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg width="16" height="14" viewBox="0 0 16 14"><path d="M2 5h3l4-3v10l-4-3H2z" fill="#fff"/><path d="M11 4.5a3.5 3.5 0 0 1 0 5" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div class="clock">9:41 AM<br>10/20/2026</div>
+    </div>
+  </div>
+  <div class="callout" style="right:40px;top:300px;max-width:150px"><b>1.</b> Akoya's dot logo sits in the ⌃ overflow. Drag it onto the taskbar if you want it always visible.</div>
+  <div class="callout" style="left:120px;top:150px;max-width:300px"><b>2.</b> Click it and the panel opens above the taskbar: status, hotkey, last dictation, microphone, launch at startup, quit.</div>
+</div>
+
+</div>
+<script>
+// tray icon: dot logo, columns [2,4,6,4,2]
+(()=>{const s=document.getElementById('trayico');const cols=[2,4,6,4,2];let h='';cols.forEach((n,c)=>{for(let r=0;r<n;r++){const y=8-(n-1)*1.3+r*2.6;h+=`<circle cx="${2.8+c*2.6}" cy="${y}" r="0.95" fill="#cfe0ff"/>`}});s.innerHTML=h})();
+
+const SENT="Add a retry button to the download screen and write a test for it.";
+const pill=document.getElementById('pill'), typed=document.getElementById('typed');
+const Q=new URLSearchParams(location.search), FIX=Q.has('t')?parseFloat(Q.get('t')):null;
+if(Q.has('gif'))document.body.classList.add('gif');
+let variant='compact', state='listening', pinned=null, t0=FIX===null?performance.now():0;
+const COLS={compact:23,words:11}, ROWS=4;
+
+function build(){
+  const cols=COLS[variant];
+  let g='<div class="grid" style="grid-template-rows:repeat('+ROWS+',3px)">';
+  for(let c=0;c<cols;c++)for(let r=0;r<ROWS;r++)g+='<b></b>';
+  g+='</div>';
+  pill.innerHTML = variant==='compact'
+    ? g+'<span class="ptime" id="ptime">0:00</span>'
+    : g+'<div class="ptxt" id="ptxt"><span></span></div>';
+  pill.innerHTML+='<span class="check" id="pchk" style="display:none"><svg width="11" height="9" viewBox="0 0 11 9"><path d="M1 4.5l3 3L10 1" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="plabel" id="plab" style="display:none">Pasted</span>';
+  pill.dots=[...pill.querySelectorAll('b')]; pill.cols=cols;
+}
+function setDots(fn){const d=pill.dots;for(let c=0;c<pill.cols;c++)for(let r=0;r<ROWS;r++)d[c*ROWS+r].style.opacity=fn(c,r);}
+function level(c,t){const x=(c+.5)/pill.cols;const env=Math.pow(Math.sin(Math.PI*x),.7);return env*(0.28+0.72*Math.abs(Math.sin(t*6.1+c*.8))*(0.65+0.35*Math.sin(t*2.3+c*.31)))}
+
+const DUR={listening:3600,transcribing:1500,pasted:900,gone:1300};
+const ORDER=['listening','transcribing','pasted','gone'];
+function frame(now){
+  if(FIX!==null)now=FIX;
+  let st=pinned, el;
+  if(!pinned){let t=(now-t0)%(DUR.listening+DUR.transcribing+DUR.pasted+DUR.gone);for(const s of ORDER){if(t<DUR[s]){st=s;el=t;break}t-=DUR[s]}}
+  else el=(now-t0)%3600;
+  if(st!==state){state=st; if(st==='pasted'&&!pill.querySelector('.check')){} }
+  const t=now/1000;
+  pill.classList.toggle('hide',st==='gone'&&FIX===null);
+  if(FIX!==null){const f=st==='listening'?Math.min(1,el/250):st==='pasted'?Math.min(1,(DUR.pasted-el)/250):st==='gone'?0:1;pill.style.opacity=f;pill.style.transform='translateX(-50%) translateY('+(1-f)*10+'px) scale('+(0.94+0.06*f)+')';}
+  const done=st==='pasted'||st==='gone';
+  pill.querySelector('.grid').style.display=done?'none':'';
+  for(const id of ['ptime','ptxt'])if(document.getElementById(id))document.getElementById(id).style.display=done?'none':'';
+  document.getElementById('pchk').style.display=done?'':'none';document.getElementById('plab').style.display=done?'':'none';
+  const ptime=document.getElementById('ptime'), ptxt=document.getElementById('ptxt');
+  if(st==='listening'){
+    setDots((c,r)=>{const h=level(c,t)*ROWS*1.3;const d=Math.abs(r-(ROWS-1)/2);return d<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(h-2)/1.6))});
+    if(ptime)ptime.textContent='0:0'+Math.min(9,Math.floor(el/1000)+1);
+    if(ptxt){const n=Math.floor(SENT.length*Math.min(1,el/DUR.listening*1.05));ptxt.firstChild.textContent=SENT.slice(0,n)}
+    typed.innerHTML='';
+  } else if(st==='transcribing'){
+    const p=(el%900)/900*(pill.cols+6)-3;
+    setDots((c,r)=>{const d=Math.abs(c-p);return d<1?0.95:d<2.2?0.5:0.14});
+    if(ptxt)ptxt.firstChild.textContent=SENT;
+    if(ptime)ptime.textContent='0:04';
+    typed.innerHTML='';
+  } else {
+    setDots(()=>0.14);
+    typed.innerHTML='<span class="pasted">'+SENT+'</span>';
+  }
+  requestAnimationFrame(frame);
+}
+function pick(el){toggleSelect(el);variant=el.dataset.choice;build();}
+document.getElementById('controls').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('on',x===b));
+  pinned=b.dataset.s==='loop'?null:b.dataset.s;t0=performance.now();});
+const H=location.hash.slice(1).split(',');if(H.includes('words')){variant='words';document.querySelectorAll('.card').forEach(c=>c.classList.toggle('selected',c.dataset.choice==='words'))}
+if(['listening','transcribing','pasted'].includes(H[0])){pinned=H[0];document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('on',x.dataset.s===H[0]))}
+build();requestAnimationFrame(frame);
+</script>
+</body></html>
