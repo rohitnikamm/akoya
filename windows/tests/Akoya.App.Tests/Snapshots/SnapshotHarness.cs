@@ -17,6 +17,13 @@ public static class SnapshotHarness
     private const double Scale = 2.0;
     private const double BaseDpi = 96.0;
 
+    static SnapshotHarness()
+    {
+        // Register the pack:// URI scheme (normally done by System.Windows.Application) so tests can load
+        // pack://application:,,,/Akoya.App;component/... resources, e.g. the theme, without an Application.
+        _ = System.IO.Packaging.PackUriHelper.UriSchemePack;
+    }
+
     /// <summary>
     /// Builds the element with <paramref name="factory"/> and renders it at 2x scale into a PNG, all on a
     /// dedicated STA thread (WPF elements have thread affinity, so creation must happen there too).

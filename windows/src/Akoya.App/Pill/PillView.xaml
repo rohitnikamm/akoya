@@ -1,0 +1,67 @@
+<!--
+  The pill itself (docs/design/windows-pill-mockup.html .pill, the red alert in windows-onboarding-mockup.html):
+  34 tall, radius 17, padding 0 15, items 10 apart. DataContext: PillViewModel. Theme keys via DynamicResource.
+  Outer shadows paint outside these bounds; the host leaves room for them.
+-->
+<UserControl x:Class="Akoya.App.Pill.PillView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Akoya.App.Controls"
+             xmlns:pill="clr-namespace:Akoya.App.Pill"
+             FontFamily="{DynamicResource Akoya.FontFamily}"
+             IsHitTestVisible="False"
+             Focusable="False">
+    <controls:RimGlowBorder x:Name="Pill"
+                            Height="34"
+                            CornerRadius="17"
+                            Padding="15,0"
+                            Background="{DynamicResource Akoya.PillBackground}"
+                            GlowColor="{DynamicResource Akoya.AccentColor}">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <controls:DotGrid x:Name="Dots"
+                              Columns="23" Rows="4" DotSize="3" Gap="2"
+                              VerticalAlignment="Center"
+                              Opacities="{Binding Opacities}"
+                              DotBrush="{DynamicResource Akoya.PillDot}" />
+            <TextBlock x:Name="Timer"
+                       Margin="10,0,0,0"
+                       MinWidth="26"
+                       VerticalAlignment="Center"
+                       TextAlignment="Right"
+                       FontSize="11.5"
+                       Typography.NumeralAlignment="Tabular"
+                       Foreground="{DynamicResource Akoya.PillTimer}"
+                       Text="{Binding TimerText}" />
+
+            <controls:RimGlowBorder x:Name="Check"
+                                    Width="18" Height="18" CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource Akoya.Accent}"
+                                    Shadows="{x:Static pill:PillView.CheckHalo}">
+                <Path Width="11" Height="9"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Data="M1,4.5 L4,7.5 L10,1"
+                      Stroke="White" StrokeThickness="1.8"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            </controls:RimGlowBorder>
+
+            <controls:RimGlowBorder x:Name="AlertBadge"
+                                    Width="18" Height="18" CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource Akoya.Red}"
+                                    Shadows="{x:Static pill:PillView.AlertHalo}">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="12" FontWeight="Bold"
+                           Foreground="White"
+                           Text="!" />
+            </controls:RimGlowBorder>
+
+            <TextBlock x:Name="Label"
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="13"
+                       Foreground="{DynamicResource Akoya.PillLabel}"
+                       Text="{Binding AlertText}" />
+        </StackPanel>
+    </controls:RimGlowBorder>
+</UserControl>
