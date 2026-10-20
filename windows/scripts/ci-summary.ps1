@@ -18,11 +18,11 @@ $lines.Add('')
 # --- Build ---------------------------------------------------------------
 $buildLog = Join-Path $OutDir 'build.log'
 $lines.Add('## Build')
-if (-not (Test-Path $buildLog)) {
+if (-not (Test-Path -LiteralPath $buildLog)) {
     $lines.Add('No build.log found.')
 }
 else {
-    $log = Get-Content $buildLog
+    $log = Get-Content -LiteralPath $buildLog
     $errors = @($log | Where-Object { $_ -match '\berror\s+[A-Za-z]+\d+\s*:' } | ForEach-Object { $_.Trim() } | Select-Object -Unique)
     $succeeded = [bool]($log | Where-Object { $_ -match 'Build succeeded' })
     if ($succeeded -and $errors.Count -eq 0) {
@@ -59,7 +59,7 @@ function ConvertTo-AnnotationText([string]$text) {
 }
 
 foreach ($trx in $trxFiles) {
-    [xml]$doc = Get-Content $trx.FullName -Raw
+    [xml]$doc = Get-Content -LiteralPath $trx.FullName -Raw
     $ns = [System.Xml.XmlNamespaceManager]::new($doc.NameTable)
     $ns.AddNamespace('t', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010')
 
