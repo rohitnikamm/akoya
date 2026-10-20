@@ -4,7 +4,8 @@
 #   ci.sh              push HEAD's branch, wait for the build-test check run of HEAD, print summary
 #   ci.sh --wait-only  skip the push, resume waiting for HEAD's run
 #
-# Exit codes: 0 run succeeded, 1 run failed (or no results), 2 still running after 9 minutes.
+# Exit codes: 0 run succeeded, 1 run failed / no run appeared / no results / gh or git error,
+# 2 run exists but is still in progress after 9 minutes.
 # Results land in $SCRATCH/ci/<sha>/ (summary.md, build.log, tests/*.trx, snapshots/*.png).
 # Only the Checks API and git are used: the Actions API is blocked from this workspace.
 set -euo pipefail
@@ -14,6 +15,7 @@ JOB="build-test"
 SCRATCH="${SCRATCH:-/tmp/claude-0/-home-claude/9febb593-37b7-55a6-bd1f-0fcd51f28b1c/scratchpad}"
 POLL_SECONDS=10
 MAX_WAIT_SECONDS=$((9 * 60))
+NO_RUN_GRACE_SECONDS=90
 
 wait_only=0
 case "${1:-}" in
@@ -27,6 +29,14 @@ sha="$(git rev-parse HEAD)"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
 if [[ $wait_only -eq 0 ]]; then
+  if [[ "$branch" == "HEAD" ]]; then
+    echo "refusing to push: HEAD is detached" >&2
+    exit 1
+  fi
+  if [[ "$branch" == "main" ]]; then
+    echo "refusing to push: current branch is main" >&2
+    exit 1
+  fi
   if [[ -n "$(git status --porcelain)" ]]; then
     echo "warning: working tree has uncommitted changes; CI only sees what is pushed" >&2
   fi
@@ -35,21 +45,45 @@ if [[ $wait_only -eq 0 ]]; then
 fi
 
 echo "waiting for check run '$JOB' on ${sha:0:9}"
-deadline=$((SECONDS + MAX_WAIT_SECONDS))
+started=$SECONDS
+deadline=$((started + MAX_WAIT_SECONDS))
+errfile="$(mktemp)"
+trap 'rm -f "$errfile"' EXIT
+last_err=""
+seen_run=0
 status=""
 conclusion=""
 while true; do
-  line="$(gh api "repos/$REPO/commits/$sha/check-runs" \
-    --jq "[.check_runs[] | select(.name==\"$JOB\")] | sort_by(.id) | last | \"\(.status) \(.conclusion)\"" \
-    2>/dev/null || true)"
-  status="${line%% *}"
-  conclusion="${line#* }"
-  if [[ "$status" == "completed" ]]; then
-    break
+  if line="$(gh api "repos/$REPO/commits/$sha/check-runs" \
+    --jq "[.check_runs[] | select(.name==\"$JOB\")] | sort_by(.id) | last // empty | \"\(.status) \(.conclusion)\"" \
+    2>"$errfile")"; then
+    last_err=""
+    if [[ -n "$line" ]]; then
+      seen_run=1
+      status="${line%% *}"
+      conclusion="${line#* }"
+      if [[ "$status" == "completed" ]]; then
+        break
+      fi
+    elif (( SECONDS - started >= NO_RUN_GRACE_SECONDS )); then
+      echo "no check run appeared; did the push touch windows/** or the workflow?" >&2
+      exit 1
+    fi
+  else
+    last_err="$(cat "$errfile")"
   fi
   if (( SECONDS >= deadline )); then
-    echo "still running, re-run: ci.sh --wait-only"
-    exit 2
+    if [[ -n "$last_err" ]]; then
+      echo "gh api kept failing; last error:" >&2
+      echo "$last_err" >&2
+      exit 1
+    fi
+    if [[ $seen_run -eq 1 ]]; then
+      echo "still running, re-run: ci.sh --wait-only"
+      exit 2
+    fi
+    echo "no check run appeared; did the push touch windows/** or the workflow?" >&2
+    exit 1
   fi
   sleep "$POLL_SECONDS"
 done
@@ -58,7 +92,10 @@ echo "check run completed: $conclusion"
 dest="$SCRATCH/ci/$sha"
 rm -rf "$dest"
 mkdir -p "$dest"
-git fetch --quiet --no-tags --force origin ci-output
+if ! git fetch --quiet --no-tags --force origin ci-output; then
+  echo "could not fetch ci-output from origin (the publish step may have failed); check run was: $conclusion" >&2
+  exit 1
+fi
 if git archive FETCH_HEAD "runs/$sha" 2>/dev/null | tar -x -C "$dest" --strip-components=2; then
   echo "results: $dest"
   echo

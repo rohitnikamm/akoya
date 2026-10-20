@@ -99,6 +99,23 @@ foreach ($trx in $trxFiles) {
     }
 }
 
+# When tests did not run (e.g. the test host crashed) or the run reported a failure, the console log is the evidence.
+$testLog = Join-Path $OutDir 'test.log'
+if (Test-Path -LiteralPath $testLog) {
+    $logLines = @(Get-Content -LiteralPath $testLog)
+    $suspicious = [bool]($logLines | Where-Object { $_ -match 'crash|aborted|Test Run Failed|Failed to run' })
+    if ($trxFiles.Count -eq 0 -or $suspicious) {
+        $lines.Add('')
+        $lines.Add('### Last 40 lines of test.log')
+        $lines.Add('```')
+        $logLines | Select-Object -Last 40 | ForEach-Object { $lines.Add($_) }
+        $lines.Add('```')
+    }
+}
+elseif ($trxFiles.Count -eq 0) {
+    $lines.Add('No test.log found either.')
+}
+
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 Set-Content -Path (Join-Path $OutDir 'summary.md') -Value $lines -Encoding utf8
 Write-Host ($lines -join "`n")

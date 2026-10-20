@@ -42,7 +42,7 @@ jobs:
         env:
           AKOYA_SNAPSHOT_DIR: ${{ github.workspace }}\out\snapshots
         run: |
-          dotnet test windows/Akoya.Windows.slnx -c Release --no-build --logger trx --results-directory out/tests
+          dotnet test windows/Akoya.Windows.slnx -c Release --no-build --logger trx --results-directory out/tests 2>&1 | Tee-Object -FilePath out/test.log
           exit $LASTEXITCODE
 
       - name: Summarize
