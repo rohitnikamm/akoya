@@ -40,6 +40,7 @@ public sealed class HotkeyDecoder
     private HotkeyKey _key;
     private bool _hotkeyHeld;
     private bool _escSwallowed;
+    private bool _fakeCtrlSwallowed;
     private bool _lWinDown;
     private bool _lShiftDown;
 
@@ -67,6 +68,7 @@ public sealed class HotkeyDecoder
     {
         _hotkeyHeld = false;
         _escSwallowed = false;
+        _fakeCtrlSwallowed = false;
         _lWinDown = false;
         _lShiftDown = false;
     }
@@ -93,8 +95,19 @@ public sealed class HotkeyDecoder
             case HotkeyKey.RightAlt:
                 if (key.VkCode == VkRMenu) return DecodeHotkey(key.IsDown, inject: false);
                 // AltGr layouts: swallow the fake LCtrl so apps never see a stray Ctrl.
-                // A real Left Ctrl has scan code 0x1D and passes through.
-                if (key.VkCode == VkLControl && key.ScanCode == AltGrFakeCtrlScanCode) return SwallowOnly;
+                // A real Left Ctrl has scan code 0x1D and passes through. The up is swallowed only
+                // if its down was, so a down that reached apps is never left stranded.
+                if (key.VkCode == VkLControl && key.ScanCode == AltGrFakeCtrlScanCode)
+                {
+                    if (key.IsDown)
+                    {
+                        _fakeCtrlSwallowed = true;
+                        return SwallowOnly;
+                    }
+                    if (!_fakeCtrlSwallowed) return Pass;
+                    _fakeCtrlSwallowed = false;
+                    return SwallowOnly;
+                }
                 return Pass;
 
             case HotkeyKey.RightCtrl:
@@ -123,7 +136,9 @@ public sealed class HotkeyDecoder
             return new DecodeResult(true, HotkeyEvent.Pressed, inject);
         }
 
-        if (!_hotkeyHeld) return SwallowOnly; // up without a decoded down (e.g. after Reset)
+        // An up whose down we did not decode must pass: the down may have reached apps (hook gap,
+        // Key switched while held), and swallowing the up would strand the key as down system-wide.
+        if (!_hotkeyHeld) return Pass;
         _hotkeyHeld = false;
         return new DecodeResult(true, HotkeyEvent.Released);
     }

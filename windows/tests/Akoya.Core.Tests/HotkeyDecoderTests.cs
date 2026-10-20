@@ -276,10 +276,76 @@ public class HotkeyDecoderTests
     }
 
     [Fact]
-    public void UpWithoutDecodedDown_IsSwallowedWithoutEvent()
+    public void UpWithoutDecodedDown_PassesThroughWithoutEvent()
     {
         var d = new HotkeyDecoder(HotkeyKey.RightAlt);
-        Assert.Equal(SwallowOnly, d.Decode(Up(VkRMenu, 0x38, true)));
+        Assert.Equal(Pass, d.Decode(Up(VkRMenu, 0x38, true)));
+        d = new HotkeyDecoder(HotkeyKey.RightCtrl);
+        Assert.Equal(Pass, d.Decode(Up(VkRControl, 0x1D, true)));
+    }
+
+    [Fact]
+    public void KeySwitchedToRightAltWhileItIsHeld_UpPasses()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightCtrl);
+        Assert.Equal(Pass, d.Decode(Down(VkRMenu, 0x38, true)));
+        d.Key = HotkeyKey.RightAlt;
+        Assert.Equal(Pass, d.Decode(Up(VkRMenu, 0x38, true)));
+    }
+
+    [Fact]
+    public void AltGr_FakeLeftCtrlUp_WithoutSwallowedDown_Passes()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightAlt);
+        Assert.Equal(Pass, d.Decode(Up(VkLControl, 0x21D)));
+    }
+
+    [Fact]
+    public void AltGr_FakeLeftCtrlUp_SwallowedOnlyOnce()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightAlt);
+        Assert.Equal(SwallowOnly, d.Decode(Down(VkLControl, 0x21D)));
+        Assert.Equal(SwallowOnly, d.Decode(Up(VkLControl, 0x21D)));
+        Assert.Equal(Pass, d.Decode(Up(VkLControl, 0x21D)));
+    }
+
+    [Fact]
+    public void AltGr_FakeLeftCtrlUp_AfterReset_Passes()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightAlt);
+        d.Decode(Down(VkLControl, 0x21D));
+        d.Reset();
+        Assert.Equal(Pass, d.Decode(Up(VkLControl, 0x21D)));
+    }
+
+    [Fact]
+    public void AltGr_FakeLeftCtrlDownPassedUnderOtherKey_UpPassesAfterSwitchToRightAlt()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightCtrl);
+        Assert.Equal(Pass, d.Decode(Down(VkLControl, 0x21D)));
+        d.Key = HotkeyKey.RightAlt;
+        Assert.Equal(Pass, d.Decode(Up(VkLControl, 0x21D)));
+    }
+
+    [Fact]
+    public void Reset_WhileCopilotF23Held_F23UpPassesWithNoEvent()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.Copilot);
+        d.Decode(Down(VkLWin));
+        d.Decode(Down(VkLShift));
+        Assert.Equal(new DecodeResult(true, HotkeyEvent.Pressed, true), d.Decode(Down(VkF23)));
+        d.Reset();
+        Assert.Equal(Pass, d.Decode(Up(VkF23)));
+    }
+
+    [Fact]
+    public void Reset_WithStaleSwallowedEsc_RecordingActive_EscUpPasses()
+    {
+        var d = new HotkeyDecoder(HotkeyKey.RightAlt) { RecordingActive = true };
+        Assert.Equal(new DecodeResult(true, HotkeyEvent.Cancel), d.Decode(Down(VkEscape)));
+        d.Reset();
+        Assert.True(d.RecordingActive);
+        Assert.Equal(Pass, d.Decode(Up(VkEscape)));
     }
 
     [Fact]
