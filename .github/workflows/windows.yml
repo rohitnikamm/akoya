@@ -57,20 +57,23 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          # One results branch per source branch, so parallel task branches don't overwrite each other.
+          if [ "$BRANCH" = "windows-design" ]; then results="ci-output"; else results="ci-output-${BRANCH//\//-}"; fi
           work="$RUNNER_TEMP/ci-output"
           rm -rf "$work"
           mkdir -p "$work/runs/$SHA"
           cp -r out/. "$work/runs/$SHA/"
           cd "$work"
-          git init -q -b ci-output
+          git init -q -b "$results"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -q -m "ci output for $SHA"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-          git push --force origin ci-output
+          git push --force origin "$results"
 
       - name: Fail if build or tests failed
         if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success') }}

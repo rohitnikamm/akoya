@@ -92,8 +92,10 @@ echo "check run completed: $conclusion"
 dest="$SCRATCH/ci/$sha"
 rm -rf "$dest"
 mkdir -p "$dest"
-if ! git fetch --quiet --no-tags --force origin ci-output; then
-  echo "could not fetch ci-output from origin (the publish step may have failed); check run was: $conclusion" >&2
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$branch" == "windows-design" ]]; then results="ci-output"; else results="ci-output-${branch//\//-}"; fi
+if ! git fetch --quiet --no-tags --force origin "$results"; then
+  echo "could not fetch $results from origin (the publish step may have failed); check run was: $conclusion" >&2
   exit 1
 fi
 if git archive FETCH_HEAD "runs/$sha" 2>/dev/null | tar -x -C "$dest" --strip-components=2; then
@@ -101,7 +103,7 @@ if git archive FETCH_HEAD "runs/$sha" 2>/dev/null | tar -x -C "$dest" --strip-co
   echo
   cat "$dest/summary.md"
 else
-  echo "no results for $sha on ci-output (run $conclusion); check annotations:" >&2
+  echo "no results for $sha on $results (run $conclusion); check annotations:" >&2
   echo "  gh api repos/$REPO/commits/$sha/check-runs" >&2
   exit 1
 fi
