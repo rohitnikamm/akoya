@@ -1,0 +1,13 @@
+name: windows
+on:
+  push:
+    branches-ignore: [main]
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: windows-latest
+    steps:
+      - run: dotnet --list-sdks; nvidia-smi; echo done
+        shell: pwsh
+        continue-on-error: true
