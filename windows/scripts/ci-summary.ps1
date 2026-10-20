@@ -15,6 +15,17 @@ $lines = [System.Collections.Generic.List[string]]::new()
 $lines.Add('# CI summary')
 $lines.Add('')
 
+# --- Model ---------------------------------------------------------------
+$modelFailure = Join-Path $OutDir 'model-failure.txt'
+if (Test-Path -LiteralPath $modelFailure) {
+    $lines.Add('## Model')
+    $lines.Add('Speech model setup FAILED:')
+    $lines.Add('```')
+    Get-Content -LiteralPath $modelFailure | ForEach-Object { $lines.Add($_) }
+    $lines.Add('```')
+    $lines.Add('')
+}
+
 # --- Build ---------------------------------------------------------------
 $buildLog = Join-Path $OutDir 'build.log'
 $lines.Add('## Build')

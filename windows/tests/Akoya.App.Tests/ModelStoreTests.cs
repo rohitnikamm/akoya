@@ -28,6 +28,48 @@ public sealed class ModelStoreTests : IDisposable
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(body()) });
     }
 
+    private sealed class StatusHandler(HttpStatusCode status) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(status));
+    }
+
+    /// <summary>Delivers a few bytes, then never produces more data until the read is cancelled.</summary>
+    private sealed class StalledBodyHandler(byte[] firstChunk) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new StalledStream(firstChunk)) });
+    }
+
+    private sealed class StalledStream(byte[] firstChunk) : Stream
+    {
+        private bool _gaveFirst;
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            if (!_gaveFirst)
+            {
+                _gaveFirst = true;
+                firstChunk.CopyTo(buffer);
+                return firstChunk.Length;
+            }
+
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+            return 0;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private static ModelSpec SpecFor(byte[] tarball, long? bytes = null, string? sha = null) => new(
         "https://example.invalid/model.tar.bz2",
         bytes ?? tarball.Length,
@@ -130,6 +172,55 @@ public sealed class ModelStoreTests : IDisposable
         await second.EnsureAsync(new Progress<double>(), CancellationToken.None);
 
         Assert.True(second.IsInstalled);
+    }
+
+    [Fact]
+    public async Task ModelStore_StalledBody_ThrowsModelDownloadExceptionAndReleasesGate()
+    {
+        var spec = SpecFor(new byte[4096]);
+        var store = new ModelStore(_root, new HttpClient(new StalledBodyHandler(new byte[100])), spec, TimeSpan.FromMilliseconds(200));
+
+        var ex = await Assert.ThrowsAsync<ModelDownloadException>(() => store.EnsureAsync(new Progress<double>(), CancellationToken.None));
+        Assert.Contains("stalled", ex.Message);
+        AssertNoLeftovers();
+
+        // The gate must not stay held: a second call fails the same way instead of hanging.
+        await Assert.ThrowsAsync<ModelDownloadException>(() => store.EnsureAsync(new Progress<double>(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ModelStore_UserCancel_ThrowsOperationCanceledAndCleansUp()
+    {
+        var spec = SpecFor(new byte[4096]);
+        var store = new ModelStore(_root, new HttpClient(new StalledBodyHandler(new byte[100])), spec, TimeSpan.FromSeconds(30));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.EnsureAsync(new Progress<double>(), cts.Token));
+
+        Assert.False(Directory.Exists(store.ModelDirectory));
+        AssertNoLeftovers();
+    }
+
+    [Fact]
+    public async Task ModelStore_Http404_ThrowsModelDownloadException()
+    {
+        var store = new ModelStore(_root, new HttpClient(new StatusHandler(HttpStatusCode.NotFound)), SpecFor(new byte[1024]));
+
+        await Assert.ThrowsAsync<ModelDownloadException>(() => store.EnsureAsync(new Progress<double>(), CancellationToken.None));
+
+        AssertNoLeftovers();
+    }
+
+    [Fact]
+    public async Task ModelStore_MoreBytesThanExpected_FailsFast()
+    {
+        var served = new byte[4096];
+        var store = StoreFor(served, SpecFor(served, bytes: 1024));
+
+        var ex = await Assert.ThrowsAsync<ModelDownloadException>(() => store.EnsureAsync(new Progress<double>(), CancellationToken.None));
+
+        Assert.Contains("larger than expected", ex.Message);
+        AssertNoLeftovers();
     }
 
     private sealed class SyncProgress(Action<double> onReport) : IProgress<double>

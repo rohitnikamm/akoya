@@ -98,6 +98,24 @@ public sealed class SherpaTranscriberTests : IClassFixture<ModelFixture>
     }
 }
 
+public sealed class SherpaTranscriberMissingFilesTests
+{
+    [Fact]
+    public void Constructor_MissingModelFiles_ThrowsFileNotFound()
+    {
+        var empty = Path.Combine(Path.GetTempPath(), "akoya-nomodel-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(empty);
+        try
+        {
+            Assert.Throws<FileNotFoundException>(() => new SherpaTranscriber(empty, InferenceProvider.Cpu, 1));
+        }
+        finally
+        {
+            Directory.Delete(empty, recursive: true);
+        }
+    }
+}
+
 /// <summary>Minimal RIFF reader for the 16 kHz mono PCM16 test wav.</summary>
 internal static class WavReader
 {

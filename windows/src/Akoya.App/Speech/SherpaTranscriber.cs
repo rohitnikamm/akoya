@@ -19,6 +19,12 @@ public sealed class SherpaTranscriber : ITranscriber, IDisposable
     {
         _ = provider;
         var files = ModelManifest.Files;
+        foreach (var name in files.All)
+        {
+            var path = Path.Combine(modelDir, name);
+            if (!File.Exists(path)) throw new FileNotFoundException("Speech model file is missing.", path);
+        }
+
         var config = new OfflineRecognizerConfig();
         config.ModelConfig.Transducer.Encoder = Path.Combine(modelDir, files.Encoder);
         config.ModelConfig.Transducer.Decoder = Path.Combine(modelDir, files.Decoder);

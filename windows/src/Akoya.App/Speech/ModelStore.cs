@@ -24,15 +24,20 @@ public sealed class ModelStore
     private readonly string _root;
     private readonly HttpClient _http;
     private readonly ModelSpec _spec;
+    private readonly TimeSpan _inactivityTimeout;
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>How long a single body read may produce no data before the download is abandoned.</summary>
+    public static readonly TimeSpan DefaultInactivityTimeout = TimeSpan.FromSeconds(30);
 
     public ModelStore(string modelsRoot, HttpClient http) : this(modelsRoot, http, ModelManifest.Spec) { }
 
-    public ModelStore(string modelsRoot, HttpClient http, ModelSpec spec)
+    public ModelStore(string modelsRoot, HttpClient http, ModelSpec spec, TimeSpan? inactivityTimeout = null)
     {
         _root = modelsRoot;
         _http = http;
         _spec = spec;
+        _inactivityTimeout = inactivityTimeout ?? DefaultInactivityTimeout;
     }
 
     public string ModelDirectory => Path.Combine(_root, _spec.FolderName);
@@ -73,7 +78,7 @@ public sealed class ModelStore
                 Directory.Move(extracted, ModelDirectory);
                 progress.Report(1);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 CleanPartials();
                 throw;
@@ -106,20 +111,42 @@ public sealed class ModelStore
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
+        var declared = response.Content.Headers.ContentLength;
+        if (declared > _spec.TarballBytes)
+        {
+            throw new ModelDownloadException($"Model download is larger than expected ({declared} bytes, expected {_spec.TarballBytes}).");
+        }
+
+        // HttpClient.Timeout does not cover the body with ResponseHeadersRead, so a stalled read would
+        // hang forever (holding the gate). Each read gets its own inactivity window.
+        using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         long total = 0;
-        await using (var src = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false))
-        await using (var dst = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+        try
         {
+            await using var src = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var dst = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
             var buffer = new byte[81920];
-            int n;
-            while ((n = await src.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+            while (true)
             {
+                readCts.CancelAfter(_inactivityTimeout);
+                var n = await src.ReadAsync(buffer, readCts.Token).ConfigureAwait(false);
+                if (n == 0) break;
+
+                total += n;
+                if (total > _spec.TarballBytes)
+                {
+                    throw new ModelDownloadException($"Model download is larger than expected (more than {_spec.TarballBytes} bytes).");
+                }
+
                 await dst.WriteAsync(buffer.AsMemory(0, n), ct).ConfigureAwait(false);
                 hash.AppendData(buffer, 0, n);
-                total += n;
-                progress.Report(Math.Min(1.0, (double)total / _spec.TarballBytes));
+                progress.Report((double)total / _spec.TarballBytes);
             }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ModelDownloadException($"Model download stalled (no data for {_inactivityTimeout.TotalSeconds:0.#} s).");
         }
 
         if (total != _spec.TarballBytes)
