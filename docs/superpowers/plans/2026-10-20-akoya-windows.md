@@ -159,7 +159,7 @@ Virtual keys: `VK_RMENU 0xA5`, `VK_RCONTROL 0xA3`, `VK_LCONTROL 0xA2`, `VK_LWIN 
   - `InjectedEvents_PassThrough` (`Injected: true` never decoded, so Akoya's own `SendInput` isn't caught)
   - `Reset_ClearsHeldState` (down, Reset, down → `Pressed` again, not a repeat)
 - [ ] **Step 2: Run** `ci.sh` — FAIL. **Step 3: Implement.** **Step 4: Run** `ci.sh` — PASS.
-- [ ] **Step 5: Commit** (`feat(windows): hotkey decoder`). Also fix the spec's Copilot line to: "swallows F23 and injects a mask key so Windows doesn't open Start; LWin/LShift pass through".
+- [ ] **Step 5: Commit** (`feat(windows): hotkey decoder`).
 
 ---
 
