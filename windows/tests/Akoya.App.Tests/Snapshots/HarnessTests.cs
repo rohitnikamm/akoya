@@ -33,8 +33,6 @@ public class HarnessTests
     [Fact]
     public void Render_ResolvesMergedResources_AndHonorsLayoutMargin()
     {
-        var resources = new ResourceDictionary { ["Accent"] = new SolidColorBrush(Blue) };
-
         SnapshotHarness.Render(
             () =>
             {
@@ -42,7 +40,8 @@ public class HarnessTests
                 border.SetResourceReference(Border.BackgroundProperty, "Accent");
                 return border;
             },
-            100, 40, "harness-resources", resources);
+            100, 40, "harness-resources",
+            () => new ResourceDictionary { ["Accent"] = new SolidColorBrush(Blue) });
 
         var directory = Environment.GetEnvironmentVariable(SnapshotHarness.DirectoryVariable);
         if (string.IsNullOrWhiteSpace(directory))

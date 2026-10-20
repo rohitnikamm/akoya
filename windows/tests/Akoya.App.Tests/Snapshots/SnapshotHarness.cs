@@ -21,15 +21,16 @@ public static class SnapshotHarness
     /// Builds the element with <paramref name="factory"/> and renders it at 2x scale into a PNG, all on a
     /// dedicated STA thread (WPF elements have thread affinity, so creation must happen there too).
     /// The element is hosted in a container of exactly <paramref name="width"/> x <paramref name="height"/>,
-    /// which is measured and arranged at that size. <paramref name="resources"/>, if given, is merged into
-    /// the host so the element can resolve theme resources without a running Application.
+    /// which is measured and arranged at that size. <paramref name="resources"/>, if given, builds a dictionary
+    /// (also on the STA thread) that is merged into the host so the element can resolve theme resources
+    /// without a running Application.
     /// </summary>
     public static void Render(
         Func<FrameworkElement> factory,
         double width,
         double height,
         string name,
-        ResourceDictionary? resources = null)
+        Func<ResourceDictionary>? resources = null)
     {
         ArgumentNullException.ThrowIfNull(factory);
 
@@ -44,7 +45,7 @@ public static class SnapshotHarness
             var host = new Grid { Width = width, Height = height };
             if (resources is not null)
             {
-                host.Resources.MergedDictionaries.Add(resources);
+                host.Resources.MergedDictionaries.Add(resources());
             }
 
             host.Children.Add(factory());
