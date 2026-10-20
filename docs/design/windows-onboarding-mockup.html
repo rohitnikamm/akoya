@@ -135,13 +135,13 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
 
 <h2><span class="tag">Edge cases</span> Same screen, other situations</h2>
 <div class="row">
-  <div><div class="cap"><b>2</b> Windows picked the wrong mic (earbuds in their case)</div>
+  <div><div class="cap"><b>2</b> Windows defaulted to earbuds; Akoya moved the highlight</div>
     <div class="card"><div class="grid"></div><div class="in"><div class="x">✕</div>
       <span class="eyebrow">Microphone</span>
       <p class="title">Which mic do you talk into?</p>
       <p class="body">Say something. Pick the one that moves.</p>
-      <div class="list" data-list="laptop" data-sel="buds"></div>
-      <div class="suggest" style="margin-top:6px"><span class="t">This PC's microphone hears you</span><span class="go">Switch</span></div>
+      <div class="list" data-list="laptop" data-sel="laptop"></div>
+      <div class="chip ok" style="margin-top:6px"><i></i>Hearing you</div>
       <div class="spacer"></div>
       <div class="btn light">Continue</div>
       <div class="foot"><div class="pd"><i></i><i class="on"></i><i></i></div><span class="skip">Skip</span></div>
@@ -212,7 +212,7 @@ h2 .tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:upper
     <li>Virtual and loopback devices (NVIDIA Broadcast, Stereo Mix) sit behind "More", so most people see 2–3 rows.</li>
     <li>In the usual case nothing needs choosing: you talk, see "Hearing you", press Continue.</li></ul></div>
   <div class="note"><h3>Rules underneath</h3><ul>
-    <li>The Switch suggestion appears only when your pick hears nothing and another mic hears speech. It never switches by itself, never suggests Stereo Mix, and stays away once you close it.</li>
+    <li>One mic is always highlighted. It starts on the Windows default; if that one hears nothing while another mic hears you, the highlight moves to the one hearing you (never to Stereo Mix). Once you click a row yourself, it never moves again. To change it, click a row.</li>
     <li>Your pick is saved as that device, so Discord or Voicemeeter changing the Windows default won't move it. The tray panel keeps the Mac's "System default" option for anyone who wants to follow Windows.</li></ul></div>
 </div>
 
