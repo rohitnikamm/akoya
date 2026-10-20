@@ -15,6 +15,12 @@ public static class SettingsStore
 {
     private static readonly AkoyaSettings Defaults = new();
 
+    /// <summary>
+    /// Loads settings, falling back to defaults for a missing or corrupt file and per field for bad
+    /// values. IO errors other than file-not-found (for example a sharing violation or access denied)
+    /// propagate. Callers must not <see cref="Save"/> after a Load that threw, or they would overwrite
+    /// a file they could not read with defaults.
+    /// </summary>
     public static AkoyaSettings Load(string path)
     {
         string text;
@@ -53,7 +59,7 @@ public static class SettingsStore
                 if (Is(property, "hotkey"))
                     settings = settings with { Hotkey = ReadEnum(value, Defaults.Hotkey) };
                 else if (Is(property, "microphoneId"))
-                    settings = settings with { MicrophoneId = value.ValueKind == JsonValueKind.String ? value.GetString() : Defaults.MicrophoneId };
+                    settings = settings with { MicrophoneId = ReadMicrophoneId(value) };
                 else if (Is(property, "launchAtStartup"))
                     settings = settings with { LaunchAtStartup = ReadBool(value, Defaults.LaunchAtStartup) };
                 else if (Is(property, "setupDone"))
@@ -65,6 +71,12 @@ public static class SettingsStore
         }
     }
 
+    /// <summary>
+    /// Atomically replaces the settings file. Call from one thread at a time: concurrent saves to the
+    /// same path share the same .tmp file and can clobber each other. The replace is retried briefly
+    /// (5 attempts) if another process holds the file, then the last error is rethrown and the
+    /// original file is left intact.
+    /// </summary>
     public static void Save(string path, AkoyaSettings settings)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
@@ -90,7 +102,7 @@ public static class SettingsStore
                 writer.Flush();
                 stream.Flush(true);
             }
-            File.Move(tempPath, path, overwrite: true);
+            MoveWithRetry(tempPath, path);
         }
         catch
         {
@@ -99,8 +111,37 @@ public static class SettingsStore
         }
     }
 
+    // Antivirus and indexers can briefly hold a freshly written file open on Windows, which makes the
+    // replace fail with a sharing violation. Retry a few times before giving up.
+    private const int MoveAttempts = 5;
+
+    private static void MoveWithRetry(string source, string destination)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(source, destination, overwrite: true);
+                return;
+            }
+            catch (Exception e) when (attempt < MoveAttempts && e is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(Random.Shared.Next(20, 51));
+            }
+        }
+    }
+
     private static bool Is(JsonProperty property, string name) =>
         property.NameEquals(name) || string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase);
+
+    // A string is the only valid shape; an empty string means "no microphone chosen", same as null.
+    private static string? ReadMicrophoneId(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.String)
+            return Defaults.MicrophoneId;
+        var id = value.GetString();
+        return string.IsNullOrEmpty(id) ? null : id;
+    }
 
     private static bool ReadBool(JsonElement value, bool fallback) => value.ValueKind switch
     {

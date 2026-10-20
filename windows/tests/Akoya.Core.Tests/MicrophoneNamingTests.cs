@@ -56,13 +56,42 @@ public class MicrophoneNamingTests
         Assert.Equal("This PC's microphone",
             Only(Ep("x", "Microphone (Intel(R) Smart Sound Technology)", "Microphone", "INTELAUDIO")).Name);
 
-    [Fact]
-    public void HeadsetJackOnHdAudio_IsNotThisPcsMicrophone()
+    [Theory]
+    [InlineData("HDAUDIO")]
+    [InlineData("INTELAUDIO")]
+    public void HeadsetComboJackOnHdAudio_IsHeadsetMic(string enumerator)
     {
-        var mic = Only(Ep("jack", "Headset Microphone (Realtek(R) Audio)", "Headset Microphone", "HDAUDIO",
+        var mic = Only(Ep("jack", "Headset Microphone (Realtek(R) Audio)", "Headset Microphone", enumerator,
             EndpointFormFactor.Headset));
-        Assert.NotEqual("This PC's microphone", mic.Name);
+        Assert.Equal("Headset mic", mic.Name);
         Assert.False(mic.InMore);
+    }
+
+    [Fact]
+    public void UnknownFormFactorOnHdAudio_IsStillThisPcsMicrophone()
+    {
+        var mic = Only(Ep("x", "Microphone Array (Realtek(R) Audio)", "Microphone", "HDAUDIO",
+            EndpointFormFactor.Unknown));
+        Assert.Equal("This PC's microphone", mic.Name);
+        Assert.False(mic.InMore);
+    }
+
+    [Fact]
+    public void LineLevelOnHdAudio_WithGenericWrapper_IsMoreNamedByDriver()
+    {
+        // No better name exists for a line-in style endpoint; pinned so a change is deliberate.
+        var mic = Only(Ep("line", "Microphone (Realtek(R) Audio)", "Microphone", "HDAUDIO",
+            EndpointFormFactor.LineLevel));
+        Assert.True(mic.InMore);
+        Assert.Equal("Realtek(R) Audio", mic.Name);
+    }
+
+    [Fact]
+    public void EndpointLiterallyCalledStereoMix_StaysStereoMix()
+    {
+        var mic = Only(Ep("mix", "Stereo Mix", "Stereo Mix", "HDAUDIO", EndpointFormFactor.LineLevel));
+        Assert.True(mic.InMore);
+        Assert.Equal("Stereo Mix", mic.Name);
     }
 
     [Fact]
@@ -74,17 +103,17 @@ public class MicrophoneNamingTests
     }
 
     [Theory]
-    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Headset")]
-    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro Hands-Free")]
-    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro AG Audio")]
-    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro Headset")]
-    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Headset (Galaxy Buds2 Pro Hands-Free AG Audio)")]
-    [InlineData("Microphone (Galaxy Buds2 Pro Hands-Free)", "Microphone")]
-    [InlineData("Headset (GALAXY BUDS2 PRO HANDS-FREE AG AUDIO)", "Headset")]
-    public void Bluetooth_StripsEveryKnownSuffixAndWrapper(string friendly, string description)
+    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Headset", "Galaxy Buds2 Pro")]
+    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro Hands-Free", "Galaxy Buds2 Pro")]
+    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro AG Audio", "Galaxy Buds2 Pro")]
+    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro Headset", "Galaxy Buds2 Pro")]
+    [InlineData("Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Headset (Galaxy Buds2 Pro Hands-Free AG Audio)", "Galaxy Buds2 Pro")]
+    [InlineData("Microphone (Galaxy Buds2 Pro Hands-Free)", "Microphone", "Galaxy Buds2 Pro")]
+    [InlineData("Headset (GALAXY BUDS2 PRO HANDS-FREE AG AUDIO)", "Headset", "GALAXY BUDS2 PRO")]
+    public void Bluetooth_StripsEveryKnownSuffixAndWrapper(string friendly, string description, string expected)
     {
         var mic = Only(Ep("bt", friendly, description, "BTHENUM", EndpointFormFactor.Headset));
-        Assert.Equal(friendly.Contains("GALAXY") ? "GALAXY BUDS2 PRO" : "Galaxy Buds2 Pro", mic.Name);
+        Assert.Equal(expected, mic.Name);
     }
 
     [Fact]
