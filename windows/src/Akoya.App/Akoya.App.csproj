@@ -6,6 +6,9 @@
     <RootNamespace>Akoya.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Akoya.Core\Akoya.Core.csproj" />
   </ItemGroup>
 </Project>
