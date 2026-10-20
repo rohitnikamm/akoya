@@ -73,18 +73,30 @@ because Windows has no menu bar.
   red with an alert icon and "Microphone not detected", then fades. The tray panel's Microphone row
   is highlighted in yellow ("Not detected") until it's fixed.
 
+- **Stack: C# on .NET 10 (LTS) with WPF** (confirmed 2026-10-20). Not .NET 8: .NET 8 and 9 reach
+  end of support on 10 November 2026; .NET 10 is the current LTS. WPF because the tray icon, the
+  panel and a transparent always-on-top pill are all straightforward there, and Akoya draws its own
+  dark-glass look anyway. Rejected: WinUI 3 (awkward tray/overlay windows, fussier packaging) and
+  Tauri (still needs native code for hook/paste/audio, so two languages).
+- **Transcription: CPU always works; the GPU is an optional speed-up** (confirmed 2026-10-20).
+  Rohit's PC has an NVIDIA GPU, but many PCs don't. Users must never have to install CUDA or
+  anything else. Which GPU route (DirectML or Windows ML through ONNX Runtime, or sherpa-onnx's
+  CUDA build) gets settled by a short spike on Rohit's PC at the start of the plan, which also
+  measures CPU speed.
+- **Dev setup is part of the work** (Rohit, 2026-10-20). The PC has no Visual Studio. Claude Code
+  on the PC installs what's needed (the .NET 10 SDK via winget, the Velopack `vpk` tool); the
+  `dotnet` CLI builds WPF without Visual Studio.
+- **Code lives in this repo** in a `windows/` folder, sharing the README and releases (assumed,
+  Rohit didn't object).
+
 ## Claude's guesses, not yet confirmed by Rohit
 
-- **Code lives in this repo** (e.g. a `windows/` folder), sharing the README and releases.
+- (none left)
 
 ## Open questions (continue here)
 
-1. Confirm or change the guesses above, one at a time.
-2. How it gets made: Rohit to say whether he has views or hands it to Claude. Claude's leaning:
-   C# / .NET 8 (WPF or WinUI 3) for a native tray app and pill window; sherpa-onnx (C# bindings)
-   running Parakeet TDT 0.6B v2 int8 on the CPU; WASAPI capture at 16 kHz mono; a low-level
-   keyboard hook for the hotkey; clipboard snapshot + `SendInput` Ctrl+V + restore for pasting;
-   an Inno Setup or Velopack installer. Ask whether the PC has an NVIDIA GPU (optional speed-up).
+1. ~~Confirm the guesses~~: all settled (see Decided).
+2. ~~How it gets made~~: settled, .NET 10 + WPF, CPU with optional GPU (see Decided).
 3. Pill position on multi-monitor setups (screen with the focused window, or the primary screen)?
 4. ~~Updates~~: settled, Velopack updates from GitHub releases (see Decided).
 
