@@ -6,6 +6,10 @@
     <RootNamespace>Akoya.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="org.k2fsa.sherpa.onnx" />
+    <PackageReference Include="SharpCompress" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Akoya.Core\Akoya.Core.csproj" />
   </ItemGroup>
 </Project>

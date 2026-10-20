@@ -22,6 +22,41 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Restore speech model cache
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/model
+          key: parakeet-tdt-0.6b-v2-int8
+
+      - name: Download speech model (cache miss only)
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'model'
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          $tarball = Join-Path $env:RUNNER_TEMP 'parakeet.tar.bz2'
+          curl.exe -L --fail --retry 3 -o $tarball https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2
+          if ($LASTEXITCODE -ne 0) { throw 'model download failed' }
+          $size = (Get-Item $tarball).Length
+          $sha = (Get-FileHash $tarball -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "::notice::size=$size sha256=$sha"
+          # The pins in ModelManifest.cs must match the real file.
+          $manifest = Get-Content windows/src/Akoya.Core/Model/ModelManifest.cs -Raw
+          $pinnedSize = [regex]::Match($manifest, 'TarballBytes\s*=\s*(\d+)').Groups[1].Value
+          $pinnedSha = [regex]::Match($manifest, 'TarballSha256\s*=\s*"([0-9a-f]{64})"').Groups[1].Value
+          if ($pinnedSize -ne "$size" -or $pinnedSha -ne $sha) { throw "ModelManifest pins ($pinnedSize, $pinnedSha) do not match the tarball ($size, $sha)" }
+          tar -xjf $tarball -C $dest
+          if ($LASTEXITCODE -ne 0) { throw 'model extraction failed' }
+          Remove-Item $tarball
+
+      - name: Point tests at the speech model
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'model/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
+          if (-not (Test-Path (Join-Path $dir 'encoder.int8.onnx'))) { throw "model missing at $dir" }
+          "AKOYA_MODEL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Prepare output folder
         shell: pwsh
         run: New-Item -ItemType Directory -Force out | Out-Null
