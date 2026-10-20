@@ -178,4 +178,60 @@ public sealed class SettingsStoreTests : IDisposable
         File.WriteAllText(FilePath, "{\"hotkey\":\"Copilot\"}", new System.Text.UTF8Encoding(true));
         Assert.Equal(HotkeyKey.Copilot, SettingsStore.Load(FilePath).Hotkey);
     }
+
+    [Theory]
+    [InlineData("{\"microphoneId\":\"\"}")]
+    [InlineData("{\"microphoneId\":null}")]
+    public void EmptyOrNullMicrophoneIdLoadsAsNull(string json)
+    {
+        WriteRaw(json);
+        Assert.Null(SettingsStore.Load(FilePath).MicrophoneId);
+    }
+
+    [Fact]
+    public void SaveThrowsWhenTargetStaysLockedAndLeavesOriginalIntact()
+    {
+        if (!OperatingSystem.IsWindows())
+            return; // Replacing an open file only fails on Windows.
+
+        SettingsStore.Save(FilePath, new AkoyaSettings(HotkeyKey.RightCtrl, "original", false, false, InferenceProvider.Auto));
+        var before = File.ReadAllText(FilePath);
+
+        using (new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.ThrowsAny<Exception>(() => SettingsStore.Save(FilePath, new AkoyaSettings(HotkeyKey.Copilot, "new", true, true, InferenceProvider.Cpu)));
+        }
+
+        Assert.Equal(before, File.ReadAllText(FilePath));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+    }
+
+    [Fact]
+    public void SaveSucceedsWhenLockIsReleasedDuringRetries()
+    {
+        if (!OperatingSystem.IsWindows())
+            return; // Replacing an open file only fails on Windows.
+
+        SettingsStore.Save(FilePath, new AkoyaSettings(HotkeyKey.RightCtrl, "original", false, false, InferenceProvider.Auto));
+
+        var holder = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+        var release = new Thread(() =>
+        {
+            Thread.Sleep(30);
+            holder.Dispose();
+        });
+        release.Start();
+        try
+        {
+            SettingsStore.Save(FilePath, new AkoyaSettings(HotkeyKey.Copilot, "new", true, true, InferenceProvider.Cpu));
+        }
+        finally
+        {
+            release.Join();
+            holder.Dispose();
+        }
+
+        Assert.Equal(new AkoyaSettings(HotkeyKey.Copilot, "new", true, true, InferenceProvider.Cpu), SettingsStore.Load(FilePath));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+    }
 }
