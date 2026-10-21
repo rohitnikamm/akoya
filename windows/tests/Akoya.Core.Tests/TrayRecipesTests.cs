@@ -17,6 +17,22 @@ public class TrayRecipesTests
     }
 
     [Fact]
+    public void SetupCardListening_IsTheMacCardRecipe_InsetOnly_LitFromBelow()
+    {
+        var recipe = RimGlowRecipes.SetupCardListening;
+        Assert.Equal(8, recipe.Count);
+        Assert.Equal(new BoxShadow(0, -6, 10, -2, new ShadowColor(200, 228, 255, 0.95), Inset: true), recipe[0]);
+        Assert.Equal(new BoxShadow(0, -130, 110, -40, new ShadowColor(20, 70, 220, 0.4), Inset: true), recipe[3]);
+        Assert.Equal(new BoxShadow(0, 0, 50, 10, new ShadowColor(14, 50, 170, 0.3), Inset: true), recipe[7]);
+        Assert.All(recipe, s => Assert.True(s.Inset));
+        Assert.Null(ShadowRaster.RenderOuter(380, 520, 44, recipe, 1));
+
+        var image = ShadowRaster.RenderInset(380, 520, 44, recipe, 1)!;
+        Assert.True(Alpha(image, 190, 515) > Alpha(image, 190, 5), "bottom edge should be brighter than the top");
+        Assert.True(Alpha(image, 190, 260) < Alpha(image, 190, 480), "the centre stays darker than the lower glow");
+    }
+
+    [Fact]
     public void TrayPanel_HasTopHighlight_AndDropShadowBelow()
     {
         var outer = ShadowRaster.RenderOuter(300, 400, 30, RimGlowRecipes.TrayPanel, 1)!;

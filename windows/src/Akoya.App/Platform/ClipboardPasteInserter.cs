@@ -1,50 +1,59 @@
-using System.Windows;
 using Akoya.Core.Dictation;
 
 namespace Akoya.App.Platform;
 
+/// <summary>One clipboard format, copied byte for byte (an enhanced metafile as its bits).</summary>
+public sealed record ClipboardItem(uint Format, byte[] Data);
+
 /// <summary>
-/// What was on the clipboard before Akoya borrowed it. <see cref="IsUnreadable"/> means the contents could
-/// not be read (e.g. another process holds the clipboard), which is different from an empty clipboard:
-/// restoring an empty snapshot clears the clipboard, while an unreadable one must never be overwritten.
+/// What was on the clipboard before Akoya borrowed it. <see cref="IsUnreadable"/> means the clipboard could not be
+/// opened (another process holds it), which is different from an empty clipboard: restoring an empty snapshot
+/// clears the clipboard, while an unreadable one must never be overwritten. <see cref="IsIncomplete"/> means some
+/// format could not be copied (or the contents are too large): the clipboard must not be borrowed at all.
 /// </summary>
 public sealed class ClipboardSnapshot
 {
-    private ClipboardSnapshot(IDataObject? data, bool isUnreadable)
+    private ClipboardSnapshot(IReadOnlyList<ClipboardItem> items, bool isUnreadable, bool isIncomplete)
     {
-        Data = data;
+        Items = items;
         IsUnreadable = isUnreadable;
+        IsIncomplete = isIncomplete;
     }
 
-    /// <summary>The detached copy of the contents; null when empty or unreadable.</summary>
-    public IDataObject? Data { get; }
+    /// <summary>The detached copies of every format; empty when empty, unreadable or incomplete.</summary>
+    public IReadOnlyList<ClipboardItem> Items { get; }
 
     public bool IsUnreadable { get; }
 
-    public bool IsEmpty => Data is null && !IsUnreadable;
+    public bool IsIncomplete { get; }
 
-    public static ClipboardSnapshot Empty { get; } = new(null, false);
+    public bool IsEmpty => Items.Count == 0 && !IsUnreadable && !IsIncomplete;
 
-    public static ClipboardSnapshot Unreadable { get; } = new(null, true);
+    public static ClipboardSnapshot Empty { get; } = new([], false, false);
 
-    public static ClipboardSnapshot Of(IDataObject data)
+    public static ClipboardSnapshot Unreadable { get; } = new([], true, false);
+
+    public static ClipboardSnapshot Incomplete { get; } = new([], false, true);
+
+    public static ClipboardSnapshot Of(IReadOnlyList<ClipboardItem> items)
     {
-        ArgumentNullException.ThrowIfNull(data);
-        return new ClipboardSnapshot(data, false);
+        ArgumentNullException.ThrowIfNull(items);
+        return new ClipboardSnapshot(items.ToArray(), false, false);
     }
 }
 
 /// <summary>The clipboard operations the paste flow needs, so the flow can be tested without a real clipboard.</summary>
 public interface IClipboard
 {
-    /// <summary>A detached copy of everything readable on the clipboard; distinguishes empty from unreadable.</summary>
+    /// <summary>A detached copy of everything on the clipboard; distinguishes empty, unreadable and incomplete.</summary>
     ClipboardSnapshot Snapshot();
 
     /// <summary>
-    /// Replaces the clipboard with <paramref name="text"/> in a single attempt. False when another
-    /// process holds the clipboard; the clipboard is then untouched.
+    /// Replaces the clipboard with <paramref name="text"/> in a single attempt. False when another process holds
+    /// the clipboard (the clipboard is then untouched) or the write failed after the clipboard was emptied: then
+    /// <paramref name="restoreOnFailure"/> is put back at once (or the clipboard is left empty without one).
     /// </summary>
-    bool TrySetText(string text, bool excludeFromHistory);
+    bool TrySetText(string text, bool excludeFromHistory, ClipboardSnapshot? restoreOnFailure = null);
 
     /// <summary>
     /// Puts a snapshot back (an empty snapshot clears the clipboard), unless something else has changed the clipboard
@@ -55,7 +64,8 @@ public interface IClipboard
 
 /// <summary>
 /// Types text into the foreground app by putting it on the clipboard, sending Ctrl+V, and restoring
-/// the previous clipboard 300 ms later. Into an elevated window (UIPI) it only copies.
+/// the previous clipboard 300 ms later. Into an elevated window (UIPI) it only copies. When the clipboard
+/// holds something that cannot be copied back exactly, it is not borrowed: the text is typed instead.
 /// </summary>
 public sealed class ClipboardPasteInserter : ITextInserter
 {
@@ -66,25 +76,30 @@ public sealed class ClipboardPasteInserter : ITextInserter
     private readonly IClipboard _clipboard;
     private readonly Func<bool> _foregroundIsElevated;
     private readonly Action _sendCtrlV;
+    private readonly Action<string> _typeText;
     private readonly IScheduler _scheduler;
     private readonly Func<TimeSpan, Task> _delay;
 
     /// <param name="sendCtrlV">Sends Ctrl+V to the foreground window; throws if the input was blocked.</param>
+    /// <param name="typeText">Types text into the foreground window as Unicode key input; throws if it was blocked.</param>
     /// <param name="delay">The wait between clipboard attempts; replaced in tests.</param>
     public ClipboardPasteInserter(
         IClipboard clipboard,
         Func<bool> foregroundIsElevated,
         Action sendCtrlV,
+        Action<string> typeText,
         IScheduler scheduler,
         Func<TimeSpan, Task>? delay = null)
     {
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(foregroundIsElevated);
         ArgumentNullException.ThrowIfNull(sendCtrlV);
+        ArgumentNullException.ThrowIfNull(typeText);
         ArgumentNullException.ThrowIfNull(scheduler);
         _clipboard = clipboard;
         _foregroundIsElevated = foregroundIsElevated;
         _sendCtrlV = sendCtrlV;
+        _typeText = typeText;
         _scheduler = scheduler;
         _delay = delay ?? Task.Delay;
     }
@@ -104,10 +119,25 @@ public sealed class ClipboardPasteInserter : ITextInserter
             return InsertResult.Failed;
         }
 
+        // Something on the clipboard could not be copied (a format we can't read, or too much): borrowing it
+        // would lose it, so type the text instead and never touch the clipboard.
+        if (snapshot.IsIncomplete)
+        {
+            try
+            {
+                _typeText(text);
+                return InsertResult.Pasted;
+            }
+            catch (Exception)
+            {
+                return InsertResult.Failed; // input was blocked; the text stays as Last dictation
+            }
+        }
+
         var set = false;
         for (var attempt = 1; attempt <= MaxSetAttempts; attempt++)
         {
-            if (_clipboard.TrySetText(text, excludeFromHistory: true))
+            if (_clipboard.TrySetText(text, excludeFromHistory: true, restoreOnFailure: snapshot))
             {
                 set = true;
                 break;

@@ -17,6 +17,7 @@ public sealed class SetupPresenter : ISetupPresenter
     private readonly SetupViewModel _model;
     private readonly SetupWindow _window;
     private readonly Task _prewarm;
+    private readonly Task _voicePrewarm;
     private bool _closed;
     private bool _dismissed;
 
@@ -37,7 +38,10 @@ public sealed class SetupPresenter : ISetupPresenter
         _model.RetryModelRequested += () => RetryModelRequested?.Invoke();
 
         var card = _window.Card;
-        _prewarm = RimGlowCache.PrewarmAsync(card.Width, card.Height, 44, RimGlowCache.ScaleFor(_window), SetupGlows.Card);
+        var scale = RimGlowCache.ScaleFor(_window);
+        _prewarm = RimGlowCache.PrewarmAsync(card.Width, card.Height, 44, scale, SetupGlows.Card);
+        // The voice glow is first drawn on Try it, two steps later: warm it without holding up the window.
+        _voicePrewarm = RimGlowCache.PrewarmAsync(card.Width, card.Height, 44, scale, SetupGlows.CardVoice);
     }
 
     public event Action<string>? MicChosen;
@@ -48,6 +52,9 @@ public sealed class SetupPresenter : ISetupPresenter
 
     /// <summary>The card glow rasters (for tests).</summary>
     internal Task PrewarmTask => _prewarm;
+
+    /// <summary>The Try it voice glow rasters (for tests).</summary>
+    internal Task VoicePrewarmTask => _voicePrewarm;
 
     internal SetupWindow Window => _window;
 

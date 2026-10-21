@@ -148,9 +148,15 @@ internal static class Devices
 internal sealed class SetupRig
 {
     public SetupRig(params EndpointFacts[] endpoints)
+        : this(false, endpoints)
+    {
+    }
+
+    /// <param name="reduceMotion">Windows' Animation effects off (a CI runner's own setting never leaks in).</param>
+    public SetupRig(bool reduceMotion, params EndpointFacts[] endpoints)
     {
         Catalog = new FakeCatalog(endpoints);
-        Model = new SetupViewModel(Catalog, Levels, Privacy, Practice, Clock);
+        Model = new SetupViewModel(Catalog, Levels, Privacy, Practice, Clock, () => reduceMotion);
     }
 
     public FakeCatalog Catalog { get; }
@@ -164,6 +170,13 @@ internal sealed class SetupRig
     public FakeScheduler Clock { get; } = new();
 
     public SetupViewModel Model { get; }
+
+    /// <summary>The inputs change, then the change settles (<see cref="SetupViewModel.MicChangeSettle"/>).</summary>
+    public void ChangeMics(params EndpointFacts[] endpoints)
+    {
+        Catalog.Change(endpoints);
+        Clock.Advance(SetupViewModel.MicChangeSettle.TotalSeconds);
+    }
 
     /// <summary>Every mic reports a step, then time moves on by one 40 ms meter window.</summary>
     public void Levels40ms(params (string id, int step)[] steps)

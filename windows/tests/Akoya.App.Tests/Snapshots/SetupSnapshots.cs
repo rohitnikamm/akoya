@@ -110,6 +110,64 @@ public class SetupSnapshots
         Render("setup-tryit-done", rig);
     }
 
+    /// <summary>
+    /// The Try it voice glow at rest, mid speech and peak, side by side like docs/design/tryit-glow-target.png: the
+    /// Mac's glow rises over the Windows card's fixed one, and the grid brightens with it.
+    /// </summary>
+    [Fact]
+    public void TryItGlowStates()
+    {
+        var rest = TryItRig();
+
+        var mid = TryItRig();
+        mid.Practice.Phase(DictationPhase.Recording);
+        Speak(mid, [.. Wave.Select(s => Math.Min(s, 4))], 0.6);
+        mid.Practice.Text("Okay, this is actually", false);
+
+        var peak = TryItRig();
+        peak.Practice.Phase(DictationPhase.Recording);
+        Speak(peak, [.. Wave.Select(s => Math.Min(8, s + 3))], 0.6);
+        peak.Practice.Text("Okay, this is actually really smooth.", false);
+
+        Assert.Equal(0, rest.Model.GlowStrength);
+        Assert.InRange(mid.Model.GlowStrength, 0.4, 0.8);
+        Assert.InRange(peak.Model.GlowStrength, 0.85, 1);
+
+        SnapshotHarness.Render(
+            () =>
+            {
+                var page = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Background = new SolidColorBrush(Color.FromRgb(0x04, 0x06, 0x0D)),
+                };
+                foreach (var rig in new[] { rest, mid, peak })
+                {
+                    page.Children.Add(new SetupView
+                    {
+                        DataContext = rig.Model,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(40, 40, 10, 0),
+                    });
+                }
+                return page;
+            },
+            1320, 600, "setup-tryit-glow-states", PillSnapshots.Theme);
+    }
+
+    /// <summary>Feeds the waveform <paramref name="steps"/> over and over for <paramref name="seconds"/>, 40 ms apart.</summary>
+    private static void Speak(SetupRig rig, int[] steps, double seconds)
+    {
+        var count = (int)Math.Round(seconds / 0.04);
+        for (var i = 0; i < count; i++)
+        {
+            rig.Practice.Rms(RmsFor(steps[i % steps.Length]));
+            rig.Clock.Advance(0.04);
+        }
+        // End on the whole waveform so the dots show its shape.
+        foreach (var step in steps) rig.Practice.Rms(RmsFor(step));
+    }
+
     private static SetupRig Microphone(SetupRig rig)
     {
         rig.Model.GetStarted();

@@ -14,7 +14,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 
 | Feature | Mac | Windows | Status |
 | --- | --- | --- | --- |
-| Hold to talk | Hold the hotkey, release after 0.30 s or more: stops, transcribes, pastes | Same, 0.30 s threshold counted from the press | Same |
+| Hold to talk | Hold the hotkey, release after 0.30 s or more: stops, transcribes, pastes | Same, 0.30 s threshold measured between the hook's own stamps of the press and the release (a slow mic start or a busy UI thread doesn't change it) | Same |
 | Tap to latch (hands-free) | Release under 0.30 s: keeps recording; the next press stops | Same | Same |
 | Esc cancels | Esc while recording (held or latched) cancels, nothing pasted; Esc is swallowed only while recording. A long-held Esc may still auto-repeat into the app | Same; Esc auto-repeat is swallowed too | Same |
 | Max length | 300 s, then stops as if released and pastes | Same | Same |
@@ -23,18 +23,18 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Transcription error | Red error cue | Pill fades (logged) | Different on purpose (Windows spec) |
 | Press while model not ready | Ignored with the red error cue | Pill shows "Getting the speech model ready…" (blue, 1.6 s), or red "Speech model failed" if it failed; nothing recorded | Different on purpose (the pill has room for words) |
 | Press while transcribing | Ignored | Ignored | Same |
-| Press during a result or alert | Ignored during the 0.6 s error cue | Starts a new dictation during "Pasted", "Copied" and "Couldn't paste"; ignored during the 1.6 s alerts | Different on purpose (results are cosmetic on Windows) |
+| Press during a result or alert | Ignored during the 0.6 s error cue | Starts a new dictation during "Pasted", "Copied" and "Couldn't paste", and a new attempt during the 1.6 s alerts (the mic may just have been plugged in) | Different on purpose (results and alerts are cosmetic on Windows) |
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |
-| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Snapshot of Unicode text, text, RTF, HTML, files and bitmap; restored after 300 ms unless something changed it meanwhile. Unreadable clipboard: nothing pasted ("Couldn't paste") | Different on purpose (Windows can only read back known formats) |
+| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Byte-for-byte Win32 snapshot of every format (private app formats, Excel cells, an Explorer cut, PNG, password managers' history markers), restored after 300 ms unless something changed it meanwhile; the restore is marked excluded from Win+V history. A format that can't be copied, or over 64 MB: the clipboard is left alone and the text is typed instead | Same |
 | Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | Marks it excluded from monitoring, Win+V history and cloud clipboard | Same |
 | Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V", no restore | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
-| Screen lock mid-dictation | Nothing special | Lock cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
+| Screen lock mid-dictation | Nothing special | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
 | Hotkey changed mid-recording | Unclear (the old key's release is probably read as a release, which stops) | Recording is cancelled | Different on purpose (unclear on Mac) |
-| Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | Unclear (the panel takes focus while open) | Different on purpose (unclear on Windows) |
+| Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | The hotkey closes the panel and gives focus back to the window the user was in, then records; the pill and the paste go to that window | Same |
 | Protected input | Secure Keyboard Entry or password fields: the hotkey does nothing | Elevated window focused: the hotkey does not fire (Windows UIPI) | Different on purpose (OS limits) |
 
 ## Hotkey
@@ -49,7 +49,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Key repeat | Not applicable (modifier events do not repeat) | Auto-repeat ignored and swallowed | Same |
 | Change applies at once | Yes, survives relaunch, Try it hint follows | Same | Same |
 | Permission | Needs Accessibility; the listener retries every 2 s (and on app activation) until granted | None needed | Different on purpose (macOS privacy) |
-| Recovery | Re-enables the event tap after a timeout; re-checks the held key against the live modifier state | Re-installs the hook after unlock, and on Retry when install failed ("Hotkey unavailable"); no detection of a hook Windows removed silently | Missing on Windows (silent hook removal; MANUAL_CHECKS_WINDOWS expects a reinstall after long uptime) |
+| Recovery | Re-enables the event tap after a timeout; re-checks the held key against the live modifier state | Re-installs the hook after unlock, after waking from sleep, and on Retry when install failed ("Hotkey unavailable"); every 30 s it checks for a hook Windows removed silently (input per GetLastInputInfo more than 60 s after the hook's last key) and re-installs it, never during a recording | Same |
 
 ## Microphone
 
@@ -72,7 +72,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | On-device | Yes, no audio leaves the Mac | Yes, no audio leaves the PC | Same |
 | Size | About 450 MB | About 480 MB tarball (482,468,385 bytes) | Same |
 | Download | By FluidAudio at first launch, in the background; whole-percent progress | From the sherpa-onnx GitHub release at launch, in the background, to a `.part` file; size and SHA-256 checked; extracted, then renamed into place | Different on purpose (different engines) |
-| Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch | Different on purpose (unclear on Mac) |
+| Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch; every model file's byte size is checked, so a truncated file counts as missing | Different on purpose (unclear on Mac) |
 | Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and in setup's Try it card | Same |
 | Where | `~/Library/Application Support/Akoya/Models` | `%LocalAppData%\Akoya\models\` (outside Velopack's `current`, so updates keep it) | Different on purpose (platform folders) |
 | Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Missing on Mac (unclear if Core ML needs it) |
@@ -109,14 +109,14 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Icon | Menu bar item (five-bar glyph), VoiceOver label "Akoya" | Dot logo (2-4-6-4-2) in the tray overflow behind ^, white dots on a dark taskbar and near-black on a light one, tooltip "Akoya"; can be dragged onto the taskbar | Different on purpose (platform conventions) |
 | Opening | Left or right mouse-down toggles; reopening Akoya (Spotlight, Finder) opens it | Left or right click toggles; launching Akoya again opens it | Same |
 | Panel | 320 pt wide, dark, radius 30, under the item right-aligned 8 pt below, never takes focus | 300 DIP wide, dark, radius 30, in the tray corner 12 DIP inside the work area (any taskbar edge), activates like Windows flyouts | Different on purpose (Windows flyout convention) |
-| Closing | Click outside, Esc (the app sees Esc too), a second click on the item, a Space change | Losing focus, Esc (first closes an open menu), a click in its shadow, a second click on the icon | Different on purpose (platform conventions) |
+| Closing | Click outside, Esc (the app sees Esc too), a second click on the item, a Space change | Losing focus, Esc (first closes an open menu), a click in its shadow, a second click on the icon, the dictation hotkey. Esc, the shadow, the icon and the hotkey give focus back to the window the user was in; a click on another window leaves it there | Different on purpose (platform conventions) |
 | Status card header | "Akoya" and a status chip (blue dot) | "Akoya" and a status dot plus text (blue for Ready and busy, amber for warnings, red for errors) | Different on purpose (Windows has warning states) |
-| Status texts | "Ready", "Listening", "Transcribing", "Preparing…" (no progress yet), "Downloading 42%", "Model failed", "Setup needed" | "Ready", "Listening", "Transcribing", "Getting the speech model ready…" (with " 42%" when known, shown under the hint), "Model download failed", "Microphone not detected", "Microphone blocked", "Hotkey unavailable" | Different on purpose (Windows spec reuses the setup wording; Mac's permission states do not exist on Windows) |
+| Status texts | "Ready", "Listening", "Transcribing", "Preparing…" (no progress yet), "Downloading 42%", "Model failed", "Setup needed" | "Ready", "Listening", "Transcribing", "Getting the speech model ready…" (with " 42%" when known, shown under the hint), "Model download failed", "Speech model failed" (downloaded but would not load), "Microphone not detected", "Microphone blocked", "Hotkey unavailable" | Different on purpose (Windows spec reuses the setup wording; Mac's permission states do not exist on Windows) |
 | Status buttons | "Retry" (model failed), "Finish setup" (permission missing, opens onboarding at the first missing permission), both when both apply | "Retry" (model failed or hotkey unavailable), "Open Settings" (mic blocked) | Different on purpose (different failure states) |
 | Download progress bar | 180 by 3 bar under the hint | Same | Same |
 | Logo and hint | Dot logo; "Hold [keycap ▾] to talk"; "or tap it once to start, again to stop" | Same | Same |
 | Voice glow | Status card rim glow follows the voice while listening (0.2 floor, attack 0.10 s, release 0.45 s), none at rest | Same | Same |
-| Glow with reduced motion | Reduce Motion: fixed glow while recording | Always follows the voice | Missing on Windows |
+| Glow with reduced motion | Reduce Motion: fixed glow while recording | "Animation effects" off: the same fixed glow (opacity 0.5) while listening, none at rest | Same |
 | Last dictation | "LAST DICTATION" card with "Copy" (flips to "Copied" for 1.5 s), up to 4 lines; hidden until the first dictation; only set by a successful paste; in memory only | Same card; also set when the paste failed, only copied, or the screen locked; Copy refused while a paste is in progress, "Copied" only when it worked | Different on purpose (Windows keeps the words when the paste did not land) |
 | Menu bar icon row | "Menu bar icon" with the Waveform value and ›, collapsed by default, expands inline (spring 0.32 s, chevron rotates): "Waveform" Pixel / Solid, "Red while recording", "Hide when idle", note "Hidden? Open Akoya from Spotlight to get back here." | Not built | Proposed (Windows "Pill" row with the same chevron: "Waveform" Pixel / Solid and "Red while recording" applied to the pill; only the dots turn red, the glow stays blue) |
 | Hide when idle | Switch: the menu bar item shrinks to nothing at rest | Left out of the proposal: the tray icon already sits behind the ^ overflow and the pill only shows while talking | Proposed |
@@ -151,8 +151,8 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Try it waveform | 22 columns of 5 pt dots, 1 to 9 per column (odd), dim at rest, bright while recording | 23 columns by 9 rows of 5 px dots, same counts and dimming | Same |
 | Live words | Text card fills in while speaking (pass every 0.6 s once 0.5 s of audio is above the silence gate), then the final text; nothing is pasted | Same | Same |
 | Text card | "Your words will appear here."; up to 6 lines, older words cut at the top | Same placeholder; scrolls to keep the newest words in view | Same |
-| Missed take | Silence, empty or failed take: text cleared, "Didn’t catch that [em dash] try again" (the Mac string has an em dash) | Empty final or failed take after a partial: previous good take kept, or "Didn't catch that. Try again." if none; a silent take changes nothing | Missing on Windows (the hint after a silent take; the mockup says it should show) |
-| Voice glow on Try it | Rim glow rises from the bottom edge with the voice and the grid brightens (fixed glow with Reduce Motion) | Waveform only; the card glow does not follow the voice | Missing on Windows |
+| Missed take | Silence, empty or failed take: text cleared, "Didn’t catch that [em dash] try again" (the Mac string has an em dash) | Silent, empty or failed take: previous good take kept, or "Didn't catch that. Try again." if none; Esc changes nothing | Same (period instead of the em dash) |
+| Voice glow on Try it | Rim glow rises from the bottom edge with the voice and the grid brightens (fixed glow with Reduce Motion) | The Mac's rim glow recipe rises over the card's fixed glow with the voice (same envelope, fades after the take) and the line grid brightens up to twice its rest strength; fixed glow with Animation effects off | Same |
 | Done | Quiet and inert until the first final transcript, then light; Return presses it | Same, Enter presses it | Same |
 | Skip | On Try it only | On Microphone and Try it | Different on purpose (no permissions to finish on Windows) |
 | ✕ | Counts as Skip on Try it or with every permission on; otherwise setup is not marked done | Always ends setup and marks it done; other closes (Alt+F4, sign-out) do not | Different on purpose (Mac must come back for permissions) |
@@ -173,7 +173,7 @@ Every user-visible string not already quoted above, with when it appears.
 | "Turn on your mic in Settings" | None | Red pill, privacy switch off, 1.6 s | Different on purpose (see Microphone) |
 | "Getting the speech model ready…" | Onboarding footer (with %) | Blue pill on a press while loading (1.6 s); tray status (with %); Try it card (with %) | Different on purpose (see Dictation) |
 | "Speech model failed" | None | Red pill on a press after the model failed, 1.6 s | Different on purpose (see Dictation) |
-| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" with "Retry" | Different on purpose (wording, unclear why) |
+| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" (download) or "Speech model failed" (load; the model folder is deleted so Retry downloads it again) with "Retry" | Different on purpose (wording, unclear why) |
 | "Setup needed" | Chip, a permission is missing, with "Finish setup" | Not applicable | Different on purpose (no permissions on Windows) |
 | "Hotkey unavailable" | Not applicable (the Mac retries silently) | Tray status with "Retry" when the keyboard hook cannot install | Different on purpose (see Hotkey) |
 | "Microphone blocked" | Not applicable | Tray status with "Open Settings" while the privacy switch is off | Different on purpose (see Microphone) |
@@ -212,17 +212,13 @@ Every user-visible string not already quoted above, with when it appears.
 | Settings storage | UserDefaults `com.rohitnikamm.akoya` | `%AppData%\Akoya\settings.json`, atomic save; corrupt file or bad values fall back to defaults; an unreadable file is never overwritten | Different on purpose (platform conventions) |
 | No settings window | Everything is in the dropdown | Everything is in the tray panel | Same |
 | Look | Dark only, Outfit font, electric-blue accents (`#2F6BFF` to `#1D4ED8`) | Same | Same |
-| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown | Same |
+| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish | Same |
 
 ## Open differences
 
 - Dictation: paste blocked fallback (Missing on Mac)
 - Dictation: screen lock mid-dictation (Missing on Mac)
-- Hotkey: recovery from a hook Windows removed silently (Missing on Windows)
 - Speech model: warm-up before "Ready" (Missing on Mac)
-- Tray / menu bar panel: glow with reduced motion (Missing on Windows)
 - Tray / menu bar panel: update row (Missing on Mac)
-- Setup / onboarding: hint after a silent Try it take (Missing on Windows)
-- Setup / onboarding: voice glow on Try it (Missing on Windows)
 - Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)
 - Install and updates: in-app update check (Missing on Mac)

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using Akoya.Core.Dictation;
 using Akoya.Core.Hotkey;
@@ -69,6 +70,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private DictationPhase _phase = DictationPhase.Idle;
     private ModelState _model = ModelState.Ready;
     private double? _modelProgress;
+    private bool _modelLoadFailed;
     private bool _micBlocked;
     private bool _hotkeyUnavailable;
     private IReadOnlyList<NamedMic> _mics = [];
@@ -95,11 +97,19 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private bool _launchAtStartup;
     private bool _updateReady;
     private double _glowStrength;
+    private readonly Func<bool> _reduceMotion;
 
-    public TrayPanelViewModel(TrayPanelActions? actions = null, IScheduler? scheduler = null)
+    /// <param name="actions">What the controls do.</param>
+    /// <param name="scheduler">Timers (the Copied label).</param>
+    /// <param name="reduceMotion">
+    /// Whether Windows' "Animation effects" is off (read on every glow update); then the glow holds steady while
+    /// listening, like the Mac with Reduce Motion. Defaults to <see cref="SystemParameters.ClientAreaAnimation"/>.
+    /// </param>
+    public TrayPanelViewModel(TrayPanelActions? actions = null, IScheduler? scheduler = null, Func<bool>? reduceMotion = null)
     {
         _actions = actions ?? new TrayPanelActions();
         _scheduler = scheduler;
+        _reduceMotion = reduceMotion ?? (() => !SystemParameters.ClientAreaAnimation);
         _context = SynchronizationContext.Current;
         _ownerThread = Environment.CurrentManagedThreadId;
 
@@ -377,10 +387,12 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     }
 
     /// <summary>The speech model's state, with download progress 0..1 while loading if known.</summary>
-    public void SetModel(ModelState state, double? progress = null)
+    /// <param name="loadFailed">The model downloaded but would not load: "Speech model failed".</param>
+    public void SetModel(ModelState state, double? progress = null, bool loadFailed = false)
     {
-        if (PostToOwner(() => SetModel(state, progress))) return;
+        if (PostToOwner(() => SetModel(state, progress, loadFailed))) return;
         _model = state;
+        _modelLoadFailed = state == ModelState.Failed && loadFailed;
         _modelProgress = state == ModelState.Loading && progress is { } p && double.IsFinite(p) ? Math.Clamp(p, 0, 1) : null;
         RecomputeStatus();
     }
@@ -561,7 +573,8 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
             DictationPhase.Transcribing => ("Transcribing", TrayStatusKind.Busy, TrayStatusAction.None, null),
             _ when _hotkeyUnavailable => ("Hotkey unavailable", TrayStatusKind.Error, TrayStatusAction.Retry, null),
             _ when _micBlocked => ("Microphone blocked", TrayStatusKind.Warning, TrayStatusAction.OpenSettings, null),
-            _ when _model == ModelState.Failed => ("Model download failed", TrayStatusKind.Error, TrayStatusAction.Retry, null),
+            _ when _model == ModelState.Failed => (_modelLoadFailed ? "Speech model failed" : "Model download failed",
+                TrayStatusKind.Error, TrayStatusAction.Retry, null),
             _ when _model == ModelState.Loading => Loading(_modelProgress),
             _ when MicMissing => ("Microphone not detected", TrayStatusKind.Warning, TrayStatusAction.None, null),
             _ => ("Ready", TrayStatusKind.Ready, TrayStatusAction.None, null),
@@ -583,9 +596,22 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
 
     private void UpdateGlow()
     {
-        // The Mac's mapping: GlowEnvelope opacity (0.2 floor, 0.8 at peak voice) scaled so peak voice is full strength.
-        var opacity = GlowEnvelope.Opacity(_voiceLevel, IsListening, reduceMotion: false);
-        GlowStrength = Math.Min(1, opacity / 0.8);
+        // The Mac's mapping: GlowEnvelope opacity (0.2 floor, 0.8 at peak voice; a fixed 0.5 with animations off)
+        // scaled so peak voice is full strength.
+        var opacity = GlowEnvelope.Opacity(_voiceLevel, IsListening, ReduceMotion());
+        GlowStrength = GlowEnvelope.LayerOpacity(opacity);
+    }
+
+    private bool ReduceMotion()
+    {
+        try
+        {
+            return _reduceMotion();
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
     }
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

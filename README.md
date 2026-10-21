@@ -8,7 +8,7 @@
 
 On-device dictation for the macOS menu bar.
 
-[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release&filter=v*)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
 
 <img src="docs/assets/hero.png" alt="Akoya listening in the menu bar, with its dropdown and the Try it card" width="100%">
 

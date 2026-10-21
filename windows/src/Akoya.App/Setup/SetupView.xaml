@@ -8,6 +8,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:Akoya.App.Controls"
              xmlns:setup="clr-namespace:Akoya.App.Setup"
+             xmlns:ui="clr-namespace:Akoya.Core.Ui;assembly=Akoya.Core"
              Width="380" Height="520"
              FontFamily="{DynamicResource Akoya.FontFamily}"
              Foreground="{DynamicResource Akoya.TextPrimary}">
@@ -23,10 +24,21 @@
                             Background="{DynamicResource Setup.CardBackground}"
                             Shadows="{x:Static setup:SetupGlows.Card}">
         <Grid>
+            <!-- Try it: the Mac's voice glow over the fixed one, rising with the voice (0 at rest and on other steps). -->
+            <controls:RimGlowBorder x:Name="VoiceGlow" CornerRadius="44" IsHitTestVisible="False"
+                                    Shadows="{x:Static ui:RimGlowRecipes.SetupCardListening}"
+                                    GlowStrength="{Binding GlowStrength}" />
             <controls:ClipBorder CornerRadius="44" IsHitTestVisible="False">
-                <Rectangle Height="286" VerticalAlignment="Bottom"
-                           Fill="{DynamicResource Setup.GridLines}"
-                           OpacityMask="{DynamicResource Setup.GridMask}" />
+                <Grid>
+                    <Rectangle Height="286" VerticalAlignment="Bottom"
+                               Fill="{DynamicResource Setup.GridLines}"
+                               OpacityMask="{DynamicResource Setup.GridMask}" />
+                    <!-- The grid brightens with the voice, as on the Mac (up to twice its rest strength). -->
+                    <Rectangle x:Name="GridBoost" Height="286" VerticalAlignment="Bottom"
+                               Fill="{DynamicResource Setup.GridLines}"
+                               OpacityMask="{DynamicResource Setup.GridMask}"
+                               Opacity="{Binding GlowStrength}" />
+                </Grid>
             </controls:ClipBorder>
 
             <!-- .in: padding 34 30 22; the step above, the 14-tall footer below. -->

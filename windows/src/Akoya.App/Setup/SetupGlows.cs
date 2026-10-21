@@ -11,6 +11,9 @@ public static class SetupGlows
     /// <summary>The card (<c>.card</c>): rim, bottom-weighted blue glow, soft blue wash, drop shadow.</summary>
     public static IReadOnlyList<BoxShadow> Card => RimGlowRecipes.OnboardingCard;
 
+    /// <summary>The card's voice glow on Try it (the Mac's card recipe), drawn at the voice's strength.</summary>
+    public static IReadOnlyList<BoxShadow> CardVoice => RimGlowRecipes.SetupCardListening;
+
     /// <summary>The blue button (<c>.btn.blue</c>): <c>0 6px 22px rgba(47,107,255,.35)</c>.</summary>
     public static readonly IReadOnlyList<BoxShadow> BlueButton = [new(0, 6, 22, 0, new ShadowColor(47, 107, 255, 0.35))];
 

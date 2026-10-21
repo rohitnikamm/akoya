@@ -15,9 +15,10 @@ public class TrayPanelViewModelTests
     private static readonly NamedMic Broadcast = new("{nvidia}", "NVIDIA Broadcast", InMore: true, IsDefault: false);
     private static readonly NamedMic[] Mics = [Laptop, HyperX, Broadcast];
 
-    private static TrayPanelViewModel Ready(TrayPanelActions? actions = null, IScheduler? scheduler = null)
+    private static TrayPanelViewModel Ready(TrayPanelActions? actions = null, IScheduler? scheduler = null, bool reduceMotion = false)
     {
-        var vm = new TrayPanelViewModel(actions, scheduler);
+        // Animations on unless a test says otherwise (a CI runner may have them off).
+        var vm = new TrayPanelViewModel(actions, scheduler, () => reduceMotion);
         vm.SetMicrophones(Mics, savedId: null);
         return vm;
     }
@@ -137,6 +138,20 @@ public class TrayPanelViewModelTests
 
         vm.SetModel(ModelState.Ready);
         Assert.True(vm.StatusInHeader);
+    }
+
+    [Fact]
+    public void ModelLoadFailed_SaysSpeechModelFailed_WithRetry()
+    {
+        var vm = Ready(new TrayPanelActions());
+        vm.SetModel(ModelState.Failed, null, loadFailed: true);
+
+        Assert.Equal("Speech model failed", vm.StatusText);
+        Assert.Equal(TrayStatusKind.Error, vm.StatusKind);
+        Assert.True(vm.ShowRetry);
+
+        vm.SetModel(ModelState.Failed, null, loadFailed: false);
+        Assert.Equal("Model download failed", vm.StatusText);
     }
 
     [Fact]
@@ -390,6 +405,37 @@ public class TrayPanelViewModelTests
         vm.SetPhase(DictationPhase.Transcribing);
         Assert.Equal(0, vm.GlowStrength);
         Assert.Equal(0, vm.GlowBaseOpacity);
+    }
+
+    [Fact]
+    public void Glow_WithAnimationsOff_HoldsSteadyWhileListening()
+    {
+        // Like the Mac with Reduce Motion: a fixed glow (opacity 0.5) while recording, none at rest.
+        var vm = Ready(reduceMotion: true);
+        vm.SetPhase(DictationPhase.Recording);
+        Assert.Equal(0.625, vm.GlowStrength, 3); // 0.5 / 0.8
+
+        vm.SetVoiceLevel(1);
+        Assert.Equal(0.625, vm.GlowStrength, 3);
+        vm.SetVoiceLevel(0.3);
+        Assert.Equal(0.625, vm.GlowStrength, 3);
+
+        vm.SetPhase(DictationPhase.Transcribing);
+        Assert.Equal(0, vm.GlowStrength);
+    }
+
+    [Fact]
+    public void Glow_ReadsTheAnimationSettingEachTime()
+    {
+        var reduce = false;
+        var vm = new TrayPanelViewModel(null, null, () => reduce);
+        vm.SetPhase(DictationPhase.Recording);
+        vm.SetVoiceLevel(1);
+        Assert.Equal(1, vm.GlowStrength, 3);
+
+        reduce = true; // switched off in Settings while Akoya runs
+        vm.SetVoiceLevel(1);
+        Assert.Equal(0.625, vm.GlowStrength, 3);
     }
 
     [Fact]

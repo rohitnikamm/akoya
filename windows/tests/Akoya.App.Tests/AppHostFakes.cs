@@ -207,7 +207,10 @@ internal sealed class FakeCatalog : IMicrophoneCatalog
 
 internal sealed class FakeHook : IHotkeyHook
 {
-    public Action<HotkeyEvent>? OnEvent { get; set; }
+    public Action<HotkeyEvent, DateTimeOffset>? OnEvent { get; set; }
+
+    /// <summary>The stamp <see cref="Fire(HotkeyEvent)"/> gives an event (the rig's scheduler clock).</summary>
+    public Func<DateTimeOffset> Clock { get; set; } = () => DateTimeOffset.UnixEpoch;
 
     public HotkeyKey CreatedWith { get; set; }
 
@@ -239,13 +242,19 @@ internal sealed class FakeHook : IHotkeyHook
 
     public void SetKey(HotkeyKey key) => Keys.Add(key);
 
+    /// <summary>How long ago the hook last saw a key (any key), or since it was installed.</summary>
+    public TimeSpan SinceLastKey { get; set; }
+
     public void SetRecordingActive(bool active) => RecordingActive = active;
 
     public void Reset() => Resets++;
 
     public void Dispose() => Disposed = true;
 
-    public void Fire(HotkeyEvent e) => OnEvent!(e);
+    public void Fire(HotkeyEvent e) => OnEvent!(e, Clock());
+
+    /// <summary>An event the hook stamped at <paramref name="at"/> (it may reach the host later).</summary>
+    public void Fire(HotkeyEvent e, DateTimeOffset at) => OnEvent!(e, at);
 }
 
 internal sealed class FakeModel : ISpeechModel
@@ -267,10 +276,22 @@ internal sealed class FakeModel : ISpeechModel
         return Ensure(progress);
     }
 
+    /// <summary>Thrown by the next Load calls (e.g. a corrupt encoder).</summary>
+    public Exception? LoadError { get; set; }
+
+    public int Discards { get; private set; }
+
     public ITranscriber Load(InferenceProvider provider)
     {
         Loads++;
+        if (LoadError is { } e) throw e;
         return Transcriber;
+    }
+
+    public void Discard()
+    {
+        Discards++;
+        IsInstalled = false;
     }
 }
 
@@ -305,8 +326,11 @@ internal sealed class FakePill : IPillPresenter
 
     public bool Disposed { get; private set; }
 
+    public Action? OnShow { get; set; }
+
     public void Show(PillViewModel model, bool retarget)
     {
+        OnShow?.Invoke();
         if (ThrowOnShow) throw new InvalidOperationException("pill window is gone");
         if (retarget && Visible) Retargets++;
         Model = model;
@@ -364,10 +388,23 @@ internal sealed class FakeTray : ITrayPresenter
 
     public void SetVoiceLevel(double level) => VoiceLevel = level;
 
-    public void SetModel(ModelState state, double? progress)
+    public Action? OnClosePanel { get; set; }
+
+    public int PanelCloses { get; private set; }
+
+    public void ClosePanelAndReturnFocus()
+    {
+        PanelCloses++;
+        OnClosePanel?.Invoke();
+    }
+
+    public bool ModelLoadFailed { get; private set; }
+
+    public void SetModel(ModelState state, double? progress, bool loadFailed)
     {
         Model = state;
         Progress = progress;
+        ModelLoadFailed = loadFailed;
     }
 
     public void SetMicBlocked(bool blocked) => MicBlocked = blocked;
@@ -439,11 +476,19 @@ internal sealed class FakeSession : ISessionEvents
 
     public event Action? Unlocked;
 
+    public event Action? Suspended;
+
+    public event Action? Resumed;
+
     public bool Disposed { get; private set; }
 
     public void Lock() => Locked?.Invoke();
 
     public void Unlock() => Unlocked?.Invoke();
+
+    public void Suspend() => Suspended?.Invoke();
+
+    public void Resume() => Resumed?.Invoke();
 
     public void Dispose() => Disposed = true;
 }
@@ -508,6 +553,8 @@ internal sealed class MemoryLog : ILog
 
     public IEnumerable<string> Errors => Lines.Where(l => l.StartsWith("ERROR", StringComparison.Ordinal));
 
+    public IEnumerable<string> Infos => Lines.Where(l => l.StartsWith("INFO", StringComparison.Ordinal));
+
     public void Info(string message)
     {
         lock (_lines) _lines.Add("INFO " + message);
@@ -538,6 +585,9 @@ internal sealed class HostRig : IDisposable
     public MemoryLog Log { get; } = new();
     public List<string> Copied { get; } = [];
     public bool MicAllowed { get; set; } = true;
+
+    /// <summary>What GetLastInputInfo reports: time since the last input from any device (null: unknown).</summary>
+    public TimeSpan? InputIdle { get; set; }
     public int Shutdowns { get; private set; }
     public int SetupsCreated { get; private set; }
 
@@ -563,6 +613,7 @@ internal sealed class HostRig : IDisposable
             {
                 Hook.CreatedWith = key;
                 Hook.OnEvent = onEvent;
+                Hook.Clock = () => Scheduler.Now;
                 return Hook;
             },
             Model = Model,
@@ -585,6 +636,7 @@ internal sealed class HostRig : IDisposable
             }),
             Updates = Updates,
             MicAccessAllowed = () => MicAllowed,
+            InputIdle = () => InputIdle,
             CopyToClipboard = text =>
             {
                 Copied.Add(text);

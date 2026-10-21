@@ -1,4 +1,3 @@
-using System.Windows;
 using Akoya.App.Platform;
 using Akoya.App.Tests.Snapshots;
 using Akoya.Core.Dictation;
@@ -8,14 +7,15 @@ namespace Akoya.App.Tests;
 
 public class ClipboardTests
 {
+    private static readonly ClipboardSnapshot TextSnapshot =
+        ClipboardSnapshot.Of(new[] { new ClipboardItem(RawClipboard.CfUnicodeText, RawClipboard.Utf16("before")) });
+
     [Fact]
     public async Task Insert_PastesAndRestores()
     {
-        var snapshot = ClipboardSnapshot.Of(new DataObject());
-        var clipboard = new FakeClipboard(snapshot);
+        var clipboard = new FakeClipboard(TextSnapshot);
         var scheduler = new ManualScheduler();
-        var inserter = new ClipboardPasteInserter(
-            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
+        var inserter = NewInserter(clipboard, scheduler);
 
         var task = inserter.InsertAsync("hello world");
 
@@ -28,7 +28,46 @@ public class ClipboardTests
 
         Assert.Equal(InsertResult.Pasted, await task);
         Assert.Equal(new[] { "snapshot", "set:hello world:excluded", "ctrl+v", "restore" }, clipboard.Calls);
-        Assert.Same(snapshot, clipboard.Restored);
+        Assert.Same(TextSnapshot, clipboard.Restored);
+    }
+
+    [Fact]
+    public async Task Insert_HandsTheSnapshotToTheSet_SoAFailedWriteCanPutItBack()
+    {
+        var clipboard = new FakeClipboard(TextSnapshot);
+        var scheduler = new ManualScheduler();
+        var task = NewInserter(clipboard, scheduler).InsertAsync("hello");
+        scheduler.FireAll();
+        await task;
+
+        Assert.Same(TextSnapshot, clipboard.RestoreOnFailure);
+    }
+
+    [Fact]
+    public async Task Insert_IncompleteSnapshot_TypesTheTextInstead_AndLeavesTheClipboardAlone()
+    {
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Incomplete);
+        var scheduler = new ManualScheduler();
+        var inserter = NewInserter(clipboard, scheduler);
+
+        var result = await inserter.InsertAsync("hello world ");
+
+        Assert.Equal(InsertResult.Pasted, result);
+        Assert.Equal(new[] { "snapshot", "type:hello world " }, clipboard.Calls); // no set, no Ctrl+V, no restore
+        Assert.Empty(scheduler.Pending);
+    }
+
+    [Fact]
+    public async Task Insert_IncompleteSnapshot_TypingBlocked_Fails()
+    {
+        var clipboard = new FakeClipboard(ClipboardSnapshot.Incomplete);
+        var scheduler = new ManualScheduler();
+        var inserter = new ClipboardPasteInserter(
+            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"),
+            _ => throw new System.ComponentModel.Win32Exception(5), scheduler, _ => Task.CompletedTask);
+
+        Assert.Equal(InsertResult.Failed, await inserter.InsertAsync("hello"));
+        Assert.Equal(new[] { "snapshot" }, clipboard.Calls);
     }
 
     [Fact]
@@ -37,7 +76,8 @@ public class ClipboardTests
         var clipboard = new FakeClipboard(ClipboardSnapshot.Empty);
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
-            clipboard, () => true, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
+            clipboard, () => true, () => clipboard.Calls.Add("ctrl+v"), t => clipboard.Calls.Add("type:" + t), scheduler,
+            _ => Task.CompletedTask);
 
         var result = await inserter.InsertAsync("hello");
 
@@ -53,7 +93,7 @@ public class ClipboardTests
         var scheduler = new ManualScheduler();
         var delays = new List<TimeSpan>();
         var inserter = new ClipboardPasteInserter(
-            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler,
+            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), t => clipboard.Calls.Add("type:" + t), scheduler,
             delay =>
             {
                 delays.Add(delay);
@@ -76,10 +116,8 @@ public class ClipboardTests
     {
         var clipboard = new FakeClipboard(ClipboardSnapshot.Unreadable);
         var scheduler = new ManualScheduler();
-        var inserter = new ClipboardPasteInserter(
-            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
 
-        var result = await inserter.InsertAsync("hello");
+        var result = await NewInserter(clipboard, scheduler).InsertAsync("hello");
 
         Assert.Equal(InsertResult.Failed, result);
         Assert.Equal(new[] { "snapshot" }, clipboard.Calls); // no set, no paste, no restore
@@ -91,10 +129,8 @@ public class ClipboardTests
     {
         var clipboard = new FakeClipboard(ClipboardSnapshot.Empty) { BusyAttempts = 2 };
         var scheduler = new ManualScheduler();
-        var inserter = new ClipboardPasteInserter(
-            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), scheduler, _ => Task.CompletedTask);
 
-        var task = inserter.InsertAsync("hello");
+        var task = NewInserter(clipboard, scheduler).InsertAsync("hello");
         scheduler.FireAll();
 
         Assert.Equal(InsertResult.Pasted, await task);
@@ -107,7 +143,8 @@ public class ClipboardTests
         var clipboard = new FakeClipboard(ClipboardSnapshot.Empty);
         var scheduler = new ManualScheduler();
         var inserter = new ClipboardPasteInserter(
-            clipboard, () => false, () => throw new InvalidOperationException("blocked"), scheduler, _ => Task.CompletedTask);
+            clipboard, () => false, () => throw new InvalidOperationException("blocked"), t => clipboard.Calls.Add("type:" + t),
+            scheduler, _ => Task.CompletedTask);
 
         var result = await inserter.InsertAsync("hello");
 
@@ -123,29 +160,197 @@ public class ClipboardTests
         {
             using var clipboard = new SystemClipboard();
             const string originalText = "original text é世";
-            var html = HtmlClipboard("<b>original</b>");
-
-            var original = new DataObject();
-            original.SetData(DataFormats.UnicodeText, originalText);
-            original.SetData(DataFormats.Html, html);
-            Clipboard.SetDataObject(original, true);
+            var html = RawClipboard.Ascii(ClipboardSamples.Html("<b>original</b>"));
+            var htmlFormat = RawClipboard.Format("HTML Format");
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16(originalText)), (htmlFormat, html) });
 
             var snapshot = clipboard.Snapshot();
             Assert.False(snapshot.IsEmpty);
             Assert.False(snapshot.IsUnreadable);
+            Assert.False(snapshot.IsIncomplete);
 
             Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
-            Assert.Equal("temporary dictation", Clipboard.GetText());
-            AssertAvailable(SystemClipboard.ExcludeFromMonitorFormat);
-            AssertAvailable(SystemClipboard.CanIncludeInHistoryFormat);
-            AssertAvailable(SystemClipboard.CanUploadToCloudFormat);
-            Assert.False(Clipboard.ContainsData(DataFormats.Html));
+            Assert.Equal("temporary dictation", System.Windows.Clipboard.GetText());
+            Assert.True(RawClipboard.Has(RawClipboard.Format(SystemClipboard.ExcludeFromMonitorFormat)));
+            Assert.True(RawClipboard.Has(RawClipboard.Format(SystemClipboard.CanIncludeInHistoryFormat)));
+            Assert.True(RawClipboard.Has(RawClipboard.Format(SystemClipboard.CanUploadToCloudFormat)));
+            Assert.False(RawClipboard.Has(htmlFormat));
 
             clipboard.Restore(snapshot);
 
-            Assert.Equal(originalText, Clipboard.GetText());
-            Assert.Contains("<b>original</b>", (string)Clipboard.GetData(DataFormats.Html)!);
-            Assert.False(IsAvailable(SystemClipboard.CanIncludeInHistoryFormat));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfUnicodeText), RawClipboard.Utf16(originalText)));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(htmlFormat), html));
+            Assert.False(RawClipboard.Has(RawClipboard.Format(SystemClipboard.CanIncludeInHistoryFormat)));
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_PrivateRegisteredFormatOnly_SurvivesByteForByte()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var privateFormat = RawClipboard.Format("Akoya Test Private Layers");
+            var payload = Enumerable.Range(0, 5000).Select(i => (byte)(i * 31)).ToArray();
+            RawClipboard.Set(new[] { (privateFormat, payload) });
+
+            var snapshot = clipboard.Snapshot();
+            Assert.False(snapshot.IsEmpty);
+            Assert.False(snapshot.IsIncomplete);
+
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+            Assert.False(RawClipboard.Has(privateFormat));
+            clipboard.Restore(snapshot);
+
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(privateFormat), payload));
+            Assert.False(RawClipboard.Has(RawClipboard.CfUnicodeText)); // not left holding our text
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_PasswordManagerMarkersSurvive_AndTheRestoreIsExcludedFromMonitoring()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var canInclude = RawClipboard.Format(SystemClipboard.CanIncludeInHistoryFormat);
+            var canUpload = RawClipboard.Format(SystemClipboard.CanUploadToCloudFormat);
+            var exclude = RawClipboard.Format(SystemClipboard.ExcludeFromMonitorFormat);
+            RawClipboard.Set(new[]
+            {
+                (RawClipboard.CfUnicodeText, RawClipboard.Utf16("hunter2")),
+                (canInclude, new byte[4]),
+                (canUpload, new byte[4]),
+            });
+            Assert.False(RawClipboard.Has(exclude));
+
+            var snapshot = clipboard.Snapshot();
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+            clipboard.Restore(snapshot);
+
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfUnicodeText), RawClipboard.Utf16("hunter2")));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(canInclude), new byte[4]));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(canUpload), new byte[4]));
+            Assert.True(RawClipboard.Has(exclude), "the restore must not be recorded as a new copy");
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_MultiFormatSet_Survives()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var rtf = RawClipboard.Format("Rich Text Format");
+            var html = RawClipboard.Format("HTML Format");
+            var dropEffect = RawClipboard.Format("Preferred DropEffect");
+            var items = new (uint, byte[])[]
+            {
+                (RawClipboard.CfUnicodeText, RawClipboard.Utf16("cells")),
+                (rtf, RawClipboard.Ascii(@"{\rtf1 cells}")),
+                (html, RawClipboard.Ascii(ClipboardSamples.Html("<td>cells</td>"))),
+                (RawClipboard.CfDib, ClipboardSamples.Dib()),
+                (RawClipboard.CfHdrop, ClipboardSamples.FileDrop(@"C:\one.txt", @"C:\two.txt")),
+                (dropEffect, BitConverter.GetBytes(2)), // DROPEFFECT_MOVE: an Explorer cut
+            };
+            RawClipboard.Set(items, ClipboardSamples.EnhMetaFile());
+            var emf = RawClipboard.GetEnhMetaFileBits();
+            Assert.NotNull(emf);
+
+            var snapshot = clipboard.Snapshot();
+            Assert.False(snapshot.IsIncomplete);
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+            clipboard.Restore(snapshot);
+
+            foreach (var (format, data) in items)
+            {
+                Assert.True(RawClipboard.StartsWith(RawClipboard.Get(format), data), $"format {format} did not survive");
+            }
+
+            Assert.Equal(emf, RawClipboard.GetEnhMetaFileBits());
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_OddBitmap_DoesNotFailThePaste()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var odd = ClipboardSamples.OddDib();
+            RawClipboard.Set(new[] { (RawClipboard.CfDib, odd), (RawClipboard.CfUnicodeText, RawClipboard.Utf16("caption")) });
+
+            var scheduler = new ManualScheduler();
+            var pasted = new List<string>();
+            var inserter = new ClipboardPasteInserter(
+                clipboard, () => false, () => pasted.Add(System.Windows.Clipboard.GetText()),
+                t => throw new InvalidOperationException("should paste, not type"), scheduler, _ => Task.CompletedTask);
+
+            // As in the app, the restore continues on this thread's dispatcher (it owns the clipboard window).
+            var result = RunOnDispatcher(() =>
+            {
+                var task = inserter.InsertAsync("dictated ");
+                scheduler.FireAll();
+                return task;
+            });
+
+            Assert.Equal(InsertResult.Pasted, result);
+            Assert.Equal(new[] { "dictated " }, pasted);
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfDib), odd));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfUnicodeText), RawClipboard.Utf16("caption")));
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_OverTheSizeCap_IsIncomplete()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard(maxSnapshotBytes: 1024);
+            RawClipboard.Set(new[] { (RawClipboard.Format("Akoya Test Big"), new byte[4096]) });
+
+            var snapshot = clipboard.Snapshot();
+
+            Assert.True(snapshot.IsIncomplete);
+            Assert.False(snapshot.IsEmpty);
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_IncompleteSnapshot_IsNeverRestored()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("before")) });
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+
+            clipboard.Restore(ClipboardSnapshot.Incomplete);
+
+            Assert.Equal("temporary dictation", System.Windows.Clipboard.GetText());
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_SetFailsAfterEmpty_PutsTheSnapshotBackAtOnce()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var failOurText = true;
+            using var clipboard = new SystemClipboard(
+                SystemClipboard.DefaultMaxSnapshotBytes,
+                (format, handle) => failOurText && format == RawClipboard.CfUnicodeText
+                    ? IntPtr.Zero
+                    : NativeMethods.SetClipboardData(format, handle));
+            var privateFormat = RawClipboard.Format("Akoya Test Private Layers");
+            RawClipboard.Set(new[] { (privateFormat, new byte[] { 1, 2, 3, 4 }) });
+            var snapshot = clipboard.Snapshot();
+
+            Assert.False(clipboard.TrySetText("temporary dictation", excludeFromHistory: true, restoreOnFailure: snapshot));
+
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(privateFormat), new byte[] { 1, 2, 3, 4 }));
+            Assert.True(RawClipboard.Has(RawClipboard.Format(SystemClipboard.ExcludeFromMonitorFormat)));
+            failOurText = false;
         });
     }
 
@@ -155,15 +360,15 @@ public class ClipboardTests
         SnapshotHarness.RunSta(() =>
         {
             using var clipboard = new SystemClipboard();
-            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "original"), true);
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("original")) });
             var snapshot = clipboard.Snapshot();
 
             Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
-            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "copied by the user"), true);
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("copied by the user")) });
 
             clipboard.Restore(snapshot);
 
-            Assert.Equal("copied by the user", Clipboard.GetText());
+            Assert.Equal("copied by the user", System.Windows.Clipboard.GetText());
         });
     }
 
@@ -173,13 +378,13 @@ public class ClipboardTests
         SnapshotHarness.RunSta(() =>
         {
             using var clipboard = new SystemClipboard();
-            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "before"), true);
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("before")) });
 
             var snapshot = clipboard.Snapshot();
-            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "after"), true);
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("after")) });
 
-            Assert.NotNull(snapshot.Data);
-            Assert.Equal("before", snapshot.Data.GetData(DataFormats.UnicodeText));
+            var text = Assert.Single(snapshot.Items, i => i.Format == RawClipboard.CfUnicodeText);
+            Assert.True(RawClipboard.StartsWith(text.Data, RawClipboard.Utf16("before")));
         });
     }
 
@@ -189,46 +394,58 @@ public class ClipboardTests
         SnapshotHarness.RunSta(() =>
         {
             using var clipboard = new SystemClipboard();
-            Clipboard.Clear();
+            RawClipboard.Set(Array.Empty<(uint, byte[])>());
             var snapshot = clipboard.Snapshot();
             Assert.True(snapshot.IsEmpty);
 
             Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
             clipboard.Restore(snapshot);
 
-            Assert.False(Clipboard.ContainsText());
+            Assert.False(System.Windows.Clipboard.ContainsText());
         });
     }
 
     [Fact]
-    public void RealClipboard_TrySetText_Succeeds_AndFailureLeavesClipboardUntouched()
+    public void RealClipboard_TrySetText_Succeeds_AndMarksOnlyWhenAsked()
     {
         SnapshotHarness.RunSta(() =>
         {
             using var clipboard = new SystemClipboard();
-            Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "mine"), true);
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("mine")) });
 
             Assert.True(clipboard.TrySetText("one", excludeFromHistory: false));
-            Assert.Equal("one", Clipboard.GetText());
-            Assert.False(Clipboard.ContainsData(SystemClipboard.CanIncludeInHistoryFormat));
+            Assert.Equal("one", System.Windows.Clipboard.GetText());
+            Assert.False(RawClipboard.Has(RawClipboard.Format(SystemClipboard.CanIncludeInHistoryFormat)));
+            Assert.False(RawClipboard.Has(RawClipboard.Format(SystemClipboard.ExcludeFromMonitorFormat)));
 
             Assert.True(clipboard.TrySetText("two \u00e9", excludeFromHistory: true));
-            Assert.Equal("two \u00e9", Clipboard.GetText());
+            Assert.Equal("two \u00e9", System.Windows.Clipboard.GetText());
         });
     }
 
-    private static string HtmlClipboard(string fragment)
+    /// <summary>Runs an async flow to completion with this STA thread's dispatcher as its synchronization context.</summary>
+    private static T RunOnDispatcher<T>(Func<Task<T>> flow)
     {
-        // CF_HTML: the offsets are only advisory for this round trip, so a header-less payload is enough.
-        return "Version:0.9\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\nStartFragment:0000000000\r\nEndFragment:0000000000\r\n"
-               + "<html><body><!--StartFragment-->" + fragment + "<!--EndFragment--></body></html>";
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(
+            new System.Windows.Threading.DispatcherSynchronizationContext(System.Windows.Threading.Dispatcher.CurrentDispatcher));
+        try
+        {
+            var task = flow();
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            task.ContinueWith(_ => frame.Continue = false, TaskScheduler.FromCurrentSynchronizationContext());
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            return task.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
     }
 
-    private static void AssertAvailable(string format) =>
-        Assert.True(IsAvailable(format), $"clipboard format {format} is not set");
-
-    private static bool IsAvailable(string format) =>
-        Clipboard.ContainsData(format);
+    private static ClipboardPasteInserter NewInserter(FakeClipboard clipboard, ManualScheduler scheduler) =>
+        new(clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), t => clipboard.Calls.Add("type:" + t), scheduler,
+            _ => Task.CompletedTask);
 
     private sealed class FakeClipboard : IClipboard
     {
@@ -247,15 +464,18 @@ public class ClipboardTests
 
         public ClipboardSnapshot? Restored { get; private set; }
 
+        public ClipboardSnapshot? RestoreOnFailure { get; private set; }
+
         public ClipboardSnapshot Snapshot()
         {
             Calls.Add("snapshot");
             return _snapshot;
         }
 
-        public bool TrySetText(string text, bool excludeFromHistory)
+        public bool TrySetText(string text, bool excludeFromHistory, ClipboardSnapshot? restoreOnFailure = null)
         {
             SetAttempts++;
+            RestoreOnFailure = restoreOnFailure;
             if (AlwaysBusy || SetAttempts <= BusyAttempts)
             {
                 return false;

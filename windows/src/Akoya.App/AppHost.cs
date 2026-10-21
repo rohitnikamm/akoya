@@ -25,6 +25,12 @@ public sealed class AppHost : IDisposable
     /// <summary>Pill timer, scanner and tray glow refresh while a dictation is on screen (about 30 Hz).</summary>
     public static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(33);
 
+    /// <summary>How often the keyboard hook is checked for a silent removal by Windows (spec M3).</summary>
+    public static readonly TimeSpan HookCheckInterval = TimeSpan.FromSeconds(30);
+
+    /// <summary>Input this long after the hook's last key means Windows removed the hook: re-install it.</summary>
+    public static readonly TimeSpan HookSilenceLimit = TimeSpan.FromSeconds(60);
+
     private static readonly TimeSpan TranscriberDisposeWait = TimeSpan.FromSeconds(2);
 
     private readonly AppPorts _p;
@@ -43,14 +49,17 @@ public sealed class AppHost : IDisposable
     private ISetupPresenter? _setup;
     private ModelState _modelState = ModelState.Loading;
     private double? _modelProgress;
+    private bool _modelLoadFailed;
     private bool _preparingModel;
     private bool _micBlocked;
     private string? _savedMicName;
     private string? _shownLastDictation;
     private bool _updateReady;
     private bool _restartPending;
+    private bool _quitPending;
     private IDisposable? _frameTimer;
     private IDisposable? _updateTimer;
+    private IDisposable? _hookCheckTimer;
     private DateTimeOffset _lastFrame;
     private DateTimeOffset _transcribingSince;
     private double _voiceTarget;
@@ -114,6 +123,8 @@ public sealed class AppHost : IDisposable
         _p.Microphones.Changed += OnMicrophonesChanged;
         _p.Session.Locked += OnSessionLocked;
         _p.Session.Unlocked += OnSessionUnlocked;
+        _p.Session.Suspended += OnSuspended;
+        _p.Session.Resumed += OnResumed;
 
         SyncLaunchAtStartup();
 
@@ -128,10 +139,11 @@ public sealed class AppHost : IDisposable
             throw;
         }
         _tray?.SetSettings(_settings);
-        _tray?.SetModel(_modelState, _modelProgress);
+        _tray?.SetModel(_modelState, _modelProgress, _modelLoadFailed);
         RefreshMicrophones();
 
         InstallHook();
+        ScheduleHookCheck();
 
         if (!_settings.SetupDone || !_p.Model.IsInstalled) ShowSetup();
 
@@ -177,12 +189,15 @@ public sealed class AppHost : IDisposable
         _modelCts.Cancel();
         DisposeTimer(ref _frameTimer);
         DisposeTimer(ref _updateTimer);
+        DisposeTimer(ref _hookCheckTimer);
 
         _coordinator.PhaseChanged -= OnPhaseChanged;
         _coordinator.Level -= OnLevel;
         _p.Microphones.Changed -= OnMicrophonesChanged;
         _p.Session.Locked -= OnSessionLocked;
         _p.Session.Unlocked -= OnSessionUnlocked;
+        _p.Session.Suspended -= OnSuspended;
+        _p.Session.Resumed -= OnResumed;
 
         // A recording in progress is dropped, never pasted on the way out.
         Try(() =>
@@ -210,10 +225,12 @@ public sealed class AppHost : IDisposable
 
     // ---- Dictation ----
 
-    private void OnHotkey(HotkeyEvent e)
+    private void OnHotkey(HotkeyEvent e, DateTimeOffset at)
     {
         if (_disposed) return;
-        _coordinator.Handle(e);
+        // An open tray panel holds the focus: give it back first, so the pill and the paste target the user's window.
+        if (e == HotkeyEvent.Pressed) Guard(() => _tray?.ClosePanelAndReturnFocus(), "tray.ClosePanelAndReturnFocus");
+        _coordinator.Handle(e, at);
     }
 
     // The coordinator raises PhaseChanged in the middle of a transition (before it stops or cancels the recorder), so
@@ -235,6 +252,11 @@ public sealed class AppHost : IDisposable
 
         if (_restartPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
             _p.Scheduler.After(TimeSpan.Zero, RestartToUpdate); // not from inside the coordinator's call
+        if (_quitPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
+        {
+            _quitPending = false;
+            _p.Scheduler.After(TimeSpan.Zero, Quit);
+        }
     }
 
     private void ReactToPhase(DictationPhase phase)
@@ -370,6 +392,33 @@ public sealed class AppHost : IDisposable
         }
     }
 
+    private void ScheduleHookCheck()
+    {
+        _hookCheckTimer = _p.Scheduler.After(HookCheckInterval, () =>
+        {
+            _hookCheckTimer = null;
+            if (_disposed) return;
+            Try(CheckHook, "check the keyboard hook");
+            ScheduleHookCheck();
+        });
+    }
+
+    /// <summary>
+    /// Windows removes a low-level hook without telling when its callback once runs past LowLevelHooksTimeout. Input
+    /// (GetLastInputInfo; keyboard or mouse) that came more than <see cref="HookSilenceLimit"/> after the hook's last
+    /// key means it is gone: re-install it. Mouse-only use looks the same, so that re-installs at most once a minute,
+    /// which is harmless. Never during a recording (a re-install forgets the held key).
+    /// </summary>
+    private void CheckHook()
+    {
+        if (_hook is not { } hook || _hotkeyUnavailable || _coordinator.Phase == DictationPhase.Recording) return;
+        if (_p.InputIdle() is not { } idle) return;
+        var silence = hook.SinceLastKey;
+        if (silence - idle <= HookSilenceLimit) return;
+        _p.Log.Info($"The keyboard hook heard nothing for {silence.TotalSeconds:0} s while there was input; re-installing it");
+        InstallHook();
+    }
+
     private void SetHotkeyUnavailable(bool unavailable)
     {
         _hotkeyUnavailable = unavailable;
@@ -391,6 +440,23 @@ public sealed class AppHost : IDisposable
         _p.Log.Info("Session unlocked");
         _hook?.Reset();
         InstallHook(); // Windows may have dropped the hook across the lock screen
+    }
+
+    private void OnSuspended()
+    {
+        if (_disposed) return;
+        _p.Log.Info("Going to sleep");
+        // Like a lock: a latched recording must not run on (or paste) after the PC wakes.
+        _coordinator.SessionLocked();
+        _hook?.Reset();
+    }
+
+    private void OnResumed()
+    {
+        if (_disposed) return;
+        _p.Log.Info("Woke from sleep");
+        _hook?.Reset();
+        InstallHook(); // Windows may have dropped the hook while asleep
     }
 
     // ---- Speech model ----
@@ -420,7 +486,19 @@ public sealed class AppHost : IDisposable
 
             var model = _p.Model;
             var provider = _settings.Provider;
-            var transcriber = await Task.Run(() => model.Load(provider), CancellationToken.None);
+            ITranscriber transcriber;
+            try
+            {
+                transcriber = await Task.Run(() => model.Load(provider), CancellationToken.None);
+            }
+            catch (Exception e) when (!_disposed)
+            {
+                // Present but unloadable (a corrupt encoder of the right size): delete it, so Retry downloads it again.
+                _p.Log.Error("Speech model failed to load; discarding it", e);
+                Try(model.Discard, "discard the speech model");
+                SetModelState(ModelState.Failed, null, loadFailed: true);
+                return;
+            }
             if (_disposed)
             {
                 TranscriberSlot.DisposeInBackground(transcriber, TimeSpan.Zero);
@@ -446,11 +524,12 @@ public sealed class AppHost : IDisposable
         }
     }
 
-    private void SetModelState(ModelState state, double? progress)
+    private void SetModelState(ModelState state, double? progress, bool loadFailed = false)
     {
         _modelState = state;
         _modelProgress = progress;
-        Guard(() => _tray?.SetModel(state, progress), "tray.SetModel");
+        _modelLoadFailed = loadFailed;
+        Guard(() => _tray?.SetModel(state, progress, loadFailed), "tray.SetModel");
         Guard(() => _setup?.SetModel(state, progress), "setup.SetModel");
     }
 
@@ -629,6 +708,17 @@ public sealed class AppHost : IDisposable
     private void Quit()
     {
         if (_disposed) return;
+        _quitPending = false;
+        switch (_coordinator.Phase)
+        {
+            case DictationPhase.Recording:
+                _coordinator.Handle(HotkeyEvent.Cancel); // dropped, never pasted on the way out
+                break;
+            case DictationPhase.Transcribing:
+                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here.
+                _quitPending = true;
+                return;
+        }
         _p.Log.Info("Quit");
         _p.Shutdown();
     }

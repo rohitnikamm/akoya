@@ -42,8 +42,32 @@ public sealed class ModelStore
 
     public string ModelDirectory => Path.Combine(_root, _spec.FolderName);
 
-    public bool IsInstalled =>
-        _spec.Files.All.All(name => File.Exists(Path.Combine(ModelDirectory, name)));
+    /// <summary>Every file is there, at its pinned size (a truncated or zero-byte encoder is not installed).</summary>
+    public bool IsInstalled => IsComplete(ModelDirectory);
+
+    /// <summary>
+    /// Deletes the installed model (after it failed to load), so the next <see cref="EnsureAsync"/> downloads it
+    /// again. Throws if the folder can't be deleted.
+    /// </summary>
+    public void Discard()
+    {
+        _gate.Wait();
+        try
+        {
+            if (Directory.Exists(ModelDirectory)) Directory.Delete(ModelDirectory, recursive: true);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private bool IsComplete(string directory) =>
+        _spec.Files.All.All(name =>
+        {
+            var file = new FileInfo(Path.Combine(directory, name));
+            return file.Exists && (_spec.FileBytes is not { } sizes || !sizes.TryGetValue(name, out var bytes) || file.Length == bytes);
+        });
 
     public async Task EnsureAsync(IProgress<double> progress, CancellationToken ct)
     {
@@ -68,9 +92,9 @@ public sealed class ModelStore
                 await Task.Run(() => Extract(part, extractDir, ct), ct).ConfigureAwait(false);
 
                 var extracted = Path.Combine(extractDir, _spec.FolderName);
-                if (!_spec.Files.All.All(name => File.Exists(Path.Combine(extracted, name))))
+                if (!IsComplete(extracted))
                 {
-                    throw new ModelDownloadException("The model archive is missing expected files.");
+                    throw new ModelDownloadException("The model archive is missing expected files (or they have the wrong size).");
                 }
 
                 // A half-installed folder from an older attempt must not block the move.

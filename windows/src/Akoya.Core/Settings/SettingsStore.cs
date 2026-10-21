@@ -17,8 +17,9 @@ public static class SettingsStore
 
     /// <summary>
     /// Loads settings, falling back to defaults for a missing or corrupt file and per field for bad
-    /// values. IO errors other than file-not-found (for example a sharing violation or access denied)
-    /// propagate. Callers must not <see cref="Save"/> after a Load that threw, or they would overwrite
+    /// values. A sharing violation (an indexer or antivirus holding the file) is retried
+    /// <see cref="LoadRetries"/> times about 50 ms apart. IO errors other than file-not-found that last
+    /// (a sharing violation that doesn't clear, access denied) propagate. Callers must not <see cref="Save"/> after a Load that threw, or they would overwrite
     /// a file they could not read with defaults.
     /// </summary>
     public static AkoyaSettings Load(string path)
@@ -26,7 +27,7 @@ public static class SettingsStore
         string text;
         try
         {
-            text = File.ReadAllText(path, Encoding.UTF8);
+            text = ReadWithRetry(path);
         }
         catch (FileNotFoundException)
         {
@@ -108,6 +109,25 @@ public static class SettingsStore
         {
             try { File.Delete(tempPath); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             throw;
+        }
+    }
+
+    /// <summary>How many times <see cref="Load"/> retries a file another process holds open.</summary>
+    public const int LoadRetries = 3;
+
+    private static string ReadWithRetry(string path)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return File.ReadAllText(path, Encoding.UTF8);
+            }
+            catch (IOException e) when (attempt < LoadRetries && e is not (FileNotFoundException or DirectoryNotFoundException))
+            {
+                // Most likely a sharing violation that clears in a moment; access denied is not an IOException.
+                Thread.Sleep(50);
+            }
         }
     }
 

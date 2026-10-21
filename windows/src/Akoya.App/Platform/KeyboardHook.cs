@@ -21,7 +21,8 @@ public sealed class HotkeyUnavailableException : Exception
 /// construction nothing else may touch it, and every change goes through <see cref="SetKey"/>,
 /// <see cref="SetRecordingActive"/> and <see cref="Reset"/>, which run on the hook thread.
 /// The hook callback only decodes and queues; push-to-talk events reach <c>onEvent</c> on the thread
-/// that constructed the hook (through its <see cref="SynchronizationContext"/>), in order.
+/// that constructed the hook (through its <see cref="SynchronizationContext"/>), in order, each stamped
+/// (<see cref="MonotonicClock"/>) in the callback, when the key moved, not when the UI thread got to it.
 /// </summary>
 public sealed class KeyboardHook : IDisposable
 {
@@ -30,7 +31,7 @@ public sealed class KeyboardHook : IDisposable
     private static readonly TimeSpan ReinstallTimeout = TimeSpan.FromSeconds(5);
 
     private readonly HotkeyDecoder _decoder;
-    private readonly Action<HotkeyEvent> _onEvent;
+    private readonly Action<HotkeyEvent, DateTimeOffset> _onEvent;
     private readonly SynchronizationContext _context;
     private readonly ConcurrentQueue<Action> _queued = new();
     private readonly NativeMethods.HookProc _proc; // kept in a field so the delegate is never collected
@@ -39,10 +40,11 @@ public sealed class KeyboardHook : IDisposable
     private HookThread? _current;   // the live (or just-died) hook thread; changed under _gate
     private HookThread? _abandoned;  // a thread that timed out starting; told to unhook and exit
     private volatile bool _disposed;
+    private long _lastKeyTick = Environment.TickCount64; // any key the callback saw, or the last (re-)install
 
     /// <param name="decoder">Handed over: do not use it again after this call.</param>
-    /// <param name="onEvent">Called on the creating thread's synchronization context.</param>
-    public KeyboardHook(HotkeyDecoder decoder, Action<HotkeyEvent> onEvent)
+    /// <param name="onEvent">Called on the creating thread's synchronization context with the event and when it happened.</param>
+    public KeyboardHook(HotkeyDecoder decoder, Action<HotkeyEvent, DateTimeOffset> onEvent)
     {
         ArgumentNullException.ThrowIfNull(decoder);
         ArgumentNullException.ThrowIfNull(onEvent);
@@ -52,6 +54,13 @@ public sealed class KeyboardHook : IDisposable
                    ?? throw new InvalidOperationException("KeyboardHook must be created on a thread with a SynchronizationContext (the UI thread).");
         _proc = HookCallback;
     }
+
+    /// <summary>
+    /// How long ago the callback last saw a key (any key, passed on or not), or since the hook was (re-)installed.
+    /// Silence while the user types means Windows removed the hook (it does so, without telling, when a callback
+    /// once exceeds LowLevelHooksTimeout).
+    /// </summary>
+    public TimeSpan SinceLastKey => TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64 - Interlocked.Read(ref _lastKeyTick)));
 
     /// <summary>True while the hook thread is alive.</summary>
     internal bool IsRunning => _current?.Thread.IsAlive == true;
@@ -87,6 +96,7 @@ public sealed class KeyboardHook : IDisposable
 
             _abandoned = null;
 
+            Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
             var ready = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             var state = new HookThread();
             state.Thread = new Thread(() => ThreadMain(state, ready)) { IsBackground = true, Name = "Akoya keyboard hook" };
@@ -153,6 +163,7 @@ public sealed class KeyboardHook : IDisposable
                 }
 
                 _decoder.Reset();
+                Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
                 done.TrySetResult(0);
             });
 
@@ -313,6 +324,8 @@ public sealed class KeyboardHook : IDisposable
         {
             try
             {
+                var at = MonotonicClock.Now; // first: tap or hold is measured from here
+                Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
                 var message = (int)wParam;
                 var isDown = message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
                 var isUp = message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp;
@@ -341,10 +354,11 @@ public sealed class KeyboardHook : IDisposable
                             {
                                 if (!_disposed)
                                 {
-                                    _onEvent((HotkeyEvent)state!);
+                                    var (e, stamp) = ((HotkeyEvent, DateTimeOffset))state!;
+                                    _onEvent(e, stamp);
                                 }
                             },
-                            hotkeyEvent);
+                            (hotkeyEvent, at));
                     }
 
                     if (result.Swallow)

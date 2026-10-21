@@ -26,7 +26,7 @@ public class KeyboardHookTests
         SnapshotHarness.RunSta(() =>
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { });
+            var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
 
             // Settings made before Install are queued for the hook thread.
             hook.SetKey(HotkeyKey.RightCtrl);
@@ -52,12 +52,39 @@ public class KeyboardHookTests
     }
 
     [Fact]
+    public void SinceLastKey_CountsFromTheInstall_AndRestartsOnReinstall()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
+            hook.Install();
+            Assert.InRange(hook.SinceLastKey, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+
+            Thread.Sleep(300);
+            var before = hook.SinceLastKey;
+            Assert.True(before >= TimeSpan.FromMilliseconds(250), $"{before}");
+            hook.Reinstall();
+            Assert.True(hook.SinceLastKey < before, "a re-install starts a fresh silence count");
+        });
+    }
+
+    [Fact]
+    public void InputIdle_ReadsGetLastInputInfo()
+    {
+        Assert.Equal(8, Marshal.SizeOf<NativeMethods.LastInputInfo>());
+        var idle = InputIdle.Time();
+        Assert.NotNull(idle);
+        Assert.True(idle >= TimeSpan.Zero);
+    }
+
+    [Fact]
     public void Reinstall_AfterTheHookThreadDied_StartsAFreshThread()
     {
         SnapshotHarness.RunSta(() =>
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { });
+            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
             hook.Install();
 
             hook.SimulateThreadExit();
@@ -81,7 +108,7 @@ public class KeyboardHookTests
         {
             SynchronizationContext.SetSynchronizationContext(null);
             Assert.Throws<InvalidOperationException>(
-                () => new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { }));
+                () => new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { }));
         });
     }
 }

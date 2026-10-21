@@ -32,6 +32,9 @@ public interface IHotkeyHook : IDisposable
     void SetRecordingActive(bool active);
 
     void Reset();
+
+    /// <summary>How long ago the hook last saw a key (any key), or since it was (re-)installed. Read on the UI thread.</summary>
+    TimeSpan SinceLastKey { get; }
 }
 
 /// <summary>The speech model on disk and the transcriber built from it.</summary>
@@ -44,14 +47,26 @@ public interface ISpeechModel
 
     /// <summary>Builds the transcriber and warms it up. Slow: AppHost calls it on a background thread.</summary>
     ITranscriber Load(InferenceProvider provider);
+
+    /// <summary>Deletes the installed model (it failed to load), so the next <see cref="EnsureAsync"/> downloads it.</summary>
+    void Discard();
 }
 
-/// <summary>The workstation locked or unlocked (or the session was switched away or back). Raised on the UI thread.</summary>
+/// <summary>
+/// The workstation locked or unlocked (or the session was switched away or back), and the PC went to sleep or woke.
+/// Raised on the UI thread.
+/// </summary>
 public interface ISessionEvents : IDisposable
 {
     event Action? Locked;
 
     event Action? Unlocked;
+
+    /// <summary>The PC is going to sleep or hibernate.</summary>
+    event Action? Suspended;
+
+    /// <summary>The PC woke up.</summary>
+    event Action? Resumed;
 }
 
 /// <summary>The floating pill (<see cref="PillWindow"/>).</summary>
@@ -85,7 +100,9 @@ public interface ITrayPresenter : IDisposable
     /// <summary>The smoothed voice level, 0..1, while listening.</summary>
     void SetVoiceLevel(double level);
 
-    void SetModel(ModelState state, double? progress);
+    /// <param name="loadFailed">With <see cref="ModelState.Failed"/>: the model downloaded but would not load
+    /// ("Speech model failed"), rather than the download failing ("Model download failed").</param>
+    void SetModel(ModelState state, double? progress, bool loadFailed);
 
     void SetMicBlocked(bool blocked);
 
@@ -102,6 +119,12 @@ public interface ITrayPresenter : IDisposable
 
     /// <summary>Opens the panel above the tray (a second launch of Akoya).</summary>
     void ShowPanel();
+
+    /// <summary>
+    /// The dictation hotkey was pressed: if the panel is open, close it and give focus back to the window the user
+    /// was in, so the pill and the paste target that window.
+    /// </summary>
+    void ClosePanelAndReturnFocus();
 }
 
 /// <summary>What the setup window gets to work with. Try it sets <see cref="DictationCoordinator.Destination"/> to Practice.</summary>
@@ -188,8 +211,11 @@ public sealed class AppPorts
 
     public required IScheduler Scheduler { get; init; }
 
-    /// <summary>Creates the hook for the saved key; events go to the callback on the UI thread.</summary>
-    public required Func<HotkeyKey, Action<HotkeyEvent>, IHotkeyHook> CreateHotkeyHook { get; init; }
+    /// <summary>
+    /// Creates the hook for the saved key; events go to the callback on the UI thread, with when the key moved
+    /// (on <see cref="Scheduler"/>'s clock).
+    /// </summary>
+    public required Func<HotkeyKey, Action<HotkeyEvent, DateTimeOffset>, IHotkeyHook> CreateHotkeyHook { get; init; }
 
     public required ISpeechModel Model { get; init; }
 
@@ -217,6 +243,12 @@ public sealed class AppPorts
     public Func<bool> MicAccessAllowed { get; init; } = () => true;
 
     public Action OpenMicSettings { get; init; } = () => { };
+
+    /// <summary>
+    /// Time since the last keyboard or mouse input to the session (GetLastInputInfo); null when unknown. With
+    /// <see cref="IHotkeyHook.SinceLastKey"/> it shows a hook that Windows removed silently.
+    /// </summary>
+    public Func<TimeSpan?> InputIdle { get; init; } = () => null;
 
     /// <summary>
     /// Puts text on the clipboard (Last dictation's Copy) in one attempt, without blocking. False when the clipboard is

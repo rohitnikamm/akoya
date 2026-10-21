@@ -70,12 +70,13 @@ public sealed class ModelStoreTests : IDisposable
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
-    private static ModelSpec SpecFor(byte[] tarball, long? bytes = null, string? sha = null) => new(
+    private static ModelSpec SpecFor(byte[] tarball, long? bytes = null, string? sha = null, IReadOnlyDictionary<string, long>? fileBytes = null) => new(
         "https://example.invalid/model.tar.bz2",
         bytes ?? tarball.Length,
         sha ?? Convert.ToHexString(SHA256.HashData(tarball)),
         Folder,
-        Files);
+        Files,
+        fileBytes ?? Files.All.ToDictionary(n => n, n => (long)("content of " + n).Length));
 
     private ModelStore StoreFor(byte[] served, ModelSpec spec) =>
         new(_root, new HttpClient(new StubHandler(() => served)), spec);
@@ -221,6 +222,63 @@ public sealed class ModelStoreTests : IDisposable
 
         Assert.Contains("larger than expected", ex.Message);
         AssertNoLeftovers();
+    }
+
+    [Fact]
+    public async Task ModelStore_TruncatedFile_IsNotInstalled_AndEnsureDownloadsAgain()
+    {
+        var tarball = MakeTarBz2();
+        var downloads = 0;
+        var store = new ModelStore(_root, new HttpClient(new StubHandler(() =>
+        {
+            downloads++;
+            return tarball;
+        })), SpecFor(tarball));
+        await store.EnsureAsync(new Progress<double>(), CancellationToken.None);
+        Assert.True(store.IsInstalled);
+
+        File.WriteAllBytes(Path.Combine(store.ModelDirectory, Files.Encoder), []); // a zero-byte encoder
+
+        Assert.False(store.IsInstalled);
+        await store.EnsureAsync(new Progress<double>(), CancellationToken.None);
+        Assert.Equal(2, downloads);
+        Assert.True(store.IsInstalled);
+        Assert.Equal("content of " + Files.Encoder, File.ReadAllText(Path.Combine(store.ModelDirectory, Files.Encoder)));
+    }
+
+    [Fact]
+    public async Task ModelStore_ArchiveFileWithTheWrongSize_FailsTheInstall()
+    {
+        var tarball = MakeTarBz2();
+        var sizes = Files.All.ToDictionary(n => n, n => (long)("content of " + n).Length);
+        sizes[Files.Joiner] += 1;
+        var store = StoreFor(tarball, SpecFor(tarball, fileBytes: sizes));
+
+        await Assert.ThrowsAsync<ModelDownloadException>(() => store.EnsureAsync(new Progress<double>(), CancellationToken.None));
+        Assert.False(store.IsInstalled);
+        AssertNoLeftovers();
+    }
+
+    [Fact]
+    public async Task ModelStore_Discard_RemovesTheModelSoTheNextEnsureDownloads()
+    {
+        var tarball = MakeTarBz2();
+        var store = StoreFor(tarball, SpecFor(tarball));
+        await store.EnsureAsync(new Progress<double>(), CancellationToken.None);
+
+        store.Discard();
+
+        Assert.False(store.IsInstalled);
+        Assert.False(Directory.Exists(store.ModelDirectory));
+    }
+
+    [ModelFact]
+    public void RealModel_FileSizesMatchTheManifest()
+    {
+        foreach (var (name, bytes) in ModelManifest.Spec.FileBytes!)
+        {
+            Assert.Equal(bytes, new FileInfo(Path.Combine(ModelFixture.Dir!, name)).Length);
+        }
     }
 
     private sealed class SyncProgress(Action<double> onReport) : IProgress<double>

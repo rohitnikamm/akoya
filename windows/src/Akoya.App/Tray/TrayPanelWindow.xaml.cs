@@ -29,13 +29,23 @@ public partial class TrayPanelWindow : Window
     public static readonly TimeSpan ReopenGuard = TimeSpan.FromMilliseconds(400);
 
     private readonly TrayPanelViewModel _model;
+    private readonly PanelFocus _focus;
     private long? _deactivatedAt; // Environment.TickCount64 of the last hide on deactivation
     private bool _prewarmQueued;
 
     public TrayPanelWindow(TrayPanelViewModel model)
+        : this(model, PanelFocus.ForDesktop())
+    {
+    }
+
+    /// <param name="model">The panel's state.</param>
+    /// <param name="focus">Where focus goes back to when the panel closes (tests substitute the desktop's).</param>
+    internal TrayPanelWindow(TrayPanelViewModel model, PanelFocus focus)
     {
         ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(focus);
         _model = model;
+        _focus = focus;
         InitializeComponent();
         DataContext = model;
         View.SizeChanged += (_, _) => { if (IsVisible) Place(); };
@@ -66,6 +76,7 @@ public partial class TrayPanelWindow : Window
     {
         if (!IsVisible)
         {
+            _focus.Opening();
             _model.CloseMenus.Execute(null);
             new WindowInteropHelper(this).EnsureHandle();
             Place();
@@ -89,7 +100,8 @@ public partial class TrayPanelWindow : Window
 
     /// <summary>
     /// What a click on the tray icon does: opens the panel, or closes it when it is open. A click that just
-    /// deactivated (and so hid) the panel counts as closing it (<see cref="ReopenGuard"/>).
+    /// deactivated (and so hid) the panel counts as closing it (<see cref="ReopenGuard"/>). Closing gives focus back to
+    /// the window the user was in.
     /// </summary>
     public void Toggle()
     {
@@ -98,15 +110,31 @@ public partial class TrayPanelWindow : Window
             HidePanel();
             return;
         }
-        if (_deactivatedAt is { } at && Environment.TickCount64 - at < ReopenGuard.TotalMilliseconds) return;
+        if (_deactivatedAt is { } at && Environment.TickCount64 - at < ReopenGuard.TotalMilliseconds)
+        {
+            _deactivatedAt = null;
+            _focus.Restore(); // the click went to the taskbar on its way to the icon
+            return;
+        }
         ShowNearTray();
     }
 
-    /// <summary>Hides the panel and closes its menus.</summary>
+    /// <summary>Hides the panel, closes its menus and gives focus back to the window the user was in.</summary>
     public void HidePanel()
     {
         _model.CloseMenus.Execute(null);
-        if (IsVisible) Hide();
+        if (!IsVisible) return;
+        Hide();
+        _focus.Restore();
+    }
+
+    /// <summary>
+    /// The dictation hotkey while the panel is open: hide it and give focus back first, so the pill opens on that
+    /// window's monitor and the paste lands in its field. Nothing when the panel is closed.
+    /// </summary>
+    public void CloseAndReturnFocus()
+    {
+        if (IsVisible) HidePanel();
     }
 
     /// <summary>The panel's rectangle on screen in physical pixels (for tests and diagnostics).</summary>
@@ -148,12 +176,16 @@ public partial class TrayPanelWindow : Window
         HandleDeactivated();
     }
 
-    /// <summary>Losing activation hides the panel (like the Windows flyouts).</summary>
+    /// <summary>
+    /// Losing activation hides the panel (like the Windows flyouts). Focus stays where the user clicked; only a tray
+    /// click that follows within <see cref="ReopenGuard"/> gives it back (<see cref="Toggle"/>).
+    /// </summary>
     internal void HandleDeactivated()
     {
         if (!IsVisible) return;
         _deactivatedAt = Environment.TickCount64;
-        HidePanel();
+        _model.CloseMenus.Execute(null);
+        Hide();
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -186,6 +218,7 @@ public partial class TrayPanelWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _model.PropertyChanged -= OnModelChanged;
+        _focus.Dispose();
         base.OnClosed(e);
     }
 

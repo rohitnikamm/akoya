@@ -34,7 +34,7 @@ public sealed class TrayPresenter : ITrayPresenter
 
     public void SetVoiceLevel(double level) => Model.SetVoiceLevel(level);
 
-    public void SetModel(ModelState state, double? progress) => Model.SetModel(state, progress);
+    public void SetModel(ModelState state, double? progress, bool loadFailed) => Model.SetModel(state, progress, loadFailed);
 
     public void SetMicBlocked(bool blocked) => Model.SetMicBlocked(blocked);
 
@@ -50,6 +50,8 @@ public sealed class TrayPresenter : ITrayPresenter
     public void SetUpdateReady(bool ready) => Model.SetUpdateReady(ready);
 
     public void ShowPanel() => _host.ShowPanel();
+
+    public void ClosePanelAndReturnFocus() => _host.Panel.CloseAndReturnFocus();
 
     public void Dispose() => _host.Dispose();
 }

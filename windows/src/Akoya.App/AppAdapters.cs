@@ -15,7 +15,7 @@ namespace Akoya.App
     {
         private readonly KeyboardHook _hook;
 
-        public KeyboardHookPort(HotkeyKey key, Action<HotkeyEvent> onEvent) =>
+        public KeyboardHookPort(HotkeyKey key, Action<HotkeyEvent, DateTimeOffset> onEvent) =>
             _hook = new KeyboardHook(new HotkeyDecoder(key), onEvent);
 
         public void Install() => _hook.Install();
@@ -27,6 +27,8 @@ namespace Akoya.App
         public void SetRecordingActive(bool active) => _hook.SetRecordingActive(active);
 
         public void Reset() => _hook.Reset();
+
+        public TimeSpan SinceLastKey => _hook.SinceLastKey;
 
         public void Dispose() => _hook.Dispose();
     }
@@ -41,6 +43,8 @@ namespace Akoya.App
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Akoya", "models");
 
         public bool IsInstalled => _store.IsInstalled;
+
+        public void Discard() => _store.Discard();
 
         public Task EnsureAsync(IProgress<double> progress, CancellationToken ct) => _store.EnsureAsync(progress, ct);
 
@@ -60,7 +64,7 @@ namespace Akoya.App
         }
     }
 
-    /// <summary><see cref="SystemEvents.SessionSwitch"/>, marshalled to the UI thread.</summary>
+    /// <summary><see cref="SystemEvents.SessionSwitch"/> and <see cref="SystemEvents.PowerModeChanged"/>, marshalled to the UI thread.</summary>
     public sealed class SystemSessionEvents : ISessionEvents
     {
         private readonly Dispatcher _dispatcher;
@@ -69,13 +73,33 @@ namespace Akoya.App
         {
             _dispatcher = dispatcher;
             SystemEvents.SessionSwitch += OnSessionSwitch;
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
 
         public event Action? Locked;
 
         public event Action? Unlocked;
 
-        public void Dispose() => SystemEvents.SessionSwitch -= OnSessionSwitch;
+        public event Action? Suspended;
+
+        public event Action? Resumed;
+
+        public void Dispose()
+        {
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        }
+
+        private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+        {
+            Action? raise = e.Mode switch
+            {
+                PowerModes.Suspend => () => Suspended?.Invoke(),
+                PowerModes.Resume => () => Resumed?.Invoke(),
+                _ => null,
+            };
+            if (raise is not null) _dispatcher.BeginInvoke(raise);
+        }
 
         private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
         {
