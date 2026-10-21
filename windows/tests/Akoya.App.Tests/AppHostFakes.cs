@@ -323,8 +323,11 @@ internal sealed class FakePill : IPillPresenter
 
     public bool Disposed { get; private set; }
 
+    public Action? OnShow { get; set; }
+
     public void Show(PillViewModel model, bool retarget)
     {
+        OnShow?.Invoke();
         if (ThrowOnShow) throw new InvalidOperationException("pill window is gone");
         if (retarget && Visible) Retargets++;
         Model = model;
@@ -381,6 +384,16 @@ internal sealed class FakeTray : ITrayPresenter
     }
 
     public void SetVoiceLevel(double level) => VoiceLevel = level;
+
+    public Action? OnClosePanel { get; set; }
+
+    public int PanelCloses { get; private set; }
+
+    public void ClosePanelAndReturnFocus()
+    {
+        PanelCloses++;
+        OnClosePanel?.Invoke();
+    }
 
     public bool ModelLoadFailed { get; private set; }
 
