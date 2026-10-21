@@ -124,6 +124,17 @@ internal static class NativeMethods
     internal const int TokenElevationClass = 20;
     internal const int ErrorAccessDenied = 5;
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LastInputInfo
+    {
+        public uint Size;
+        public uint Time; // GetTickCount of the last input
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetLastInputInfo(ref LastInputInfo info);
+
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
 

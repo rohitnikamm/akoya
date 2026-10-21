@@ -242,6 +242,9 @@ internal sealed class FakeHook : IHotkeyHook
 
     public void SetKey(HotkeyKey key) => Keys.Add(key);
 
+    /// <summary>How long ago the hook last saw a key (any key), or since it was installed.</summary>
+    public TimeSpan SinceLastKey { get; set; }
+
     public void SetRecordingActive(bool active) => RecordingActive = active;
 
     public void Reset() => Resets++;
@@ -550,6 +553,8 @@ internal sealed class MemoryLog : ILog
 
     public IEnumerable<string> Errors => Lines.Where(l => l.StartsWith("ERROR", StringComparison.Ordinal));
 
+    public IEnumerable<string> Infos => Lines.Where(l => l.StartsWith("INFO", StringComparison.Ordinal));
+
     public void Info(string message)
     {
         lock (_lines) _lines.Add("INFO " + message);
@@ -580,6 +585,9 @@ internal sealed class HostRig : IDisposable
     public MemoryLog Log { get; } = new();
     public List<string> Copied { get; } = [];
     public bool MicAllowed { get; set; } = true;
+
+    /// <summary>What GetLastInputInfo reports: time since the last input from any device (null: unknown).</summary>
+    public TimeSpan? InputIdle { get; set; }
     public int Shutdowns { get; private set; }
     public int SetupsCreated { get; private set; }
 
@@ -628,6 +636,7 @@ internal sealed class HostRig : IDisposable
             }),
             Updates = Updates,
             MicAccessAllowed = () => MicAllowed,
+            InputIdle = () => InputIdle,
             CopyToClipboard = text =>
             {
                 Copied.Add(text);

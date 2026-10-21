@@ -32,6 +32,9 @@ public interface IHotkeyHook : IDisposable
     void SetRecordingActive(bool active);
 
     void Reset();
+
+    /// <summary>How long ago the hook last saw a key (any key), or since it was (re-)installed. Read on the UI thread.</summary>
+    TimeSpan SinceLastKey { get; }
 }
 
 /// <summary>The speech model on disk and the transcriber built from it.</summary>
@@ -240,6 +243,12 @@ public sealed class AppPorts
     public Func<bool> MicAccessAllowed { get; init; } = () => true;
 
     public Action OpenMicSettings { get; init; } = () => { };
+
+    /// <summary>
+    /// Time since the last keyboard or mouse input to the session (GetLastInputInfo); null when unknown. With
+    /// <see cref="IHotkeyHook.SinceLastKey"/> it shows a hook that Windows removed silently.
+    /// </summary>
+    public Func<TimeSpan?> InputIdle { get; init; } = () => null;
 
     /// <summary>
     /// Puts text on the clipboard (Last dictation's Copy) in one attempt, without blocking. False when the clipboard is

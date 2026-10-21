@@ -49,7 +49,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Key repeat | Not applicable (modifier events do not repeat) | Auto-repeat ignored and swallowed | Same |
 | Change applies at once | Yes, survives relaunch, Try it hint follows | Same | Same |
 | Permission | Needs Accessibility; the listener retries every 2 s (and on app activation) until granted | None needed | Different on purpose (macOS privacy) |
-| Recovery | Re-enables the event tap after a timeout; re-checks the held key against the live modifier state | Re-installs the hook after unlock, and on Retry when install failed ("Hotkey unavailable"); no detection of a hook Windows removed silently | Missing on Windows (silent hook removal; MANUAL_CHECKS_WINDOWS expects a reinstall after long uptime) |
+| Recovery | Re-enables the event tap after a timeout; re-checks the held key against the live modifier state | Re-installs the hook after unlock, after waking from sleep, and on Retry when install failed ("Hotkey unavailable"); every 30 s it checks for a hook Windows removed silently (input per GetLastInputInfo more than 60 s after the hook's last key) and re-installs it, never during a recording | Same |
 
 ## Microphone
 
@@ -218,7 +218,6 @@ Every user-visible string not already quoted above, with when it appears.
 
 - Dictation: paste blocked fallback (Missing on Mac)
 - Dictation: screen lock mid-dictation (Missing on Mac)
-- Hotkey: recovery from a hook Windows removed silently (Missing on Windows)
 - Speech model: warm-up before "Ready" (Missing on Mac)
 - Tray / menu bar panel: update row (Missing on Mac)
 - Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)

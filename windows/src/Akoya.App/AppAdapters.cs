@@ -28,6 +28,8 @@ namespace Akoya.App
 
         public void Reset() => _hook.Reset();
 
+        public TimeSpan SinceLastKey => _hook.SinceLastKey;
+
         public void Dispose() => _hook.Dispose();
     }
 

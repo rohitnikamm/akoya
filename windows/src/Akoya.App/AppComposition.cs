@@ -44,6 +44,7 @@ public static class AppComposition
             Updates = new UpdaterPort(new Updater(AppHost.RepoUrl)),
             MicAccessAllowed = MicPrivacy.IsDesktopAccessAllowed,
             OpenMicSettings = MicPrivacy.OpenSettings,
+            InputIdle = InputIdle.Time,
             // One attempt, no waiting on the UI thread; a user's copy may go to clipboard history like any copy.
             CopyToClipboard = text => copyClipboard.TrySetText(text, excludeFromHistory: false),
             CreateTray = commands => new TrayPresenter(commands, scheduler),

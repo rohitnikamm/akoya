@@ -40,6 +40,7 @@ public sealed class KeyboardHook : IDisposable
     private HookThread? _current;   // the live (or just-died) hook thread; changed under _gate
     private HookThread? _abandoned;  // a thread that timed out starting; told to unhook and exit
     private volatile bool _disposed;
+    private long _lastKeyTick = Environment.TickCount64; // any key the callback saw, or the last (re-)install
 
     /// <param name="decoder">Handed over: do not use it again after this call.</param>
     /// <param name="onEvent">Called on the creating thread's synchronization context with the event and when it happened.</param>
@@ -53,6 +54,13 @@ public sealed class KeyboardHook : IDisposable
                    ?? throw new InvalidOperationException("KeyboardHook must be created on a thread with a SynchronizationContext (the UI thread).");
         _proc = HookCallback;
     }
+
+    /// <summary>
+    /// How long ago the callback last saw a key (any key, passed on or not), or since the hook was (re-)installed.
+    /// Silence while the user types means Windows removed the hook (it does so, without telling, when a callback
+    /// once exceeds LowLevelHooksTimeout).
+    /// </summary>
+    public TimeSpan SinceLastKey => TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64 - Interlocked.Read(ref _lastKeyTick)));
 
     /// <summary>True while the hook thread is alive.</summary>
     internal bool IsRunning => _current?.Thread.IsAlive == true;
@@ -88,6 +96,7 @@ public sealed class KeyboardHook : IDisposable
 
             _abandoned = null;
 
+            Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
             var ready = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             var state = new HookThread();
             state.Thread = new Thread(() => ThreadMain(state, ready)) { IsBackground = true, Name = "Akoya keyboard hook" };
@@ -154,6 +163,7 @@ public sealed class KeyboardHook : IDisposable
                 }
 
                 _decoder.Reset();
+                Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
                 done.TrySetResult(0);
             });
 
@@ -315,6 +325,7 @@ public sealed class KeyboardHook : IDisposable
             try
             {
                 var at = MonotonicClock.Now; // first: tap or hold is measured from here
+                Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
                 var message = (int)wParam;
                 var isDown = message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
                 var isUp = message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp;

@@ -25,6 +25,12 @@ public sealed class AppHost : IDisposable
     /// <summary>Pill timer, scanner and tray glow refresh while a dictation is on screen (about 30 Hz).</summary>
     public static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(33);
 
+    /// <summary>How often the keyboard hook is checked for a silent removal by Windows (spec M3).</summary>
+    public static readonly TimeSpan HookCheckInterval = TimeSpan.FromSeconds(30);
+
+    /// <summary>Input this long after the hook's last key means Windows removed the hook: re-install it.</summary>
+    public static readonly TimeSpan HookSilenceLimit = TimeSpan.FromSeconds(60);
+
     private static readonly TimeSpan TranscriberDisposeWait = TimeSpan.FromSeconds(2);
 
     private readonly AppPorts _p;
@@ -53,6 +59,7 @@ public sealed class AppHost : IDisposable
     private bool _quitPending;
     private IDisposable? _frameTimer;
     private IDisposable? _updateTimer;
+    private IDisposable? _hookCheckTimer;
     private DateTimeOffset _lastFrame;
     private DateTimeOffset _transcribingSince;
     private double _voiceTarget;
@@ -136,6 +143,7 @@ public sealed class AppHost : IDisposable
         RefreshMicrophones();
 
         InstallHook();
+        ScheduleHookCheck();
 
         if (!_settings.SetupDone || !_p.Model.IsInstalled) ShowSetup();
 
@@ -181,6 +189,7 @@ public sealed class AppHost : IDisposable
         _modelCts.Cancel();
         DisposeTimer(ref _frameTimer);
         DisposeTimer(ref _updateTimer);
+        DisposeTimer(ref _hookCheckTimer);
 
         _coordinator.PhaseChanged -= OnPhaseChanged;
         _coordinator.Level -= OnLevel;
@@ -381,6 +390,33 @@ public sealed class AppHost : IDisposable
             _p.Log.Error("Keyboard hook unavailable", e);
             SetHotkeyUnavailable(true);
         }
+    }
+
+    private void ScheduleHookCheck()
+    {
+        _hookCheckTimer = _p.Scheduler.After(HookCheckInterval, () =>
+        {
+            _hookCheckTimer = null;
+            if (_disposed) return;
+            Try(CheckHook, "check the keyboard hook");
+            ScheduleHookCheck();
+        });
+    }
+
+    /// <summary>
+    /// Windows removes a low-level hook without telling when its callback once runs past LowLevelHooksTimeout. Input
+    /// (GetLastInputInfo; keyboard or mouse) that came more than <see cref="HookSilenceLimit"/> after the hook's last
+    /// key means it is gone: re-install it. Mouse-only use looks the same, so that re-installs at most once a minute,
+    /// which is harmless. Never during a recording (a re-install forgets the held key).
+    /// </summary>
+    private void CheckHook()
+    {
+        if (_hook is not { } hook || _hotkeyUnavailable || _coordinator.Phase == DictationPhase.Recording) return;
+        if (_p.InputIdle() is not { } idle) return;
+        var silence = hook.SinceLastKey;
+        if (silence - idle <= HookSilenceLimit) return;
+        _p.Log.Info($"The keyboard hook heard nothing for {silence.TotalSeconds:0} s while there was input; re-installing it");
+        InstallHook();
     }
 
     private void SetHotkeyUnavailable(bool unavailable)

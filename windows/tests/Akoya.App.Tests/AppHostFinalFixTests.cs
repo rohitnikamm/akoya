@@ -148,6 +148,78 @@ public class AppHostFinalFixTests
         });
     }
 
+    [Fact]
+    public void P4_InputWhileTheHookHearsNothing_ReinstallsIt()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Start();
+            Assert.Equal(TimeSpan.FromSeconds(30), AppHost.HookCheckInterval);
+            Assert.Equal(TimeSpan.FromSeconds(60), AppHost.HookSilenceLimit);
+
+            // Windows dropped the hook 90 s ago; the user typed 5 s ago.
+            rig.Hook.SinceLastKey = TimeSpan.FromSeconds(90);
+            rig.InputIdle = TimeSpan.FromSeconds(5);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            Assert.Equal(1, rig.Hook.Reinstalls);
+            Assert.Contains(rig.Log.Infos, l => l.Contains("re-installing", StringComparison.Ordinal));
+            Assert.False(rig.Host.HotkeyUnavailable);
+        });
+    }
+
+    [Fact]
+    public void P4_TheHookHearingKeys_OrNoInputAtAll_LeavesItAlone()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Start();
+
+            rig.Hook.SinceLastKey = TimeSpan.FromSeconds(20); // the hook saw the user's keys
+            rig.InputIdle = TimeSpan.FromSeconds(5);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            rig.Hook.SinceLastKey = TimeSpan.FromMinutes(10); // nobody at the PC
+            rig.InputIdle = TimeSpan.FromMinutes(10);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            rig.Hook.SinceLastKey = TimeSpan.FromSeconds(62); // input just after the hook's last key: not silent long
+            rig.InputIdle = TimeSpan.FromSeconds(5);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            rig.InputIdle = null; // GetLastInputInfo failed
+            rig.Hook.SinceLastKey = TimeSpan.FromMinutes(10);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            Assert.Equal(0, rig.Hook.Reinstalls);
+        });
+    }
+
+    [Fact]
+    public void P4_KeepsCheckingEvery30s_ButNotDuringARecording()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var host = rig.Start();
+            rig.Hook.SinceLastKey = TimeSpan.FromSeconds(90);
+            rig.InputIdle = TimeSpan.FromSeconds(1);
+
+            rig.Hook.Fire(HotkeyEvent.Pressed); // recording: re-installing would drop the held key
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+            Assert.Equal(0, rig.Hook.Reinstalls);
+            rig.Hook.Fire(HotkeyEvent.Cancel);
+            Assert.Equal(DictationPhase.Idle, host.Coordinator.Phase);
+
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+            Assert.Equal(1, rig.Hook.Reinstalls);
+            rig.Scheduler.Advance(AppHost.HookCheckInterval); // the fake still reports silence: checked again
+            Assert.Equal(2, rig.Hook.Reinstalls);
+        });
+    }
+
     private static void Dictate(HostRig rig, AppHost host, DictationPhase until = DictationPhase.Pasted)
     {
         rig.Hook.Fire(HotkeyEvent.Pressed);
