@@ -50,6 +50,7 @@ public sealed class AppHost : IDisposable
     private string? _shownLastDictation;
     private bool _updateReady;
     private bool _restartPending;
+    private bool _quitPending;
     private IDisposable? _frameTimer;
     private IDisposable? _updateTimer;
     private DateTimeOffset _lastFrame;
@@ -115,6 +116,8 @@ public sealed class AppHost : IDisposable
         _p.Microphones.Changed += OnMicrophonesChanged;
         _p.Session.Locked += OnSessionLocked;
         _p.Session.Unlocked += OnSessionUnlocked;
+        _p.Session.Suspended += OnSuspended;
+        _p.Session.Resumed += OnResumed;
 
         SyncLaunchAtStartup();
 
@@ -184,6 +187,8 @@ public sealed class AppHost : IDisposable
         _p.Microphones.Changed -= OnMicrophonesChanged;
         _p.Session.Locked -= OnSessionLocked;
         _p.Session.Unlocked -= OnSessionUnlocked;
+        _p.Session.Suspended -= OnSuspended;
+        _p.Session.Resumed -= OnResumed;
 
         // A recording in progress is dropped, never pasted on the way out.
         Try(() =>
@@ -238,6 +243,11 @@ public sealed class AppHost : IDisposable
 
         if (_restartPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
             _p.Scheduler.After(TimeSpan.Zero, RestartToUpdate); // not from inside the coordinator's call
+        if (_quitPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
+        {
+            _quitPending = false;
+            _p.Scheduler.After(TimeSpan.Zero, Quit);
+        }
     }
 
     private void ReactToPhase(DictationPhase phase)
@@ -394,6 +404,23 @@ public sealed class AppHost : IDisposable
         _p.Log.Info("Session unlocked");
         _hook?.Reset();
         InstallHook(); // Windows may have dropped the hook across the lock screen
+    }
+
+    private void OnSuspended()
+    {
+        if (_disposed) return;
+        _p.Log.Info("Going to sleep");
+        // Like a lock: a latched recording must not run on (or paste) after the PC wakes.
+        _coordinator.SessionLocked();
+        _hook?.Reset();
+    }
+
+    private void OnResumed()
+    {
+        if (_disposed) return;
+        _p.Log.Info("Woke from sleep");
+        _hook?.Reset();
+        InstallHook(); // Windows may have dropped the hook while asleep
     }
 
     // ---- Speech model ----
@@ -645,6 +672,17 @@ public sealed class AppHost : IDisposable
     private void Quit()
     {
         if (_disposed) return;
+        _quitPending = false;
+        switch (_coordinator.Phase)
+        {
+            case DictationPhase.Recording:
+                _coordinator.Handle(HotkeyEvent.Cancel); // dropped, never pasted on the way out
+                break;
+            case DictationPhase.Transcribing:
+                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here.
+                _quitPending = true;
+                return;
+        }
         _p.Log.Info("Quit");
         _p.Shutdown();
     }

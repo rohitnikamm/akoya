@@ -32,7 +32,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V", no restore | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
-| Screen lock mid-dictation | Nothing special | Lock cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
+| Screen lock mid-dictation | Nothing special | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
 | Hotkey changed mid-recording | Unclear (the old key's release is probably read as a release, which stops) | Recording is cancelled | Different on purpose (unclear on Mac) |
 | Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | The hotkey closes the panel and gives focus back to the window the user was in, then records; the pill and the paste go to that window | Same |
 | Protected input | Secure Keyboard Entry or password fields: the hotkey does nothing | Elevated window focused: the hotkey does not fire (Windows UIPI) | Different on purpose (OS limits) |
@@ -212,7 +212,7 @@ Every user-visible string not already quoted above, with when it appears.
 | Settings storage | UserDefaults `com.rohitnikamm.akoya` | `%AppData%\Akoya\settings.json`, atomic save; corrupt file or bad values fall back to defaults; an unreadable file is never overwritten | Different on purpose (platform conventions) |
 | No settings window | Everything is in the dropdown | Everything is in the tray panel | Same |
 | Look | Dark only, Outfit font, electric-blue accents (`#2F6BFF` to `#1D4ED8`) | Same | Same |
-| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown | Same |
+| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish | Same |
 
 ## Open differences
 

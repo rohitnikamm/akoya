@@ -49,12 +49,21 @@ public interface ISpeechModel
     void Discard();
 }
 
-/// <summary>The workstation locked or unlocked (or the session was switched away or back). Raised on the UI thread.</summary>
+/// <summary>
+/// The workstation locked or unlocked (or the session was switched away or back), and the PC went to sleep or woke.
+/// Raised on the UI thread.
+/// </summary>
 public interface ISessionEvents : IDisposable
 {
     event Action? Locked;
 
     event Action? Unlocked;
+
+    /// <summary>The PC is going to sleep or hibernate.</summary>
+    event Action? Suspended;
+
+    /// <summary>The PC woke up.</summary>
+    event Action? Resumed;
 }
 
 /// <summary>The floating pill (<see cref="PillWindow"/>).</summary>

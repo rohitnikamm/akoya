@@ -81,4 +81,79 @@ public class AppHostFinalFixTests
             Assert.Equal(0, rig.Model.Discards);
         });
     }
+
+    [Fact]
+    public void M2_Quit_WaitsForAPasteAndItsClipboardRestoreToFinish()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var paste = new TaskCompletionSource<InsertResult>();
+            rig.Inserter.Pending = paste.Task; // the paste (and the clipboard restore) is still running
+            var host = rig.Start();
+            Dictate(rig, host, until: DictationPhase.Transcribing);
+            UiThread.PumpUntil(() => rig.Inserter.Inserted.Count == 1);
+
+            rig.Tray.Commands!.Quit();
+            Assert.Equal(0, rig.Shutdowns);
+
+            paste.SetResult(InsertResult.Pasted);
+            UiThread.PumpUntil(() => host.Coordinator.Phase == DictationPhase.Pasted);
+            rig.Scheduler.Advance(TimeSpan.Zero);
+            Assert.Equal(1, rig.Shutdowns);
+            rig.Scheduler.Advance(TimeSpan.FromSeconds(2));
+            Assert.Equal(1, rig.Shutdowns); // once
+        });
+    }
+
+    [Fact]
+    public void M2_Quit_WhileRecording_DropsTheRecordingAndQuitsAtOnce()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var host = rig.Start();
+            rig.Hook.Fire(HotkeyEvent.Pressed);
+
+            rig.Tray.Commands!.Quit();
+
+            Assert.Equal(1, rig.Recorder.Cancels);
+            Assert.Empty(rig.Inserter.Inserted);
+            Assert.Equal(1, rig.Shutdowns);
+            Assert.Equal(DictationPhase.Idle, host.Coordinator.Phase);
+        });
+    }
+
+    [Fact]
+    public void M6_Suspend_CancelsALatchedRecording_ResumeReinstallsTheHook()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var host = rig.Start();
+            rig.Hook.Fire(HotkeyEvent.Pressed);
+            rig.Recorder.RaiseLevel(Speech);
+            rig.Hook.Fire(HotkeyEvent.Released); // a tap: latched
+            Assert.Equal(DictationPhase.Recording, host.Coordinator.Phase);
+
+            rig.Session.Suspend();
+            Assert.Equal(DictationPhase.Idle, host.Coordinator.Phase);
+            Assert.Equal(1, rig.Recorder.Cancels);
+            Assert.Empty(rig.Inserter.Inserted);
+            var resets = rig.Hook.Resets;
+
+            rig.Session.Resume();
+            Assert.Equal(1, rig.Hook.Reinstalls);
+            Assert.True(rig.Hook.Resets > resets);
+        });
+    }
+
+    private static void Dictate(HostRig rig, AppHost host, DictationPhase until = DictationPhase.Pasted)
+    {
+        rig.Hook.Fire(HotkeyEvent.Pressed);
+        rig.Recorder.RaiseLevel(Speech);
+        rig.Scheduler.Advance(TimeSpan.FromSeconds(0.5));
+        rig.Hook.Fire(HotkeyEvent.Released);
+        UiThread.PumpUntil(() => host.Coordinator.Phase == until);
+    }
 }

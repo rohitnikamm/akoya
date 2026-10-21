@@ -473,11 +473,19 @@ internal sealed class FakeSession : ISessionEvents
 
     public event Action? Unlocked;
 
+    public event Action? Suspended;
+
+    public event Action? Resumed;
+
     public bool Disposed { get; private set; }
 
     public void Lock() => Locked?.Invoke();
 
     public void Unlock() => Unlocked?.Invoke();
+
+    public void Suspend() => Suspended?.Invoke();
+
+    public void Resume() => Resumed?.Invoke();
 
     public void Dispose() => Disposed = true;
 }

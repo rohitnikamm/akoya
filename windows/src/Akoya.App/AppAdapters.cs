@@ -62,7 +62,7 @@ namespace Akoya.App
         }
     }
 
-    /// <summary><see cref="SystemEvents.SessionSwitch"/>, marshalled to the UI thread.</summary>
+    /// <summary><see cref="SystemEvents.SessionSwitch"/> and <see cref="SystemEvents.PowerModeChanged"/>, marshalled to the UI thread.</summary>
     public sealed class SystemSessionEvents : ISessionEvents
     {
         private readonly Dispatcher _dispatcher;
@@ -71,13 +71,33 @@ namespace Akoya.App
         {
             _dispatcher = dispatcher;
             SystemEvents.SessionSwitch += OnSessionSwitch;
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
 
         public event Action? Locked;
 
         public event Action? Unlocked;
 
-        public void Dispose() => SystemEvents.SessionSwitch -= OnSessionSwitch;
+        public event Action? Suspended;
+
+        public event Action? Resumed;
+
+        public void Dispose()
+        {
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        }
+
+        private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+        {
+            Action? raise = e.Mode switch
+            {
+                PowerModes.Suspend => () => Suspended?.Invoke(),
+                PowerModes.Resume => () => Resumed?.Invoke(),
+                _ => null,
+            };
+            if (raise is not null) _dispatcher.BeginInvoke(raise);
+        }
 
         private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
         {
