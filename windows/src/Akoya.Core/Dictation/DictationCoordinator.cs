@@ -84,6 +84,9 @@ public sealed class DictationCoordinator
     /// <summary>True once a quick tap released the key: the next press stops.</summary>
     private bool _latched;
 
+    /// <summary>When the key that started the current recording went down.</summary>
+    private DateTimeOffset _pressedAt;
+
     /// <summary>The session locked while this dictation was transcribing: don't paste it.</summary>
     private bool _lockedWhileTranscribing;
 
@@ -143,14 +146,22 @@ public sealed class DictationCoordinator
         set => _destination = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    public void Handle(HotkeyEvent e)
+    /// <summary>Handles a key event that happened just now (<see cref="IScheduler.Now"/>).</summary>
+    public void Handle(HotkeyEvent e) => Handle(e, _scheduler.Now);
+
+    /// <summary>
+    /// Handles a key event that happened at <paramref name="at"/>, on <see cref="IScheduler.Now"/>'s clock. The
+    /// keyboard hook stamps events when the key moved, so tap or hold is measured between the key's own press and
+    /// release: a slow microphone start or a busy UI thread can't turn a tap into a hold, or a hold into a tap.
+    /// </summary>
+    public void Handle(HotkeyEvent e, DateTimeOffset at)
     {
         switch (e, Phase)
         {
             // The result displays are cosmetic: a press starts the next dictation right away.
             case (HotkeyEvent.Pressed, DictationPhase.Idle or DictationPhase.Pasted
                 or DictationPhase.Copied or DictationPhase.PasteFailed):
-                BeginDictation();
+                BeginDictation(at);
                 break;
             case (HotkeyEvent.Pressed, DictationPhase.Recording):
                 // A press while the key is already held (no release seen) is not a stop request.
@@ -162,7 +173,7 @@ public sealed class DictationCoordinator
                 // press arrives after the phase left Recording, so it never reaches here.)
                 if (_latched)
                     break;
-                if (RecordingStartedAt is { } start && _scheduler.Now - start >= HoldThreshold)
+                if (at - _pressedAt >= HoldThreshold)
                     StopRecording();
                 else
                     _latched = true;
@@ -191,7 +202,7 @@ public sealed class DictationCoordinator
 
     // Recording
 
-    private void BeginDictation()
+    private void BeginDictation(DateTimeOffset pressedAt)
     {
         DisposeTimer(ref _displayTimer);
 
@@ -212,7 +223,7 @@ public sealed class DictationCoordinator
         _preview = new LivePreviewScheduler();
 
         // The hold time counts from the press, so a slow device start doesn't eat into it.
-        var startedAt = _scheduler.Now;
+        var startedAt = pressedAt;
         try
         {
             _audio.Start(_deviceId());
@@ -235,6 +246,7 @@ public sealed class DictationCoordinator
             return;
         }
 
+        _pressedAt = startedAt;
         RecordingStartedAt = startedAt;
         SetPhase(DictationPhase.Recording);
 

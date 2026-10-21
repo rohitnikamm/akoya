@@ -188,8 +188,11 @@ public sealed class AppPorts
 
     public required IScheduler Scheduler { get; init; }
 
-    /// <summary>Creates the hook for the saved key; events go to the callback on the UI thread.</summary>
-    public required Func<HotkeyKey, Action<HotkeyEvent>, IHotkeyHook> CreateHotkeyHook { get; init; }
+    /// <summary>
+    /// Creates the hook for the saved key; events go to the callback on the UI thread, with when the key moved
+    /// (on <see cref="Scheduler"/>'s clock).
+    /// </summary>
+    public required Func<HotkeyKey, Action<HotkeyEvent, DateTimeOffset>, IHotkeyHook> CreateHotkeyHook { get; init; }
 
     public required ISpeechModel Model { get; init; }
 

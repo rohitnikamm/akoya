@@ -210,10 +210,10 @@ public sealed class AppHost : IDisposable
 
     // ---- Dictation ----
 
-    private void OnHotkey(HotkeyEvent e)
+    private void OnHotkey(HotkeyEvent e, DateTimeOffset at)
     {
         if (_disposed) return;
-        _coordinator.Handle(e);
+        _coordinator.Handle(e, at);
     }
 
     // The coordinator raises PhaseChanged in the middle of a transition (before it stops or cancels the recorder), so

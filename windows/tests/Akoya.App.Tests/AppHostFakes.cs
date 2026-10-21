@@ -207,7 +207,10 @@ internal sealed class FakeCatalog : IMicrophoneCatalog
 
 internal sealed class FakeHook : IHotkeyHook
 {
-    public Action<HotkeyEvent>? OnEvent { get; set; }
+    public Action<HotkeyEvent, DateTimeOffset>? OnEvent { get; set; }
+
+    /// <summary>The stamp <see cref="Fire(HotkeyEvent)"/> gives an event (the rig's scheduler clock).</summary>
+    public Func<DateTimeOffset> Clock { get; set; } = () => DateTimeOffset.UnixEpoch;
 
     public HotkeyKey CreatedWith { get; set; }
 
@@ -245,7 +248,10 @@ internal sealed class FakeHook : IHotkeyHook
 
     public void Dispose() => Disposed = true;
 
-    public void Fire(HotkeyEvent e) => OnEvent!(e);
+    public void Fire(HotkeyEvent e) => OnEvent!(e, Clock());
+
+    /// <summary>An event the hook stamped at <paramref name="at"/> (it may reach the host later).</summary>
+    public void Fire(HotkeyEvent e, DateTimeOffset at) => OnEvent!(e, at);
 }
 
 internal sealed class FakeModel : ISpeechModel
@@ -563,6 +569,7 @@ internal sealed class HostRig : IDisposable
             {
                 Hook.CreatedWith = key;
                 Hook.OnEvent = onEvent;
+                Hook.Clock = () => Scheduler.Now;
                 return Hook;
             },
             Model = Model,

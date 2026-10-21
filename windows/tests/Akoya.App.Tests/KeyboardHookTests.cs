@@ -26,7 +26,7 @@ public class KeyboardHookTests
         SnapshotHarness.RunSta(() =>
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { });
+            var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
 
             // Settings made before Install are queued for the hook thread.
             hook.SetKey(HotkeyKey.RightCtrl);
@@ -57,7 +57,7 @@ public class KeyboardHookTests
         SnapshotHarness.RunSta(() =>
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { });
+            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
             hook.Install();
 
             hook.SimulateThreadExit();
@@ -81,7 +81,7 @@ public class KeyboardHookTests
         {
             SynchronizationContext.SetSynchronizationContext(null);
             Assert.Throws<InvalidOperationException>(
-                () => new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), _ => { }));
+                () => new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { }));
         });
     }
 }

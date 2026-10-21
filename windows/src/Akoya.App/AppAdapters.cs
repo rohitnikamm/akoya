@@ -15,7 +15,7 @@ namespace Akoya.App
     {
         private readonly KeyboardHook _hook;
 
-        public KeyboardHookPort(HotkeyKey key, Action<HotkeyEvent> onEvent) =>
+        public KeyboardHookPort(HotkeyKey key, Action<HotkeyEvent, DateTimeOffset> onEvent) =>
             _hook = new KeyboardHook(new HotkeyDecoder(key), onEvent);
 
         public void Install() => _hook.Install();

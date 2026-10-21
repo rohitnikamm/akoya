@@ -21,7 +21,8 @@ public sealed class HotkeyUnavailableException : Exception
 /// construction nothing else may touch it, and every change goes through <see cref="SetKey"/>,
 /// <see cref="SetRecordingActive"/> and <see cref="Reset"/>, which run on the hook thread.
 /// The hook callback only decodes and queues; push-to-talk events reach <c>onEvent</c> on the thread
-/// that constructed the hook (through its <see cref="SynchronizationContext"/>), in order.
+/// that constructed the hook (through its <see cref="SynchronizationContext"/>), in order, each stamped
+/// (<see cref="MonotonicClock"/>) in the callback, when the key moved, not when the UI thread got to it.
 /// </summary>
 public sealed class KeyboardHook : IDisposable
 {
@@ -30,7 +31,7 @@ public sealed class KeyboardHook : IDisposable
     private static readonly TimeSpan ReinstallTimeout = TimeSpan.FromSeconds(5);
 
     private readonly HotkeyDecoder _decoder;
-    private readonly Action<HotkeyEvent> _onEvent;
+    private readonly Action<HotkeyEvent, DateTimeOffset> _onEvent;
     private readonly SynchronizationContext _context;
     private readonly ConcurrentQueue<Action> _queued = new();
     private readonly NativeMethods.HookProc _proc; // kept in a field so the delegate is never collected
@@ -41,8 +42,8 @@ public sealed class KeyboardHook : IDisposable
     private volatile bool _disposed;
 
     /// <param name="decoder">Handed over: do not use it again after this call.</param>
-    /// <param name="onEvent">Called on the creating thread's synchronization context.</param>
-    public KeyboardHook(HotkeyDecoder decoder, Action<HotkeyEvent> onEvent)
+    /// <param name="onEvent">Called on the creating thread's synchronization context with the event and when it happened.</param>
+    public KeyboardHook(HotkeyDecoder decoder, Action<HotkeyEvent, DateTimeOffset> onEvent)
     {
         ArgumentNullException.ThrowIfNull(decoder);
         ArgumentNullException.ThrowIfNull(onEvent);
@@ -313,6 +314,7 @@ public sealed class KeyboardHook : IDisposable
         {
             try
             {
+                var at = MonotonicClock.Now; // first: tap or hold is measured from here
                 var message = (int)wParam;
                 var isDown = message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
                 var isUp = message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp;
@@ -341,10 +343,11 @@ public sealed class KeyboardHook : IDisposable
                             {
                                 if (!_disposed)
                                 {
-                                    _onEvent((HotkeyEvent)state!);
+                                    var (e, stamp) = ((HotkeyEvent, DateTimeOffset))state!;
+                                    _onEvent(e, stamp);
                                 }
                             },
-                            hotkeyEvent);
+                            (hotkeyEvent, at));
                     }
 
                     if (result.Swallow)

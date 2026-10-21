@@ -21,7 +21,8 @@ public sealed class DispatcherScheduler : IScheduler
         _dispatcher = dispatcher;
     }
 
-    public DateTimeOffset Now => DateTimeOffset.Now;
+    /// <summary>Monotonic (<see cref="MonotonicClock"/>): durations only, never shown as a date.</summary>
+    public DateTimeOffset Now => MonotonicClock.Now;
 
     public IDisposable After(TimeSpan delay, Action action)
     {

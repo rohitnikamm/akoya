@@ -1269,6 +1269,44 @@ public class DictationCoordinatorTests
         Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
     }
 
+    // MARK: - Final fix round: tap vs hold measured when the key moved (I1)
+
+    [Fact]
+    public void SlowStart_QuickTapStampedByTheHook_StillLatches()
+    {
+        using var rig = new Rig();
+        var pressedAt = rig.Scheduler.Now;
+        rig.Audio.DuringStart = () => rig.Advance(1000); // a Bluetooth mic takes 1 s to open
+        rig.Coordinator.Handle(HotkeyEvent.Pressed, pressedAt);
+        rig.Speak();
+
+        // The release happened 100 ms after the press; it is only handled now, 1 s later.
+        rig.Coordinator.Handle(HotkeyEvent.Released, pressedAt + TimeSpan.FromMilliseconds(100));
+
+        Assert.Equal(Recording, rig.Phase); // a tap: latched, hands-free
+        Assert.Equal(0, rig.Audio.StopCount);
+        rig.Advance(2000);
+        rig.Coordinator.Handle(HotkeyEvent.Pressed, rig.Scheduler.Now);
+        Assert.Equal(1, rig.Audio.StopCount);
+    }
+
+    [Fact]
+    public void BusyDispatcher_HoldWhosePressWasHandledLate_StillStopsOnRelease()
+    {
+        using var rig = new Rig();
+        var pressedAt = rig.Scheduler.Now;
+        rig.Advance(350); // the UI thread was busy: the press is handled 350 ms after the key went down
+        rig.Coordinator.Handle(HotkeyEvent.Pressed, pressedAt);
+        rig.Speak();
+        rig.Advance(50);
+
+        // Held 400 ms by the hook's clock, though only 50 ms passed since the press was handled.
+        rig.Coordinator.Handle(HotkeyEvent.Released, pressedAt + TimeSpan.FromMilliseconds(400));
+
+        Assert.Equal(1, rig.Audio.StopCount);
+        Assert.Equal(new[] { "hello " }, rig.Inserter.Inserted);
+    }
+
     // MARK: - Fix round 1: re-entrant adapter events
 
     [Fact]
