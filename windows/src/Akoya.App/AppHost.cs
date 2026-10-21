@@ -214,6 +214,8 @@ public sealed class AppHost : IDisposable
     private void OnHotkey(HotkeyEvent e, DateTimeOffset at)
     {
         if (_disposed) return;
+        // An open tray panel holds the focus: give it back first, so the pill and the paste target the user's window.
+        if (e == HotkeyEvent.Pressed) Guard(() => _tray?.ClosePanelAndReturnFocus(), "tray.ClosePanelAndReturnFocus");
         _coordinator.Handle(e, at);
     }
 

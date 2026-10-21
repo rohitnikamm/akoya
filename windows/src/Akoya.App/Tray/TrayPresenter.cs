@@ -51,5 +51,7 @@ public sealed class TrayPresenter : ITrayPresenter
 
     public void ShowPanel() => _host.ShowPanel();
 
+    public void ClosePanelAndReturnFocus() => _host.Panel.CloseAndReturnFocus();
+
     public void Dispose() => _host.Dispose();
 }

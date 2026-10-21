@@ -107,6 +107,12 @@ public interface ITrayPresenter : IDisposable
 
     /// <summary>Opens the panel above the tray (a second launch of Akoya).</summary>
     void ShowPanel();
+
+    /// <summary>
+    /// The dictation hotkey was pressed: if the panel is open, close it and give focus back to the window the user
+    /// was in, so the pill and the paste target that window.
+    /// </summary>
+    void ClosePanelAndReturnFocus();
 }
 
 /// <summary>What the setup window gets to work with. Try it sets <see cref="DictationCoordinator.Destination"/> to Practice.</summary>

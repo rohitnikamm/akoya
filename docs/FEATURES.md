@@ -14,7 +14,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 
 | Feature | Mac | Windows | Status |
 | --- | --- | --- | --- |
-| Hold to talk | Hold the hotkey, release after 0.30 s or more: stops, transcribes, pastes | Same, 0.30 s threshold counted from the press | Same |
+| Hold to talk | Hold the hotkey, release after 0.30 s or more: stops, transcribes, pastes | Same, 0.30 s threshold measured between the hook's own stamps of the press and the release (a slow mic start or a busy UI thread doesn't change it) | Same |
 | Tap to latch (hands-free) | Release under 0.30 s: keeps recording; the next press stops | Same | Same |
 | Esc cancels | Esc while recording (held or latched) cancels, nothing pasted; Esc is swallowed only while recording. A long-held Esc may still auto-repeat into the app | Same; Esc auto-repeat is swallowed too | Same |
 | Max length | 300 s, then stops as if released and pastes | Same | Same |
@@ -27,14 +27,14 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |
-| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Snapshot of Unicode text, text, RTF, HTML, files and bitmap; restored after 300 ms unless something changed it meanwhile. Unreadable clipboard: nothing pasted ("Couldn't paste") | Different on purpose (Windows can only read back known formats) |
+| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Byte-for-byte Win32 snapshot of every format (private app formats, Excel cells, an Explorer cut, PNG, password managers' history markers), restored after 300 ms unless something changed it meanwhile; the restore is marked excluded from Win+V history. A format that can't be copied, or over 64 MB: the clipboard is left alone and the text is typed instead | Same |
 | Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | Marks it excluded from monitoring, Win+V history and cloud clipboard | Same |
 | Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V", no restore | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
 | Screen lock mid-dictation | Nothing special | Lock cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
 | Hotkey changed mid-recording | Unclear (the old key's release is probably read as a release, which stops) | Recording is cancelled | Different on purpose (unclear on Mac) |
-| Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | Unclear (the panel takes focus while open) | Different on purpose (unclear on Windows) |
+| Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | The hotkey closes the panel and gives focus back to the window the user was in, then records; the pill and the paste go to that window | Same |
 | Protected input | Secure Keyboard Entry or password fields: the hotkey does nothing | Elevated window focused: the hotkey does not fire (Windows UIPI) | Different on purpose (OS limits) |
 
 ## Hotkey
@@ -72,7 +72,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | On-device | Yes, no audio leaves the Mac | Yes, no audio leaves the PC | Same |
 | Size | About 450 MB | About 480 MB tarball (482,468,385 bytes) | Same |
 | Download | By FluidAudio at first launch, in the background; whole-percent progress | From the sherpa-onnx GitHub release at launch, in the background, to a `.part` file; size and SHA-256 checked; extracted, then renamed into place | Different on purpose (different engines) |
-| Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch | Different on purpose (unclear on Mac) |
+| Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch; every model file's byte size is checked, so a truncated file counts as missing | Different on purpose (unclear on Mac) |
 | Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and in setup's Try it card | Same |
 | Where | `~/Library/Application Support/Akoya/Models` | `%LocalAppData%\Akoya\models\` (outside Velopack's `current`, so updates keep it) | Different on purpose (platform folders) |
 | Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Missing on Mac (unclear if Core ML needs it) |
@@ -109,9 +109,9 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Icon | Menu bar item (five-bar glyph), VoiceOver label "Akoya" | Dot logo (2-4-6-4-2) in the tray overflow behind ^, white dots on a dark taskbar and near-black on a light one, tooltip "Akoya"; can be dragged onto the taskbar | Different on purpose (platform conventions) |
 | Opening | Left or right mouse-down toggles; reopening Akoya (Spotlight, Finder) opens it | Left or right click toggles; launching Akoya again opens it | Same |
 | Panel | 320 pt wide, dark, radius 30, under the item right-aligned 8 pt below, never takes focus | 300 DIP wide, dark, radius 30, in the tray corner 12 DIP inside the work area (any taskbar edge), activates like Windows flyouts | Different on purpose (Windows flyout convention) |
-| Closing | Click outside, Esc (the app sees Esc too), a second click on the item, a Space change | Losing focus, Esc (first closes an open menu), a click in its shadow, a second click on the icon | Different on purpose (platform conventions) |
+| Closing | Click outside, Esc (the app sees Esc too), a second click on the item, a Space change | Losing focus, Esc (first closes an open menu), a click in its shadow, a second click on the icon, the dictation hotkey. Esc, the shadow, the icon and the hotkey give focus back to the window the user was in; a click on another window leaves it there | Different on purpose (platform conventions) |
 | Status card header | "Akoya" and a status chip (blue dot) | "Akoya" and a status dot plus text (blue for Ready and busy, amber for warnings, red for errors) | Different on purpose (Windows has warning states) |
-| Status texts | "Ready", "Listening", "Transcribing", "Preparing…" (no progress yet), "Downloading 42%", "Model failed", "Setup needed" | "Ready", "Listening", "Transcribing", "Getting the speech model ready…" (with " 42%" when known, shown under the hint), "Model download failed", "Microphone not detected", "Microphone blocked", "Hotkey unavailable" | Different on purpose (Windows spec reuses the setup wording; Mac's permission states do not exist on Windows) |
+| Status texts | "Ready", "Listening", "Transcribing", "Preparing…" (no progress yet), "Downloading 42%", "Model failed", "Setup needed" | "Ready", "Listening", "Transcribing", "Getting the speech model ready…" (with " 42%" when known, shown under the hint), "Model download failed", "Speech model failed" (downloaded but would not load), "Microphone not detected", "Microphone blocked", "Hotkey unavailable" | Different on purpose (Windows spec reuses the setup wording; Mac's permission states do not exist on Windows) |
 | Status buttons | "Retry" (model failed), "Finish setup" (permission missing, opens onboarding at the first missing permission), both when both apply | "Retry" (model failed or hotkey unavailable), "Open Settings" (mic blocked) | Different on purpose (different failure states) |
 | Download progress bar | 180 by 3 bar under the hint | Same | Same |
 | Logo and hint | Dot logo; "Hold [keycap ▾] to talk"; "or tap it once to start, again to stop" | Same | Same |
@@ -173,7 +173,7 @@ Every user-visible string not already quoted above, with when it appears.
 | "Turn on your mic in Settings" | None | Red pill, privacy switch off, 1.6 s | Different on purpose (see Microphone) |
 | "Getting the speech model ready…" | Onboarding footer (with %) | Blue pill on a press while loading (1.6 s); tray status (with %); Try it card (with %) | Different on purpose (see Dictation) |
 | "Speech model failed" | None | Red pill on a press after the model failed, 1.6 s | Different on purpose (see Dictation) |
-| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" with "Retry" | Different on purpose (wording, unclear why) |
+| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" (download) or "Speech model failed" (load; the model folder is deleted so Retry downloads it again) with "Retry" | Different on purpose (wording, unclear why) |
 | "Setup needed" | Chip, a permission is missing, with "Finish setup" | Not applicable | Different on purpose (no permissions on Windows) |
 | "Hotkey unavailable" | Not applicable (the Mac retries silently) | Tray status with "Retry" when the keyboard hook cannot install | Different on purpose (see Hotkey) |
 | "Microphone blocked" | Not applicable | Tray status with "Open Settings" while the privacy switch is off | Different on purpose (see Microphone) |
