@@ -43,6 +43,7 @@ public sealed class AppHost : IDisposable
     private ISetupPresenter? _setup;
     private ModelState _modelState = ModelState.Loading;
     private double? _modelProgress;
+    private bool _modelLoadFailed;
     private bool _preparingModel;
     private bool _micBlocked;
     private string? _savedMicName;
@@ -128,7 +129,7 @@ public sealed class AppHost : IDisposable
             throw;
         }
         _tray?.SetSettings(_settings);
-        _tray?.SetModel(_modelState, _modelProgress);
+        _tray?.SetModel(_modelState, _modelProgress, _modelLoadFailed);
         RefreshMicrophones();
 
         InstallHook();
@@ -420,7 +421,19 @@ public sealed class AppHost : IDisposable
 
             var model = _p.Model;
             var provider = _settings.Provider;
-            var transcriber = await Task.Run(() => model.Load(provider), CancellationToken.None);
+            ITranscriber transcriber;
+            try
+            {
+                transcriber = await Task.Run(() => model.Load(provider), CancellationToken.None);
+            }
+            catch (Exception e) when (!_disposed)
+            {
+                // Present but unloadable (a corrupt encoder of the right size): delete it, so Retry downloads it again.
+                _p.Log.Error("Speech model failed to load; discarding it", e);
+                Try(model.Discard, "discard the speech model");
+                SetModelState(ModelState.Failed, null, loadFailed: true);
+                return;
+            }
             if (_disposed)
             {
                 TranscriberSlot.DisposeInBackground(transcriber, TimeSpan.Zero);
@@ -446,11 +459,12 @@ public sealed class AppHost : IDisposable
         }
     }
 
-    private void SetModelState(ModelState state, double? progress)
+    private void SetModelState(ModelState state, double? progress, bool loadFailed = false)
     {
         _modelState = state;
         _modelProgress = progress;
-        Guard(() => _tray?.SetModel(state, progress), "tray.SetModel");
+        _modelLoadFailed = loadFailed;
+        Guard(() => _tray?.SetModel(state, progress, loadFailed), "tray.SetModel");
         Guard(() => _setup?.SetModel(state, progress), "setup.SetModel");
     }
 

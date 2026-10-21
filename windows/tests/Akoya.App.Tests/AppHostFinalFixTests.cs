@@ -44,4 +44,41 @@ public class AppHostFinalFixTests
             Assert.True(now.Year < 2000, "not the wall clock");
         });
     }
+
+    [Fact]
+    public void I2_M8_LoadFailure_DiscardsTheModel_SaysSpeechModelFailed_AndRetryDownloadsAgain()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Model.LoadError = new InvalidOperationException("Protobuf parsing failed");
+            var host = rig.Start(waitForModel: false);
+            UiThread.PumpUntil(() => rig.Tray.Model == ModelState.Failed);
+
+            Assert.Equal(1, rig.Model.Discards);
+            Assert.True(rig.Tray.ModelLoadFailed); // "Speech model failed", not "Model download failed"
+
+            rig.Model.LoadError = null;
+            rig.Tray.Commands!.Retry();
+            UiThread.PumpUntil(() => host.ModelState == ModelState.Ready);
+            Assert.Equal(2, rig.Model.Ensures);
+            Assert.Equal(2, rig.Model.Loads);
+            Assert.False(rig.Tray.ModelLoadFailed);
+        });
+    }
+
+    [Fact]
+    public void M8_DownloadFailure_KeepsModelDownloadFailed_AndDiscardsNothing()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Model.Ensure = _ => Task.FromException(new System.Net.Http.HttpRequestException("offline"));
+            rig.Start(waitForModel: false);
+            UiThread.PumpUntil(() => rig.Tray.Model == ModelState.Failed);
+
+            Assert.False(rig.Tray.ModelLoadFailed);
+            Assert.Equal(0, rig.Model.Discards);
+        });
+    }
 }

@@ -44,6 +44,9 @@ public interface ISpeechModel
 
     /// <summary>Builds the transcriber and warms it up. Slow: AppHost calls it on a background thread.</summary>
     ITranscriber Load(InferenceProvider provider);
+
+    /// <summary>Deletes the installed model (it failed to load), so the next <see cref="EnsureAsync"/> downloads it.</summary>
+    void Discard();
 }
 
 /// <summary>The workstation locked or unlocked (or the session was switched away or back). Raised on the UI thread.</summary>
@@ -85,7 +88,9 @@ public interface ITrayPresenter : IDisposable
     /// <summary>The smoothed voice level, 0..1, while listening.</summary>
     void SetVoiceLevel(double level);
 
-    void SetModel(ModelState state, double? progress);
+    /// <param name="loadFailed">With <see cref="ModelState.Failed"/>: the model downloaded but would not load
+    /// ("Speech model failed"), rather than the download failing ("Model download failed").</param>
+    void SetModel(ModelState state, double? progress, bool loadFailed);
 
     void SetMicBlocked(bool blocked);
 

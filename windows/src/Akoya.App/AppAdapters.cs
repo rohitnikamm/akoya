@@ -42,6 +42,8 @@ namespace Akoya.App
 
         public bool IsInstalled => _store.IsInstalled;
 
+        public void Discard() => _store.Discard();
+
         public Task EnsureAsync(IProgress<double> progress, CancellationToken ct) => _store.EnsureAsync(progress, ct);
 
         public ITranscriber Load(InferenceProvider provider)

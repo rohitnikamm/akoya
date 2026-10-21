@@ -69,6 +69,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private DictationPhase _phase = DictationPhase.Idle;
     private ModelState _model = ModelState.Ready;
     private double? _modelProgress;
+    private bool _modelLoadFailed;
     private bool _micBlocked;
     private bool _hotkeyUnavailable;
     private IReadOnlyList<NamedMic> _mics = [];
@@ -377,10 +378,12 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     }
 
     /// <summary>The speech model's state, with download progress 0..1 while loading if known.</summary>
-    public void SetModel(ModelState state, double? progress = null)
+    /// <param name="loadFailed">The model downloaded but would not load: "Speech model failed".</param>
+    public void SetModel(ModelState state, double? progress = null, bool loadFailed = false)
     {
-        if (PostToOwner(() => SetModel(state, progress))) return;
+        if (PostToOwner(() => SetModel(state, progress, loadFailed))) return;
         _model = state;
+        _modelLoadFailed = state == ModelState.Failed && loadFailed;
         _modelProgress = state == ModelState.Loading && progress is { } p && double.IsFinite(p) ? Math.Clamp(p, 0, 1) : null;
         RecomputeStatus();
     }
@@ -561,7 +564,8 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
             DictationPhase.Transcribing => ("Transcribing", TrayStatusKind.Busy, TrayStatusAction.None, null),
             _ when _hotkeyUnavailable => ("Hotkey unavailable", TrayStatusKind.Error, TrayStatusAction.Retry, null),
             _ when _micBlocked => ("Microphone blocked", TrayStatusKind.Warning, TrayStatusAction.OpenSettings, null),
-            _ when _model == ModelState.Failed => ("Model download failed", TrayStatusKind.Error, TrayStatusAction.Retry, null),
+            _ when _model == ModelState.Failed => (_modelLoadFailed ? "Speech model failed" : "Model download failed",
+                TrayStatusKind.Error, TrayStatusAction.Retry, null),
             _ when _model == ModelState.Loading => Loading(_modelProgress),
             _ when MicMissing => ("Microphone not detected", TrayStatusKind.Warning, TrayStatusAction.None, null),
             _ => ("Ready", TrayStatusKind.Ready, TrayStatusAction.None, null),

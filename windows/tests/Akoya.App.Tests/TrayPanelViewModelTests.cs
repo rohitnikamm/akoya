@@ -140,6 +140,20 @@ public class TrayPanelViewModelTests
     }
 
     [Fact]
+    public void ModelLoadFailed_SaysSpeechModelFailed_WithRetry()
+    {
+        var vm = Ready(new TrayPanelActions());
+        vm.SetModel(ModelState.Failed, null, loadFailed: true);
+
+        Assert.Equal("Speech model failed", vm.StatusText);
+        Assert.Equal(TrayStatusKind.Error, vm.StatusKind);
+        Assert.True(vm.ShowRetry);
+
+        vm.SetModel(ModelState.Failed, null, loadFailed: false);
+        Assert.Equal("Model download failed", vm.StatusText);
+    }
+
+    [Fact]
     public void ModelFailed_ErrorWithRetry_RetryCallsAction()
     {
         var retries = 0;

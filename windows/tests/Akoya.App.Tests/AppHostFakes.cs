@@ -273,10 +273,22 @@ internal sealed class FakeModel : ISpeechModel
         return Ensure(progress);
     }
 
+    /// <summary>Thrown by the next Load calls (e.g. a corrupt encoder).</summary>
+    public Exception? LoadError { get; set; }
+
+    public int Discards { get; private set; }
+
     public ITranscriber Load(InferenceProvider provider)
     {
         Loads++;
+        if (LoadError is { } e) throw e;
         return Transcriber;
+    }
+
+    public void Discard()
+    {
+        Discards++;
+        IsInstalled = false;
     }
 }
 
@@ -370,10 +382,13 @@ internal sealed class FakeTray : ITrayPresenter
 
     public void SetVoiceLevel(double level) => VoiceLevel = level;
 
-    public void SetModel(ModelState state, double? progress)
+    public bool ModelLoadFailed { get; private set; }
+
+    public void SetModel(ModelState state, double? progress, bool loadFailed)
     {
         Model = state;
         Progress = progress;
+        ModelLoadFailed = loadFailed;
     }
 
     public void SetMicBlocked(bool blocked) => MicBlocked = blocked;
