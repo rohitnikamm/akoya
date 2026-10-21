@@ -189,6 +189,37 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void LoadRetriesASharingViolationThatClearsQuickly()
+    {
+        SettingsStore.Save(FilePath, new AkoyaSettings(HotkeyKey.Copilot, SetupDone: true));
+        var holder = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.None); // an indexer or antivirus
+        var release = new Thread(() =>
+        {
+            Thread.Sleep(30); // inside the first retry's wait, with room for a slow machine
+            holder.Dispose();
+        });
+        release.Start();
+
+        var settings = SettingsStore.Load(FilePath);
+        release.Join();
+
+        Assert.True(settings.SetupDone); // read after the lock cleared, not treated as unreadable
+        Assert.Equal(HotkeyKey.Copilot, settings.Hotkey);
+    }
+
+    [Fact]
+    public void LoadStillThrowsWhenTheSharingViolationLasts()
+    {
+        SettingsStore.Save(FilePath, new AkoyaSettings(SetupDone: true));
+        using (new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var started = System.Diagnostics.Stopwatch.StartNew();
+            Assert.ThrowsAny<IOException>(() => SettingsStore.Load(FilePath));
+            Assert.InRange(started.ElapsedMilliseconds, 100, 2000); // three retries about 50 ms apart
+        }
+    }
+
+    [Fact]
     public void SaveThrowsWhenTargetStaysLockedAndLeavesOriginalIntact()
     {
         if (!OperatingSystem.IsWindows())
