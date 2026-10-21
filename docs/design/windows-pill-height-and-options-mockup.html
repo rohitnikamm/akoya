@@ -153,11 +153,11 @@ p.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.5;max-widt
     <div class="dstage"><span class="pill inline" id="jelly"><span class="pin"><span class="grid" data-cols="23"></span><span class="ptime">0:01</span></span></span></div>
   </div>
   <div class="demo">
-    <div class="cap">Processing: blue-white (today) <span class="tag rec">Recommended</span></div>
+    <div class="cap">Processing: blue-white (Red while recording off)</div>
     <div class="dstage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#dbe6ff"></span><span class="ptime">0:04</span></span></div>
   </div>
   <div class="demo">
-    <div class="cap">Processing: yellow sweep</div>
+    <div class="cap">Processing: amber (Red while recording on)</div>
     <div class="dstage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="ptime">0:04</span></span></div>
   </div>
   <div class="demo">
@@ -268,7 +268,8 @@ const Q=new URLSearchParams(location.search), FIX=Q.has('t')?parseFloat(Q.get('t
 function tick(now){
   if(FIX!==null)now=FIX;const t=now/1000;
   document.querySelectorAll('.grid.live').forEach(g=>{const n=+g.dataset.cols,d=g.children;for(let c=0;c<n;c++){const x=(c+.5)/n;const env=Math.pow(Math.sin(Math.PI*x),.7);const L=env*(0.28+0.72*Math.abs(Math.sin(t*6.1+c*.8))*(0.65+0.35*Math.sin(t*2.3+c*.31)))*5.2;for(let r=0;r<4;r++){const dd=Math.abs(r-1.5);d[c*4+r].style.opacity=dd<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(L-2)/1.6))}}});
-  document.querySelectorAll('.grid.scan').forEach(g=>{const n=+g.dataset.cols,d=g.children,p=((now%900)/900)*(n+6)-3;for(let c=0;c<n;c++){const k=Math.abs(c-p);const o=k<1?0.95:k<2.2?0.5:0.14;for(let r=0;r<4;r++){d[c*4+r].style.opacity=o;d[c*4+r].style.background=k<2.2?g.dataset.tint:'#dbe6ff'}}});
+  // The app's scanner (PillDots.Scanner, period 1.4 s): centre two rows only, outer rows at rest; lit columns take the tint.
+  document.querySelectorAll('.grid.scan').forEach(g=>{const n=+g.dataset.cols,d=g.children,p=(t%1.4)/1.4,leg=p<.5?p*2:2-p*2,head=(1-Math.cos(Math.PI*leg))/2*(n-1);for(let c=0;c<n;c++){const k=Math.abs(c-head);const o=k<1?1:k<2?.7:k<3?.48:k<4?.32:.18;for(let r=0;r<4;r++){const mid=r===1||r===2;d[c*4+r].style.opacity=mid?o:.18;d[c*4+r].style.background=mid&&o>.18?g.dataset.tint:'#dbe6ff'}}});
   if(FIX===null)requestAnimationFrame(tick);
 }
 const jelly=document.getElementById('jelly'), pin=jelly.querySelector('.pin'), fade=document.getElementById('fade');

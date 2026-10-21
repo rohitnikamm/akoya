@@ -2,7 +2,7 @@
 
 Status: **final, approved by Rohit to go to planning and building** · 2026-10-20.
 Visual targets (all in `docs/design/`):
-- Pill: `windows-pill-mockup.html` (loops through the states) and `docs/assets/windows-preview.gif`.
+- Pill: `windows-pill-mockup.html` (loops through the states) and `docs/assets/windows-dictation.png` (the app's own renders, animated).
 - Setup: `windows-onboarding-mockup.html` (Welcome, Microphone in every state, Try it, the red
   "Microphone not detected" pill and the yellow tray row).
 - Tray panel: the Mac all-in-one dropdown, `all-in-one-dropdown-target.html` / `.png`, with its

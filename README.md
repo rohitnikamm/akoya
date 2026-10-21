@@ -6,9 +6,9 @@
 
 **Hold a key, speak, release. Your words appear in any app.**
 
-On-device dictation for the macOS menu bar.
+On-device dictation for macOS and Windows.
 
-[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release&filter=v*)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release&filter=v*)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) ![Windows 11](https://img.shields.io/badge/Windows-11-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
 
 <img src="docs/assets/hero.png" alt="Akoya listening in the menu bar, with its dropdown and the Try it card" width="100%">
 
@@ -46,7 +46,7 @@ See the [guide](docs/GUIDE.md) for setup details, microphone handling and upgrad
 
 ## Windows
 
-Akoya for Windows 11 is coming: the same hold-to-talk dictation, with a slim pill above the taskbar in place of the menu bar icon.
+Akoya runs on Windows 11 too: the same hold-to-talk dictation, with a slim pill above the taskbar in place of the menu bar icon.
 
 <div align="center">
 <img src="docs/assets/windows-dictation.png" alt="Akoya on Windows: a pill pops up above the taskbar, shows a live waveform, sweeps while transcribing, says Pasted, and the sentence appears in a terminal" width="100%">
@@ -61,7 +61,7 @@ Akoya for Windows 11 is coming: the same hold-to-talk dictation, with a slim pil
 <img src="docs/assets/windows-hero.png" alt="Akoya on Windows: the pill listening above the taskbar and the tray panel open in the corner" width="100%">
 </div>
 
-### Install (once released)
+### Install on Windows
 
 Download `Akoya-win-Setup.exe` from the [releases page](https://github.com/rohitnikamm/akoya/releases) (the one named "Akoya for Windows") and run it. It installs just for you, with no admin prompt and no .NET install. Akoya is not code-signed, so the first time Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**.
 
