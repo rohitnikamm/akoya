@@ -5,8 +5,10 @@ Visual targets (all in `docs/design/`):
 - Pill: `windows-pill-mockup.html` (loops through the states) and `docs/assets/windows-preview.gif`.
 - Setup: `windows-onboarding-mockup.html` (Welcome, Microphone in every state, Try it, the red
   "Microphone not detected" pill and the yellow tray row).
-- Tray panel: the Mac all-in-one dropdown, `all-in-one-dropdown-target.html` / `.png`, minus the
-  "Menu bar icon" row (see `windows-tray-panel-placeholder.png` for the Mac render).
+- Tray panel: the Mac all-in-one dropdown, `all-in-one-dropdown-target.html` / `.png`, with its
+  "Menu bar icon" row as the "Pill" row of `windows-pill-height-and-options-mockup.html` (see
+  `windows-tray-panel-placeholder.png` for the Mac render).
+- Pill height, pop-in, Solid and red waveforms: `windows-pill-height-and-options-mockup.html`.
 
 ## Intent
 
@@ -30,7 +32,8 @@ think hard about.
 - **Look:** Akoya's dark glass with the bottom-weighted electric-blue rim glow (`#2F6BFF` →
   `#1D4ED8`), Outfit font, as on the Mac.
 - **Settings in the tray.** The dot logo sits in the tray overflow (behind ⌃); the user can drag
-  it onto the taskbar. Clicking it opens the Mac's all-in-one panel minus the Menu bar icon row.
+  it onto the taskbar. Clicking it opens the Mac's all-in-one panel, its Menu bar icon row
+  becoming a Pill row (the pill is Windows' waveform).
 - **Default hotkey: Right Alt**, swallowed so apps never see a lone Alt tap. Alternatives: Right
   Ctrl and the Copilot key. Left Alt is untouched.
 - **Install and updates: Velopack.** Unsigned per-user `Setup.exe` on the GitHub release (one
@@ -97,7 +100,8 @@ windows/
 - `SingleInstance`, `StartupRegistration`, `Updater` (Velopack), `App` composition root.
 
 Data on disk:
-- Settings: `%AppData%\Akoya\settings.json`.
+- Settings: `%AppData%\Akoya\settings.json` (hotkey, microphoneId, launchAtStartup, setupDone,
+  provider, look `Pixel`/`Solid`, redTint; a missing or bad field loads as its default).
 - Model: `%LocalAppData%\Akoya\models\` (outside Velopack's `current\` folder, so updates don't
   re-download it; uninstall removes it).
 - Log: `%LocalAppData%\Akoya\logs\akoya.log` (rolling, 1 MB × 3), never contains transcripts.
@@ -107,8 +111,14 @@ Data on disk:
 1. **Hotkey down.** `KeyboardHook` → `HotkeyDecoder` → `Pressed`. If the model isn't ready, the
    pill shows "Getting the speech model ready…" in the same style and nothing records. If the
    chosen mic is missing → `MicMissing` (red pill, see Errors). Otherwise `WasapiRecorder.Start`,
-   pill appears in **listening** on the target monitor (fade/rise 0.28 s as in the mockup), timer
-   starts, waveform follows the level.
+   pill appears in **listening** on the target monitor, timer starts, waveform follows the level.
+   A pill appearing from hidden (listening, or a message) pops in: the 0.42 s "jelly" of
+   `docs/design/windows-pill-height-and-options-mockup.html` (a 34 DIP circle at 55 % scale and
+   transparent grows to full size by 24 %, stretches to 107 % width and 92 % height by 64 %, springs
+   to 98.5 % and 103 % by 84 %, settles at 100 %; contents fade in from 45 %). It only changes
+   what is drawn: recording, levels and the timer start on the press. With Windows' animation
+   effects off it is a plain 0.28 s fade. Fade-out (fade and sink 0.28 s) and width changes between
+   states are unchanged.
 2. **Hotkey up** after ≥ 0.30 s → stop. Up sooner → keep recording (hands-free); the next down
    stops. **Esc** while recording → cancel, pill fades, nothing pasted.
 3. **Stop.** Silence gate; if silent → pill fades, nothing pasted. Else pill → **transcribing**
@@ -118,8 +128,15 @@ Data on disk:
 5. **Max 300 s** → stops as if released.
 
 Target monitor: `MonitorFromWindow(GetForegroundWindow(), MONITOR_DEFAULTTOPRIMARY)`, pill centred
-horizontally on that monitor's work area, bottom edge 18 px (DPI-scaled) above the work area's
-bottom. Per-monitor-v2 DPI aware.
+horizontally on that monitor's work area, bottom edge 52 DIP (DPI-scaled) above the top of that
+monitor's taskbar measured as if the taskbar were showing, so it sits at the same height whether
+the taskbar is shown or auto-hidden (with the default 48 DIP taskbar: 100 DIP above the screen's
+bottom). The taskbar is the `Shell_TrayWnd` or `Shell_SecondaryTrayWnd` window on that monitor
+(`MonitorFromWindow`), its thickness the height of its rectangle (the same shown or hidden), and
+auto-hide comes from `SHAppBarMessage(ABM_GETSTATE)`. Taskbar at the bottom: shown, the gap is
+measured from the work area's bottom; auto-hidden, from the monitor's bottom minus the thickness.
+Taskbar on another edge, or none on that monitor: from the work area's bottom. Always clamped
+inside the work area. Per-monitor-v2 DPI aware.
 
 Pill window: borderless, transparent, topmost, `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW |
 WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in Alt+Tab).
@@ -176,8 +193,16 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
   2. **Last dictation** card with Copy (hidden until the first dictation).
   3. **Options:** Microphone (value = current plain name ▾; menu: "System default (<name>)", then
      every input by plain name, ✓ on selected; highlighted yellow with "Not detected" when the
-     saved one is missing), Launch at startup (switch). When an update is ready: an "Update ready ·
-     Restart" row with a blue button.
+     saved one is missing), **Pill** (the Mac's Menu bar icon disclosure row: waveform glyph,
+     value "Pixel"/"Solid" and a › that turns when open, collapsed whenever the panel opens; inside,
+     "Waveform" Pixel | Solid as a neutral segmented control and "Red while recording" as a neutral
+     switch, off by default; no note line, since Hide when idle is left out), Launch at startup
+     (switch). When an update is ready: an "Update ready · Restart" row with a blue button.
+     Pill options apply at once, also to a pill on screen. Solid: per column one 3 DIP bar with
+     round ends, centred on the dot rows, one dot tall at the quietest step rising linearly to the
+     four rows' 18 DIP at the loudest (the transcribing sweep: full-height bars). Red while
+     recording: the listening waveform is `#FF6B6B` and the transcribing sweep's lit columns
+     (head and tail) are amber `#FBBF24`; the rim glow stays blue. Setup's Try it is unchanged.
   4. **Quit Akoya** (quiet text row).
 - Neutral control styles as on the Mac (no solid-blue selected states).
 

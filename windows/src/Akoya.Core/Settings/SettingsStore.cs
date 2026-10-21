@@ -67,6 +67,10 @@ public static class SettingsStore
                     settings = settings with { SetupDone = ReadBool(value, Defaults.SetupDone) };
                 else if (Is(property, "provider"))
                     settings = settings with { Provider = ReadEnum(value, Defaults.Provider) };
+                else if (Is(property, "look"))
+                    settings = settings with { Look = ReadEnum(value, Defaults.Look) };
+                else if (Is(property, "redTint"))
+                    settings = settings with { RedTint = ReadBool(value, Defaults.RedTint) };
             }
             return settings;
         }
@@ -99,6 +103,8 @@ public static class SettingsStore
                 writer.WriteBoolean("launchAtStartup", settings.LaunchAtStartup);
                 writer.WriteBoolean("setupDone", settings.SetupDone);
                 writer.WriteString("provider", settings.Provider.ToString());
+                writer.WriteString("look", settings.Look.ToString());
+                writer.WriteBoolean("redTint", settings.RedTint);
                 writer.WriteEndObject();
                 writer.Flush();
                 stream.Flush(true);

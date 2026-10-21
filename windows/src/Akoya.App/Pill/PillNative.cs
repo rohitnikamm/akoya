@@ -10,7 +10,11 @@ internal static class PillNative
     public const long WsExToolWindow = 0x00000080;
     public const long WsExNoActivate = 0x08000000;
 
+    public const uint MonitorDefaultToNull = 0;
     public const uint MonitorDefaultToPrimary = 1;
+
+    public const uint AbmGetState = 0x00000004;
+    public const int AbsAutoHide = 0x0000001;
     public const int MdtEffectiveDpi = 0;
 
     public static readonly IntPtr HwndTopmost = new(-1);
@@ -36,8 +40,25 @@ internal static class PillNative
         public uint Flags;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct AppBarData
+    {
+        public int Size;
+        public IntPtr Window;
+        public uint CallbackMessage;
+        public uint Edge;
+        public Rect Rect;
+        public IntPtr Param;
+    }
+
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", EntryPoint = "FindWindowExW", CharSet = CharSet.Unicode)]
+    public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string className, string? windowName);
+
+    [DllImport("shell32.dll")]
+    public static extern UIntPtr SHAppBarMessage(uint message, ref AppBarData data);
 
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);

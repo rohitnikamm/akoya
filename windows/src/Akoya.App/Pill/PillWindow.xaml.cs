@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -9,8 +10,11 @@ using Akoya.Core.Ui;
 namespace Akoya.App.Pill;
 
 /// <summary>
-/// The window that floats the pill above the taskbar. <see cref="ShowFor"/> fades and rises it in on the foreground
-/// window's monitor; <see cref="FadeOut"/> fades and sinks it out (0.28 s, cubic-bezier(.2,.8,.2,1), as in the mockup).
+/// The window that floats the pill above the taskbar. <see cref="ShowFor"/> pops it in from hidden on the foreground
+/// window's monitor (the 0.42 s jelly pop-in, <see cref="PillPopIn"/>; a plain 0.28 s fade with Windows' animation
+/// effects off); <see cref="FadeOut"/> fades and sinks it out (0.28 s, cubic-bezier(.2,.8,.2,1), as in the mockup).
+/// Shown again while fading out, it fades and rises back. The pop-in only changes what is drawn: the dictation it
+/// shows starts and updates at once.
 /// The constructor starts <see cref="Prewarm"/>, so the first show doesn't rasterise the glow on the UI thread.
 /// </summary>
 public partial class PillWindow : Window
@@ -22,9 +26,14 @@ public partial class PillWindow : Window
     private const double HiddenOffset = 10;
     private const double HiddenScale = 0.94;
 
+    private readonly Stopwatch _popClock = new();
     private PillTarget? _target;
     private bool _hiding;
+    private bool _popping;
     private int _generation;
+
+    /// <summary>Whether Windows' animation effects are on (Settings, Accessibility, Visual effects); replaceable for tests.</summary>
+    internal static Func<bool> AnimationsEnabled { get; set; } = () => SystemParameters.ClientAreaAnimation;
 
     public PillWindow()
     {
@@ -58,20 +67,32 @@ public partial class PillWindow : Window
         _generation++;
         DataContext = model;
 
-        if (!IsVisible || _hiding)
+        if (!IsVisible)
+        {
+            SetShownPose();
+            new WindowInteropHelper(this).EnsureHandle();
+            var animate = AnimationsEnabled();
+            if (animate) View.PopInProgress = 0;
+            else Root.Opacity = 0;
+            _target = PillPlacer.PlaceOnForegroundMonitor(this);
+            Show();
+            _target = PillPlacer.PlaceOnForegroundMonitor(this); // now laid out at its real size
+            if (animate) StartPopIn();
+            else Animate(1, 0, 1, null, FadeDuration); // plain fade
+        }
+        else if (_hiding)
         {
             _hiding = false;
-            if (!IsVisible)
-            {
-                SetHiddenPose();
-                new WindowInteropHelper(this).EnsureHandle();
-            }
             _target = PillPlacer.PlaceOnForegroundMonitor(this);
-            if (!IsVisible) Show();
-            _target = PillPlacer.PlaceOnForegroundMonitor(this); // now laid out at its real size
             Animate(1, 0, 1, null);
         }
     }
+
+    /// <summary>The pill's view (for tests).</summary>
+    internal PillView PillVisual => View;
+
+    /// <summary>The pop-in is playing (for tests).</summary>
+    internal bool IsPoppingIn => _popping;
 
     /// <summary>
     /// Moves a visible pill to the foreground window's monitor (a new recording while the last result still shows), and
@@ -93,6 +114,7 @@ public partial class PillWindow : Window
         {
             if (generation != _generation) return;
             _hiding = false;
+            StopPopIn();
             Hide();
         });
     }
@@ -167,22 +189,50 @@ public partial class PillWindow : Window
         if (_target is { } target && IsVisible) PillPlacer.Place(this, target);
     }
 
-    private void SetHiddenPose()
+    /// <summary>Clears any running animation and puts the window's layer at rest (opaque, no rise or scale).</summary>
+    private void SetShownPose()
     {
+        StopPopIn();
         Root.BeginAnimation(OpacityProperty, null);
         RiseShift.BeginAnimation(TranslateTransform.YProperty, null);
         RiseScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         RiseScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        Root.Opacity = 0;
-        RiseShift.Y = HiddenOffset;
-        RiseScale.ScaleX = HiddenScale;
-        RiseScale.ScaleY = HiddenScale;
+        Root.Opacity = 1;
+        RiseShift.Y = 0;
+        RiseScale.ScaleX = 1;
+        RiseScale.ScaleY = 1;
     }
 
-    private void Animate(double opacity, double offset, double scale, Action? completed)
+    private void StartPopIn()
     {
+        _popClock.Restart();
+        if (!_popping) CompositionTarget.Rendering += OnPopInFrame;
+        _popping = true;
+    }
+
+    /// <summary>Ends the pop-in, leaving the pill settled.</summary>
+    private void StopPopIn()
+    {
+        if (_popping) CompositionTarget.Rendering -= OnPopInFrame;
+        _popping = false;
+        _popClock.Reset();
+        View.PopInProgress = 1;
+    }
+
+    /// <summary>One frame of the pop-in (WPF renders at the display's rate, 60 Hz on most screens).</summary>
+    private void OnPopInFrame(object? sender, EventArgs e)
+    {
+        var progress = PillPopIn.Progress(_popClock.Elapsed);
+        View.PopInProgress = progress;
+        if (progress >= 1) StopPopIn();
+    }
+
+    private void Animate(double opacity, double offset, double scale, Action? completed) =>
         // Respect "Animation effects" off in Windows settings: jump straight to the end.
-        var duration = SystemParameters.ClientAreaAnimation ? FadeDuration : new Duration(TimeSpan.Zero);
+        Animate(opacity, offset, scale, completed, AnimationsEnabled() ? FadeDuration : new Duration(TimeSpan.Zero));
+
+    private void Animate(double opacity, double offset, double scale, Action? completed, Duration duration)
+    {
         var ease = new CubicBezierEase();
 
         var fade = new DoubleAnimation(opacity, duration) { EasingFunction = ease, FillBehavior = FillBehavior.HoldEnd };

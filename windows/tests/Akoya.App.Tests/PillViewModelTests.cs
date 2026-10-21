@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Akoya.App.Pill;
 using Akoya.Core.Dictation;
+using Akoya.Core.Settings;
 using Akoya.Core.Ui;
 using Xunit;
 
@@ -136,5 +137,107 @@ public class PillViewModelTests
         Assert.Contains(nameof(PillViewModel.Mode), changed);
         Assert.Contains(nameof(PillViewModel.AlertText), changed);
         Assert.Contains(nameof(PillViewModel.IsRed), changed);
+    }
+
+    // ---- Pill options ----
+
+    private static readonly int[] Levels = [1, 3, 5, 8, 2];
+
+    [Fact]
+    public void Defaults_PixelWhite_NoBars()
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+
+        Assert.Equal(WaveLook.Pixel, vm.Look);
+        Assert.False(vm.RedTint);
+        Assert.Null(vm.Bars);
+        Assert.Equal(PillTint.Normal, vm.Tint);
+    }
+
+    [Fact]
+    public void Solid_Listening_BarsFromTheLevels()
+    {
+        var vm = new PillViewModel();
+        vm.SetOptions(WaveLook.Solid, redTint: false);
+        vm.Apply(DictationPhase.Recording);
+        vm.SetLevels(Levels);
+
+        Assert.Equal(PillDots.SolidListening(Levels), vm.Bars);
+        Assert.Equal(PillTint.Normal, vm.Tint);
+    }
+
+    [Fact]
+    public void Solid_Transcribing_ScannerBars()
+    {
+        var vm = new PillViewModel();
+        vm.SetOptions(WaveLook.Solid, redTint: false);
+        vm.Apply(DictationPhase.Recording);
+        vm.Apply(DictationPhase.Transcribing);
+        vm.Tick(0.3);
+
+        Assert.Equal(PillDots.SolidScanner(0.3), vm.Bars);
+    }
+
+    [Fact]
+    public void RedTint_RedWhileListening_AmberWhileTranscribing_NormalOtherwise()
+    {
+        var vm = new PillViewModel();
+        vm.SetOptions(WaveLook.Pixel, redTint: true);
+
+        vm.Apply(DictationPhase.Recording);
+        Assert.Equal(PillTint.Red, vm.Tint);
+        vm.Apply(DictationPhase.Transcribing);
+        Assert.Equal(PillTint.Amber, vm.Tint);
+        vm.Apply(DictationPhase.Pasted);
+        Assert.Equal(PillTint.Normal, vm.Tint);
+        vm.Apply(DictationPhase.MicMissing);
+        Assert.Equal(PillTint.Normal, vm.Tint);
+        Assert.True(vm.IsRed); // the alert is still the red alert
+    }
+
+    [Fact]
+    public void RedTint_LeavesTheRimGlowBlue()
+    {
+        var vm = new PillViewModel();
+        vm.SetOptions(WaveLook.Solid, redTint: true);
+        vm.Apply(DictationPhase.Recording);
+
+        Assert.False(vm.IsRed);
+    }
+
+    [Fact]
+    public void SetOptions_WhileListening_RedrawsAtOnce_KeepingTheLevels()
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+        vm.SetLevels(Levels);
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.SetOptions(WaveLook.Solid, redTint: true);
+
+        Assert.Equal(PillDots.SolidListening(Levels), vm.Bars);
+        Assert.Equal(PillTint.Red, vm.Tint);
+        Assert.Contains(nameof(PillViewModel.Bars), changed);
+        Assert.Contains(nameof(PillViewModel.Tint), changed);
+
+        vm.SetOptions(WaveLook.Pixel, redTint: false);
+        Assert.Null(vm.Bars);
+        Assert.Equal(PillDots.Listening(Levels), vm.Opacities);
+        Assert.Equal(PillTint.Normal, vm.Tint);
+    }
+
+    [Fact]
+    public void SetOptions_Unchanged_RaisesNothing()
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+        var changed = 0;
+        vm.PropertyChanged += (_, _) => changed++;
+
+        vm.SetOptions(WaveLook.Pixel, redTint: false);
+
+        Assert.Equal(0, changed);
     }
 }

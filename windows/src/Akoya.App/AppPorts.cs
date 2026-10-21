@@ -81,7 +81,10 @@ public interface IPillPresenter : IDisposable
     void FadeOut();
 }
 
-/// <summary>What the tray panel's controls do. AppHost supplies these to the tray.</summary>
+/// <summary>
+/// What the tray panel's controls do. AppHost supplies these to the tray. <see cref="SelectLook"/> and
+/// <see cref="SetRedTint"/> are the Pill options (null: the row does nothing).
+/// </summary>
 public sealed record TrayCommands(
     Func<string, bool> Copy,
     Action<HotkeyKey> SelectHotkey,
@@ -90,7 +93,9 @@ public sealed record TrayCommands(
     Action Retry,
     Action OpenMicSettings,
     Action RestartToUpdate,
-    Action Quit);
+    Action Quit,
+    Action<WaveLook>? SelectLook = null,
+    Action<bool>? SetRedTint = null);
 
 /// <summary>The tray icon and its panel. Mirrors the inputs of <c>Tray.TrayPanelViewModel</c>.</summary>
 public interface ITrayPresenter : IDisposable

@@ -12,6 +12,11 @@ namespace Akoya.App.Controls;
 /// <see cref="GlowColor"/> (<see cref="RimGlowRecipes.Pill"/>); set <see cref="Shadows"/> for another recipe.
 /// Outer shadows draw outside the element's bounds, so leave room around it. Rasters come from <see cref="RimGlowCache"/>
 /// (prewarm it to keep rasterising off the UI thread).
+/// <para>
+/// <see cref="ShapeWidth"/> draws the shape narrower or wider than the element, centred in it (the pill's pop-in):
+/// the full-size rasters are cut at the centre and their halves slid together or apart, so no new raster is needed,
+/// and the child is clipped to the shape.
+/// </para>
 /// </summary>
 public sealed class RimGlowBorder : Decorator
 {
@@ -38,6 +43,10 @@ public sealed class RimGlowBorder : Decorator
     public static readonly DependencyProperty PaddingProperty = DependencyProperty.Register(
         nameof(Padding), typeof(Thickness), typeof(RimGlowBorder),
         new FrameworkPropertyMetadata(default(Thickness), FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+    public static readonly DependencyProperty ShapeWidthProperty = DependencyProperty.Register(
+        nameof(ShapeWidth), typeof(double), typeof(RimGlowBorder),
+        new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((RimGlowBorder)d).UpdateChildClip()));
 
     private RimGlowLayer? _outer;
     private RimGlowLayer? _inset;
@@ -89,6 +98,16 @@ public sealed class RimGlowBorder : Decorator
         set => SetValue(PaddingProperty, value);
     }
 
+    /// <summary>
+    /// The drawn shape's width, DIP, centred in the element (at least the height, so the narrowest is a circle); NaN
+    /// (the default) draws it at the element's width. Layout is unaffected.
+    /// </summary>
+    public double ShapeWidth
+    {
+        get => (double)GetValue(ShapeWidthProperty);
+        set => SetValue(ShapeWidthProperty, value);
+    }
+
     protected override Size MeasureOverride(Size constraint)
     {
         var padding = Padding;
@@ -118,6 +137,12 @@ public sealed class RimGlowBorder : Decorator
         var radius = Math.Clamp(CornerRadius, 0, Math.Min(size.Width, size.Height) / 2);
         UpdateRasters(size, radius);
 
+        if (ShapeRect(size) is { } shape)
+        {
+            RenderResized(drawingContext, size, shape);
+            return;
+        }
+
         if (_outer is { } outer) drawingContext.DrawImage(outer.Image, outer.Bounds);
 
         if (Background is { } background)
@@ -135,6 +160,79 @@ public sealed class RimGlowBorder : Decorator
                 drawingContext.Pop();
             }
         }
+    }
+
+    /// <summary>The shape's rectangle when <see cref="ShapeWidth"/> differs from the element's width; null otherwise.</summary>
+    private Rect? ShapeRect(Size size)
+    {
+        var width = ShapeWidth;
+        if (double.IsNaN(width) || double.IsInfinity(width)) return null;
+        width = Math.Max(width, size.Height);
+        if (Math.Abs(width - size.Width) < 0.01) return null;
+        return new Rect((size.Width - width) / 2, 0, width, size.Height);
+    }
+
+    private void RenderResized(DrawingContext drawingContext, Size size, Rect shape)
+    {
+        var radius = Math.Clamp(CornerRadius, 0, Math.Min(shape.Width, shape.Height) / 2);
+        var slide = shape.X; // > 0 narrower, < 0 wider
+
+        if (_outer is { } outer) DrawHalves(drawingContext, outer, size.Width / 2, slide);
+
+        if (Background is { } background)
+        {
+            drawingContext.DrawRoundedRectangle(background, null, shape, radius, radius);
+        }
+
+        if (_inset is { } inset)
+        {
+            var strength = Math.Clamp(GlowStrength, 0, 1);
+            if (strength > 0)
+            {
+                drawingContext.PushOpacity(strength);
+                DrawHalves(drawingContext, inset, size.Width / 2, slide);
+                drawingContext.Pop();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws <paramref name="layer"/>'s left half moved right by <paramref name="slide"/> and its right half moved left
+    /// by it, each clipped at the centre. The recipes are symmetric left to right, so the halves meet seamlessly; for a
+    /// wider shape (negative slide) each half shows a few more of the near-uniform middle columns.
+    /// </summary>
+    private static void DrawHalves(DrawingContext drawingContext, RimGlowLayer layer, double centre, double slide)
+    {
+        const double far = 1e5;
+        drawingContext.PushClip(new RectangleGeometry(new Rect(-far, -far, far + centre, 2 * far)));
+        drawingContext.PushTransform(new TranslateTransform(slide, 0));
+        drawingContext.DrawImage(layer.Image, layer.Bounds);
+        drawingContext.Pop();
+        drawingContext.Pop();
+
+        drawingContext.PushClip(new RectangleGeometry(new Rect(centre, -far, far, 2 * far)));
+        drawingContext.PushTransform(new TranslateTransform(-slide, 0));
+        drawingContext.DrawImage(layer.Image, layer.Bounds);
+        drawingContext.Pop();
+        drawingContext.Pop();
+    }
+
+    /// <summary>Clips the child to the shape while <see cref="ShapeWidth"/> is in effect (CSS <c>overflow: hidden</c>).</summary>
+    private void UpdateChildClip()
+    {
+        if (Child is not { } child) return;
+        if (ShapeRect(RenderSize) is not { } shape)
+        {
+            child.ClearValue(ClipProperty);
+            return;
+        }
+
+        var radius = Math.Clamp(CornerRadius, 0, Math.Min(shape.Width, shape.Height) / 2);
+        var padding = Padding;
+        shape.Offset(-padding.Left, -padding.Top);
+        var clip = new RectangleGeometry(shape, radius, radius);
+        clip.Freeze();
+        child.Clip = clip;
     }
 
     private void UpdateRasters(Size size, double radius)

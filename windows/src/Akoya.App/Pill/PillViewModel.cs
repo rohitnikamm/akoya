@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Akoya.Core.Dictation;
+using Akoya.Core.Settings;
 using Akoya.Core.Ui;
 
 namespace Akoya.App.Pill;
@@ -24,9 +25,23 @@ public enum PillMode
     Alert,
 }
 
+/// <summary>The waveform's colour (Red while recording, see <see cref="PillViewModel.RedTint"/>).</summary>
+public enum PillTint
+{
+    /// <summary>White dots or bars, the blue-white scanner.</summary>
+    Normal,
+
+    /// <summary>Listening with Red while recording on: a red waveform (#FF6B6B); the rim glow stays blue.</summary>
+    Red,
+
+    /// <summary>Transcribing with Red while recording on: the scanner's lit columns are amber (#FBBF24).</summary>
+    Amber,
+}
+
 /// <summary>
 /// State of the pill. <see cref="Apply"/> maps a <see cref="DictationPhase"/>; while listening, <see cref="SetLevels"/>
 /// and <see cref="SetElapsed"/> feed the waveform and timer, and while transcribing <see cref="Tick"/> drives the scanner.
+/// <see cref="SetOptions"/> applies the tray's Pill options (look and Red while recording), at once if on screen.
 /// Call it on the UI thread.
 /// </summary>
 public sealed class PillViewModel : INotifyPropertyChanged
@@ -34,6 +49,12 @@ public sealed class PillViewModel : INotifyPropertyChanged
     public const int Columns = 23;
 
     private PillMode _mode = PillMode.Listening;
+    private WaveLook _look = WaveLook.Pixel;
+    private bool _redTint;
+    private int[] _steps = Quiet();
+    private double _scanSeconds;
+    private PillBar[]? _bars;
+    private PillTint _tint;
     private double[] _opacities = PillDots.Listening(Quiet());
     private string _timerText = "0:00";
     private string _alertText = "";
@@ -57,6 +78,31 @@ public sealed class PillViewModel : INotifyPropertyChanged
             _opacities = value;
             OnPropertyChanged();
         }
+    }
+
+    /// <summary>The waveform's look (the tray's Pill, Waveform option).</summary>
+    public WaveLook Look => _look;
+
+    /// <summary>Red while recording (the tray's Pill option).</summary>
+    public bool RedTint => _redTint;
+
+    /// <summary>The Solid waveform's bars, one per column; null in the Pixel look. A new array on every change.</summary>
+    public PillBar[]? Bars
+    {
+        get => _bars;
+        private set
+        {
+            if (value is null && _bars is null) return;
+            _bars = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>The waveform's colour.</summary>
+    public PillTint Tint
+    {
+        get => _tint;
+        private set => Set(ref _tint, value);
     }
 
     /// <summary>Recording time as m:ss, e.g. "0:04".</summary>
@@ -96,11 +142,11 @@ public sealed class PillViewModel : INotifyPropertyChanged
                 return; // keep showing the last state while the pill fades out
             case DictationPhase.Recording:
                 TimerText = "0:00";
-                Opacities = PillDots.Listening(Quiet());
+                _steps = Quiet();
                 Show(PillMode.Listening, "", red: false);
                 break;
             case DictationPhase.Transcribing:
-                Opacities = PillDots.Scanner(0, Columns);
+                _scanSeconds = 0;
                 Show(PillMode.Transcribing, "", red: false);
                 break;
             case DictationPhase.Pasted:
@@ -134,7 +180,19 @@ public sealed class PillViewModel : INotifyPropertyChanged
     {
         ArgumentNullException.ThrowIfNull(steps);
         if (Mode != PillMode.Listening) return;
-        Opacities = PillDots.Listening(steps.ToArray());
+        _steps = steps.ToArray();
+        DrawWaveform();
+    }
+
+    /// <summary>The tray's Pill options; redraws a waveform on screen at once.</summary>
+    public void SetOptions(WaveLook look, bool redTint)
+    {
+        if (look == _look && redTint == _redTint) return;
+        _look = look;
+        _redTint = redTint;
+        OnPropertyChanged(nameof(Look));
+        OnPropertyChanged(nameof(RedTint));
+        DrawWaveform();
     }
 
     /// <summary>Recording time so far; ignored once transcribing (the timer freezes).</summary>
@@ -149,7 +207,8 @@ public sealed class PillViewModel : INotifyPropertyChanged
     public void Tick(double transcribingSeconds)
     {
         if (Mode != PillMode.Transcribing) return;
-        Opacities = PillDots.Scanner(Math.Max(0, transcribingSeconds), Columns);
+        _scanSeconds = Math.Max(0, transcribingSeconds);
+        DrawWaveform();
     }
 
     private void Show(PillMode mode, string text, bool red)
@@ -157,6 +216,29 @@ public sealed class PillViewModel : INotifyPropertyChanged
         AlertText = text;
         IsRed = red;
         Mode = mode;
+        DrawWaveform();
+    }
+
+    /// <summary>The waveform for the mode, look and tint (listening levels or the scanner); other modes keep the last one.</summary>
+    private void DrawWaveform()
+    {
+        var solid = _look == WaveLook.Solid;
+        switch (Mode)
+        {
+            case PillMode.Listening:
+                Opacities = PillDots.Listening(_steps);
+                Bars = solid ? PillDots.SolidListening(_steps) : null;
+                Tint = _redTint ? PillTint.Red : PillTint.Normal;
+                break;
+            case PillMode.Transcribing:
+                Opacities = PillDots.Scanner(_scanSeconds, Columns);
+                Bars = solid ? PillDots.SolidScanner(_scanSeconds, Columns) : null;
+                Tint = _redTint ? PillTint.Amber : PillTint.Normal;
+                break;
+            default:
+                Tint = PillTint.Normal;
+                break;
+        }
     }
 
     private static int[] Quiet() => Enumerable.Repeat(1, Columns).ToArray();

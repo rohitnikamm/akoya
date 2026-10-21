@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using Akoya.App.Pill;
 using Akoya.Core.Dictation;
+using Akoya.Core.Settings;
 using Xunit;
 
 namespace Akoya.App.Tests.Snapshots;
@@ -51,6 +52,40 @@ public class PillSnapshots
     }
 
     [Fact]
+    public void ListeningSolid() => Render("pill-listening-solid", () => ListeningWith(WaveLook.Solid, redTint: false));
+
+    [Fact]
+    public void ListeningRed() => Render("pill-listening-red", () => ListeningWith(WaveLook.Pixel, redTint: true));
+
+    [Fact]
+    public void ListeningSolidRed() => Render("pill-listening-solid-red", () => ListeningWith(WaveLook.Solid, redTint: true));
+
+    [Fact]
+    public void TranscribingAmber()
+    {
+        Render("pill-transcribing-amber", () =>
+        {
+            var vm = new PillViewModel();
+            vm.SetOptions(WaveLook.Pixel, redTint: true);
+            vm.Apply(DictationPhase.Recording);
+            vm.SetElapsed(TimeSpan.FromSeconds(4.2));
+            vm.Apply(DictationPhase.Transcribing);
+            vm.Tick(0.3);
+            return vm;
+        });
+    }
+
+    private static PillViewModel ListeningWith(WaveLook look, bool redTint)
+    {
+        var vm = new PillViewModel();
+        vm.SetOptions(look, redTint);
+        vm.Apply(DictationPhase.Recording);
+        vm.SetLevels(Steps);
+        vm.SetElapsed(TimeSpan.FromSeconds(3));
+        return vm;
+    }
+
+    [Fact]
     public void Pasted() => Render("pill-pasted", () => Make(DictationPhase.Pasted));
 
     [Fact]
@@ -62,6 +97,21 @@ public class PillSnapshots
     [Fact]
     public void AlertModelNotReady() => Render("pill-alert-model-not-ready", () => Make(DictationPhase.ModelNotReady));
 
+    /// <summary>The jelly pop-in of the listening pill at 50, 170, 270 and 420 ms (the mockup's <c>play()</c>).</summary>
+    [Theory]
+    [InlineData(50)]
+    [InlineData(170)]
+    [InlineData(270)]
+    [InlineData(420)]
+    public void PopIn(int ms) => Render($"pill-pop-{ms:000}", () =>
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+        vm.SetLevels(Steps);
+        vm.SetElapsed(TimeSpan.FromSeconds(1));
+        return vm;
+    }, popInProgress: ms / 420.0);
+
     private static PillViewModel Make(DictationPhase phase)
     {
         var vm = new PillViewModel();
@@ -69,7 +119,7 @@ public class PillSnapshots
         return vm;
     }
 
-    private static void Render(string name, Func<PillViewModel> model)
+    private static void Render(string name, Func<PillViewModel> model, double popInProgress = 1)
     {
         SnapshotHarness.Render(
             () =>
@@ -79,6 +129,7 @@ public class PillSnapshots
                 scene.Children.Add(new PillView
                 {
                     DataContext = model(),
+                    PopInProgress = popInProgress,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                 });

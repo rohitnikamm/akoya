@@ -135,4 +135,71 @@ public class PillDotsTests
     {
         Assert.Equal(PillDots.Scanner(0.2), PillDots.Scanner(0.2 + 1.4 * 3).Select(v => v).ToArray());
     }
+
+    // ---- Solid look ----
+
+    [Fact]
+    public void Geometry_ThreePixelDotsTwoApart_FourRowsAre18Tall()
+    {
+        Assert.Equal(3, PillDots.DotSize);
+        Assert.Equal(2, PillDots.Gap);
+        Assert.Equal(18, PillDots.MaxBarHeight);
+    }
+
+    [Theory]
+    [InlineData(1, 3.0)]   // one dot, like the Mac's single cell at level 1
+    [InlineData(8, 18.0)]  // the four dot rows' full height
+    [InlineData(0, 3.0)]
+    [InlineData(-4, 3.0)]
+    [InlineData(12, 18.0)]
+    public void SolidHeight_OneDotAtRestToFullHeight(int step, double expected) =>
+        Assert.Equal(expected, PillDots.SolidHeight(step), Tol);
+
+    [Fact]
+    public void SolidHeight_LinearInTheStep_AsOnTheMac()
+    {
+        var heights = Enumerable.Range(1, 8).Select(PillDots.SolidHeight).ToArray();
+        for (var i = 1; i < heights.Length; i++) Assert.Equal(15 / 7.0, heights[i] - heights[i - 1], Tol);
+    }
+
+    [Fact]
+    public void SolidListening_OneBarPerColumn_HeightFromItsStep_Bright()
+    {
+        var bars = PillDots.SolidListening([1, 4, 8]);
+
+        Assert.Equal(3, bars.Length);
+        Assert.Equal(PillDots.SolidHeight(1), bars[0].Height, Tol);
+        Assert.Equal(PillDots.SolidHeight(4), bars[1].Height, Tol);
+        Assert.Equal(18, bars[2].Height, Tol);
+        Assert.All(bars, b => Assert.Equal(0.95, b.Opacity, Tol));
+        Assert.Empty(PillDots.SolidListening([]));
+    }
+
+    [Fact]
+    public void SolidScanner_FullHeightBars_WithTheScannersOpacities()
+    {
+        var bars = PillDots.SolidScanner(0.3);
+        var dots = PillDots.Scanner(0.3);
+
+        Assert.Equal(23, bars.Length);
+        for (var c = 0; c < bars.Length; c++)
+        {
+            Assert.Equal(18, bars[c].Height, Tol);
+            Assert.Equal(Dot(dots, c, 0), bars[c].Opacity, Tol);
+        }
+        Assert.Equal(10, PillDots.SolidScanner(0, 10).Length);
+    }
+
+    // ---- Amber sweep ----
+
+    [Fact]
+    public void ScannerLit_TheHeadAndItsTail_NotTheRestingColumns()
+    {
+        var d = PillDots.Scanner(0);
+        var lit = Enumerable.Range(0, 23).Where(c => PillDots.IsScannerLit(Dot(d, c, 0))).ToArray();
+
+        Assert.Equal([0, 1, 2, 3], lit);
+        Assert.False(PillDots.IsScannerLit(0.18));
+        Assert.True(PillDots.IsScannerLit(0.32));
+    }
 }

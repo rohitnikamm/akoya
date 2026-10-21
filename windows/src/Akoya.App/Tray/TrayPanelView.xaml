@@ -1,6 +1,7 @@
 <!--
-  The tray panel's content (spec "Tray icon and panel"; docs/design/all-in-one-dropdown-target.html without the
-  "Menu bar icon" row, the yellow row of windows-onboarding-mockup.html): status card, last dictation, options, Quit.
+  The tray panel's content (spec "Tray icon and panel"; docs/design/all-in-one-dropdown-target.html with its
+  "Menu bar icon" row as the Pill row of windows-pill-height-and-options-mockup.html, the yellow row of
+  windows-onboarding-mockup.html): status card, last dictation, options, Quit.
   300 wide, height to content. DataContext: TrayPanelViewModel. The hotkey and microphone menus are drawn inside the
   panel (MenuLayer), not as popups, so they never take focus or leave the window. Outer shadows paint outside these
   bounds; TrayPanelWindow leaves room for them.
@@ -222,6 +223,53 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Pill row sub-card (.sub2): white 3.5%, radius 12; its rows 12.5 in white 80%. -->
+        <SolidColorBrush x:Key="Tray.InnerFill" Color="#09FFFFFF" />
+        <SolidColorBrush x:Key="Tray.InnerTitle" Color="#CCFFFFFF" />
+
+        <!--
+          A segment of the neutral segmented control (the Mac's NeutralSegmented, .seg span): 12, padding 3/10, radius 6.
+          Selected: white 14% with a white 18% top highlight, white semibold text. Otherwise white 55%.
+        -->
+        <Style x:Key="Tray.Segment" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#8CFFFFFF" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border x:Name="Fill" CornerRadius="6" Background="Transparent" />
+                            <Border x:Name="Highlight" CornerRadius="6" BorderThickness="0,1,0,0" BorderBrush="#2EFFFFFF"
+                                    Visibility="Collapsed" />
+                            <Border x:Name="FocusRing" CornerRadius="7" Margin="-1" BorderThickness="1.5"
+                                    BorderBrush="#99FFFFFF" Visibility="Collapsed" />
+                            <ContentPresenter Margin="10,3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Fill" Property="Background" Value="#24FFFFFF" />
+                                <Setter TargetName="Highlight" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="#CCFFFFFF" />
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusRing" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A menu row (.mi / .mi.sel): white 88%, radius 8, the selected row on white 10% with a ✓. -->
         <Style x:Key="Tray.MenuRow" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Tray.TextRow}" />
@@ -421,6 +469,70 @@
                                 </Grid>
                             </Button>
                         </Grid>
+
+                        <Rectangle Height="1" Margin="14,0" Fill="{StaticResource Tray.Hairline}" />
+
+                        <!-- Pill: the Mac's Menu bar icon disclosure row, for the pill's waveform. -->
+                        <Button x:Name="PillRow" Style="{StaticResource Tray.RowButton}" Command="{Binding TogglePillOptions}"
+                                AutomationProperties.Name="Pill" AutomationProperties.ItemStatus="{Binding PillLook}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- The waveform glyph: four filled bars, x1 y5 h4, x4 y3 h8, x7 y1 h12, x10 y3 h8, 2 wide, rx 1. -->
+                                <Canvas Width="14" Height="14" VerticalAlignment="Center">
+                                    <Rectangle Canvas.Left="1" Canvas.Top="5" Width="2" Height="4" RadiusX="1" RadiusY="1" Fill="{StaticResource Tray.Icon}" />
+                                    <Rectangle Canvas.Left="4" Canvas.Top="3" Width="2" Height="8" RadiusX="1" RadiusY="1" Fill="{StaticResource Tray.Icon}" />
+                                    <Rectangle Canvas.Left="7" Canvas.Top="1" Width="2" Height="12" RadiusX="1" RadiusY="1" Fill="{StaticResource Tray.Icon}" />
+                                    <Rectangle Canvas.Left="10" Canvas.Top="3" Width="2" Height="8" RadiusX="1" RadiusY="1" Fill="{StaticResource Tray.Icon}" />
+                                </Canvas>
+                                <TextBlock Grid.Column="1" Margin="9,0,12,0" VerticalAlignment="Center" Text="Pill" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            VerticalAlignment="Center" TextElement.Foreground="{StaticResource Tray.TextValue}">
+                                    <TextBlock x:Name="PillValue" FontSize="12.5" VerticalAlignment="Center" Text="{Binding PillValue}" />
+                                    <TextBlock x:Name="PillChevron" Margin="4,0,0,0" FontSize="15" VerticalAlignment="Center"
+                                               Foreground="{StaticResource Tray.Icon}" RenderTransformOrigin="0.5,0.5" Text="›">
+                                        <TextBlock.RenderTransform>
+                                            <RotateTransform x:Name="PillChevronTurn" />
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+
+                        <!-- The Pill options (.sub2): Waveform Pixel | Solid, Red while recording. -->
+                        <Border x:Name="PillOptions" Margin="10,0,10,6" Padding="0,2" CornerRadius="12"
+                                Background="{StaticResource Tray.InnerFill}"
+                                Visibility="{Binding IsPillOpen, Converter={StaticResource Visible}}">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="PillOptionsShift" />
+                            </Border.RenderTransform>
+                            <StackPanel TextElement.Foreground="{StaticResource Tray.InnerTitle}" TextElement.FontSize="12.5">
+                                <Grid Margin="12,8">
+                                    <TextBlock Text="Waveform" VerticalAlignment="Center" />
+                                    <Border x:Name="LookSegments" HorizontalAlignment="Right" CornerRadius="8" Padding="1"
+                                            BorderThickness="1" Background="#0FFFFFFF" BorderBrush="#14FFFFFF"
+                                            AutomationProperties.Name="Waveform">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="PixelSegment" Style="{StaticResource Tray.Segment}" GroupName="PillLook"
+                                                         Content="Pixel" IsChecked="{Binding IsPixel, Mode=TwoWay}"
+                                                         AutomationProperties.Name="Pixel" />
+                                            <RadioButton x:Name="SolidSegment" Style="{StaticResource Tray.Segment}" GroupName="PillLook"
+                                                         Content="Solid" IsChecked="{Binding IsSolid, Mode=TwoWay}"
+                                                         AutomationProperties.Name="Solid" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Grid Margin="12,8">
+                                    <TextBlock Text="Red while recording" VerticalAlignment="Center" />
+                                    <controls:NeutralSwitch x:Name="RedTintSwitch" HorizontalAlignment="Right"
+                                                            IsChecked="{Binding RedTint, Mode=TwoWay}"
+                                                            AutomationProperties.Name="Red while recording" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
                         <Rectangle Height="1" Margin="14,0" Fill="{StaticResource Tray.Hairline}" />
 

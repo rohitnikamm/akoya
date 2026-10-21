@@ -389,6 +389,33 @@ public class AppHostTests
     }
 
     [Fact]
+    public void PillOptions_SavedLoadedAndAppliedToThePill()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Settings.Stored = rig.Settings.Stored with { Look = WaveLook.Solid };
+            var host = rig.Start();
+            Assert.Equal(WaveLook.Solid, host.Pill.Look);
+            Assert.False(host.Pill.RedTint);
+            var saves = rig.Settings.Saves;
+
+            rig.Tray.Commands!.SetRedTint!(true);
+            rig.Tray.Commands.SelectLook!(WaveLook.Pixel);
+
+            Assert.Equal(saves + 2, rig.Settings.Saves);
+            Assert.Equal(WaveLook.Pixel, rig.Settings.Stored.Look);
+            Assert.True(rig.Settings.Stored.RedTint);
+            Assert.Equal(WaveLook.Pixel, host.Pill.Look);
+            Assert.True(host.Pill.RedTint);
+
+            // The next dictation shows it.
+            rig.Hook.Fire(HotkeyEvent.Pressed);
+            Assert.Equal(PillTint.Red, host.Pill.Tint);
+        });
+    }
+
+    [Fact]
     public void EverySettingsChange_IsSaved()
     {
         UiThread.Run(() =>

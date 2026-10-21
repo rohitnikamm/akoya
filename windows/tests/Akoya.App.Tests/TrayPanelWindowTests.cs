@@ -75,6 +75,40 @@ public class TrayPanelWindowTests
     }
 
     [Fact]
+    public void PillRow_OpensItsOptions_PanelGrows_CollapsedAgainWhenThePanelHides()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var vm = TrayPanelSnapshots.Model(_ => { });
+            var window = new TrayPanelWindow(vm);
+            window.ShowNearTray();
+            var view = (TrayPanelView)window.FindName("View")!;
+            var options = (FrameworkElement)view.FindName("PillOptions")!;
+            var collapsedHeight = view.ActualHeight;
+            Assert.Equal(Visibility.Collapsed, options.Visibility);
+            Assert.Equal(0, view.PillChevronAngle);
+
+            ((Button)view.FindName("PillRow")!).Command.Execute(null);
+            window.UpdateLayout();
+            Assert.True(vm.IsPillOpen);
+            Assert.Equal(Visibility.Visible, options.Visibility);
+            Assert.True(view.ActualHeight > collapsedHeight + 60, $"{view.ActualHeight} vs {collapsedHeight}");
+
+            // Choosing Solid and turning on Red while recording through the controls reaches the model.
+            ((System.Windows.Controls.Primitives.ToggleButton)view.FindName("SolidSegment")!).IsChecked = true;
+            ((System.Windows.Controls.Primitives.ToggleButton)view.FindName("RedTintSwitch")!).IsChecked = true;
+            Assert.Equal(Akoya.Core.Settings.WaveLook.Solid, vm.PillLook);
+            Assert.True(vm.RedTint);
+
+            window.HidePanel();
+            Assert.False(vm.IsPillOpen);
+            Assert.Equal(0, view.PillChevronAngle);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
     public void Deactivated_Hides_AndTheTrayClickThatCausedItDoesNotReopen()
     {
         SnapshotHarness.RunSta(() =>
