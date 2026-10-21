@@ -1,0 +1,10 @@
+Test run for D:\a\akoya\akoya\windows\tests\Akoya.Core.Tests\bin\Release\net10.0\Akoya.Core.Tests.dll (.NETCoreApp,Version=v10.0)
+Test run for D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\bin\Release\net10.0-windows\win-x64\Akoya.App.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+Results File: D:\a\akoya\akoya\out\tests\runneradmin_runnervmuzpk7_2026-10-21_04_31_11_net10.0.trx
+
+Passed!  - Failed:     0, Passed:   410, Skipped:     0, Total:   410, Duration: 815 ms - Akoya.Core.Tests.dll (net10.0)
+Results File: D:\a\akoya\akoya\out\tests\runneradmin_runnervmuzpk7_2026-10-21_04_31_12_net10.0.trx
+
+Passed!  - Failed:     0, Passed:   383, Skipped:     0, Total:   383, Duration: 33 s - Akoya.App.Tests.dll (net10.0)
