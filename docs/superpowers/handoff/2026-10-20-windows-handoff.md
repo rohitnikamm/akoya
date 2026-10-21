@@ -81,6 +81,19 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
   second round picked Round 7 (Mac's diamond shape), 4 picked Round 5 (crisper at 1x). FEATURES.md: Proposed.
 - Still to check by hand on this PC: a Japanese IME, the Try it glow.
 
+## Paused 2026-10-21 (late): pick up here
+- Released since: `windows-v1.0.2` (the tray's Restart is a light-blue text link like Copy; PR #5). Installed on this
+  PC from Setup.exe; it updates itself.
+- Branch `win-transcriber-threads` (pushed, NO PR yet): transcription uses at most 8 threads (measured on this PC:
+  a 7.4 s clip 0.30 s with 8 vs 0.47-0.61 s with 16; 120 s unchanged), plus the GPU spike's plan
+  (`docs/superpowers/plans/2026-10-21-akoya-windows-gpu.md`: don't build GPU yet). Next: run CI, open the PR, merge,
+  then tag a release when Rohit says.
+- Local branch `gpu-spike` (not pushed) keeps the spike's benchmark apps (spike/gpu/), referenced by the plan.
+- NEW, Rohit noticed: the Akoya app has no app image (icon) in places on Windows, so it looks odd. Find where it's
+  missing (exe icon, Start menu shortcut, Setup.exe, Settings > Apps, taskbar button of the setup window) and fix it;
+  show Rohit before/after.
+- Waveform: today's Pixel stays; round dots are Proposed (FEATURES.md, design canvas linked above).
+
 ## Open items, in order
 0. The centre-two-rows sweep above.
 1. Rohit's second hands-on test of b3e1bd7 (he may be doing it now): jelly pop and height with his auto-hidden
