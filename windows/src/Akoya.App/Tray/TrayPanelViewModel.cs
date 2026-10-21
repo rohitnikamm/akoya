@@ -24,12 +24,14 @@ public sealed record MicOption(string? Id, string Label, bool IsSelected);
 /// <summary>What the panel's controls do; the app supplies these and persists the changes. All optional.</summary>
 public sealed class TrayPanelActions
 {
-    public Action<string> Copy { get; init; } = _ => { };
+    /// <summary>Copies the text to the clipboard; returns whether it worked (a throw counts as failure).</summary>
+    public Func<string, bool> Copy { get; init; } = _ => true;
     public Action<HotkeyKey> SelectHotkey { get; init; } = _ => { };
 
     /// <summary>The chosen microphone's ID; null for System default.</summary>
     public Action<string?> SelectMic { get; init; } = _ => { };
-    public Action<bool> SetLaunchAtStartup { get; init; } = _ => { };
+    /// <summary>Turns Launch at startup on or off; returns whether it worked (if not, or on a throw, the switch reverts).</summary>
+    public Func<bool, bool> SetLaunchAtStartup { get; init; } = _ => true;
 
     /// <summary>Retry what failed: the model download/load or the keyboard hook.</summary>
     public Action Retry { get; init; } = () => { };
@@ -43,7 +45,10 @@ public sealed class TrayPanelActions
 /// <summary>
 /// State of the tray panel (spec "Tray icon and panel"): the status card, last dictation, the options and Quit.
 /// The app feeds it with the <c>Set…</c> methods; the commands call <see cref="TrayPanelActions"/>. Pure .NET (no WPF
-/// or Win32), so it is testable anywhere. Call it on the UI thread.
+/// or Win32), so it is testable anywhere.
+/// <para>Threading: it belongs to the thread that constructs it (the UI thread). <c>Set…</c> calls from other threads
+/// (audio, model download) are posted to that thread's <see cref="SynchronizationContext"/>, so every change and every
+/// <see cref="PropertyChanged"/> happens there. Without a context (plain unit tests) calls run inline.</para>
 /// <para>Status precedence: listening, transcribing, hotkey unavailable, microphone blocked, model failed, model
 /// loading (with %), microphone not detected, ready.</para>
 /// </summary>
@@ -56,6 +61,8 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
 
     private readonly TrayPanelActions _actions;
     private readonly IScheduler? _scheduler;
+    private readonly SynchronizationContext? _context;
+    private readonly int _ownerThread;
     private IDisposable? _copiedReset;
 
     // Inputs
@@ -93,6 +100,8 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     {
         _actions = actions ?? new TrayPanelActions();
         _scheduler = scheduler;
+        _context = SynchronizationContext.Current;
+        _ownerThread = Environment.CurrentManagedThreadId;
 
         Copy = new RelayCommand(DoCopy);
         SelectHotkey = new RelayCommand(p => DoSelectHotkey(p));
@@ -298,7 +307,23 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
         get => _launchAtStartup;
         set
         {
-            if (Set(ref _launchAtStartup, value)) _actions.SetLaunchAtStartup(value);
+            if (!Set(ref _launchAtStartup, value)) return;
+            bool ok;
+            try
+            {
+                ok = _actions.SetLaunchAtStartup(value);
+            }
+            catch (Exception)
+            {
+                ok = false;
+            }
+            if (ok) return;
+
+            // Revert. A two-way binding ignores PropertyChanged raised while it writes the source, so raise it again
+            // once that write is over.
+            _launchAtStartup = !value;
+            OnPropertyChanged();
+            _context?.Post(_ => OnPropertyChanged(nameof(LaunchAtStartup)), null);
         }
     }
 
@@ -331,6 +356,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     /// <summary>The coordinator's phase: Recording shows Listening, Transcribing shows Transcribing; the rest are idle.</summary>
     public void SetPhase(DictationPhase phase)
     {
+        if (PostToOwner(() => SetPhase(phase))) return;
         var wasListening = IsListening;
         _phase = phase;
         if (wasListening != IsListening)
@@ -345,6 +371,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     /// <summary>The smoothed voice level, 0..1, while listening; drives the rim glow.</summary>
     public void SetVoiceLevel(double level)
     {
+        if (PostToOwner(() => SetVoiceLevel(level))) return;
         _voiceLevel = double.IsFinite(level) ? Math.Clamp(level, 0, 1) : 0;
         UpdateGlow();
     }
@@ -352,6 +379,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     /// <summary>The speech model's state, with download progress 0..1 while loading if known.</summary>
     public void SetModel(ModelState state, double? progress = null)
     {
+        if (PostToOwner(() => SetModel(state, progress))) return;
         _model = state;
         _modelProgress = state == ModelState.Loading && progress is { } p && double.IsFinite(p) ? Math.Clamp(p, 0, 1) : null;
         RecomputeStatus();
@@ -359,12 +387,14 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
 
     public void SetMicBlocked(bool blocked)
     {
+        if (PostToOwner(() => SetMicBlocked(blocked))) return;
         _micBlocked = blocked;
         RecomputeStatus();
     }
 
     public void SetHotkeyUnavailable(bool unavailable)
     {
+        if (PostToOwner(() => SetHotkeyUnavailable(unavailable))) return;
         _hotkeyUnavailable = unavailable;
         RecomputeStatus();
     }
@@ -376,6 +406,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     public void SetMicrophones(IReadOnlyList<NamedMic> mics, string? savedId, string? savedName = null)
     {
         ArgumentNullException.ThrowIfNull(mics);
+        if (PostToOwner(() => SetMicrophones(mics, savedId, savedName))) return;
         _mics = mics;
         _savedMicId = savedId;
         _savedMicName = savedName;
@@ -387,6 +418,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     public void SetSettings(AkoyaSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        if (PostToOwner(() => SetSettings(settings))) return;
         ApplyHotkey(settings.Hotkey);
         Set(ref _launchAtStartup, settings.LaunchAtStartup, nameof(LaunchAtStartup));
         if (!string.Equals(settings.MicrophoneId, _savedMicId, StringComparison.OrdinalIgnoreCase))
@@ -397,11 +429,30 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
         }
     }
 
-    public void SetLastDictation(string? text) => LastDictation = string.IsNullOrWhiteSpace(text) ? null : text;
+    public void SetLastDictation(string? text)
+    {
+        if (PostToOwner(() => SetLastDictation(text))) return;
+        LastDictation = string.IsNullOrWhiteSpace(text) ? null : text;
+    }
 
-    public void SetUpdateReady(bool ready) => UpdateReady = ready;
+    public void SetUpdateReady(bool ready)
+    {
+        if (PostToOwner(() => SetUpdateReady(ready))) return;
+        UpdateReady = ready;
+    }
 
     // ---- Internals ----
+
+    /// <summary>
+    /// Off the owner thread (with a context to post to): posts <paramref name="call"/> there and returns true, so the
+    /// caller returns. On the owner thread, or without a context, returns false and the caller runs inline.
+    /// </summary>
+    private bool PostToOwner(Action call)
+    {
+        if (_context is null || Environment.CurrentManagedThreadId == _ownerThread) return false;
+        _context.Post(_ => call(), null);
+        return true;
+    }
 
     internal static string Label(HotkeyKey key) => key switch
     {
@@ -464,11 +515,25 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private void DoCopy()
     {
         if (LastDictation is not { } text) return;
-        _actions.Copy(text);
-        if (_scheduler is null) return;
+        bool ok;
+        try
+        {
+            ok = _actions.Copy(text);
+        }
+        catch (Exception)
+        {
+            ok = false;
+        }
+        if (!ok || _scheduler is null) return; // "Copied" only when it really is
         CopyLabel = "Copied";
         _copiedReset?.Dispose();
-        _copiedReset = _scheduler.After(CopiedFeedback, () => CopyLabel = "Copy");
+        _copiedReset = _scheduler.After(CopiedFeedback, ResetCopyLabel);
+    }
+
+    private void ResetCopyLabel()
+    {
+        if (PostToOwner(ResetCopyLabel)) return; // the scheduler may call back on a timer thread
+        CopyLabel = "Copy";
     }
 
     private void RecomputeMics()

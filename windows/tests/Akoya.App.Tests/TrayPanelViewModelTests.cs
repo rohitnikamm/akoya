@@ -264,7 +264,7 @@ public class TrayPanelViewModelTests
     public void SetSettings_ShowsHotkeyAndStartup_WithoutCallingBack()
     {
         var calls = 0;
-        var vm = Ready(new TrayPanelActions { SetLaunchAtStartup = _ => calls++, SelectHotkey = _ => calls++ });
+        var vm = Ready(new TrayPanelActions { SetLaunchAtStartup = _ => ++calls > 0, SelectHotkey = _ => calls++ });
 
         vm.SetSettings(new AkoyaSettings(Hotkey: HotkeyKey.RightCtrl, LaunchAtStartup: true));
 
@@ -277,7 +277,7 @@ public class TrayPanelViewModelTests
     public void LaunchAtStartup_Set_CallsAction()
     {
         var values = new List<bool>();
-        var vm = Ready(new TrayPanelActions { SetLaunchAtStartup = values.Add });
+        var vm = Ready(new TrayPanelActions { SetLaunchAtStartup = v => { values.Add(v); return true; } });
 
         vm.LaunchAtStartup = true;
         vm.LaunchAtStartup = true;
@@ -291,7 +291,7 @@ public class TrayPanelViewModelTests
     {
         var copied = new List<string>();
         var scheduler = new ManualScheduler();
-        var vm = Ready(new TrayPanelActions { Copy = copied.Add }, scheduler);
+        var vm = Ready(new TrayPanelActions { Copy = t => { copied.Add(t); return true; } }, scheduler);
 
         vm.Copy.Execute(null); // nothing yet
         Assert.Empty(copied);
@@ -306,6 +306,39 @@ public class TrayPanelViewModelTests
         Assert.Equal("Copied", vm.CopyLabel);
         scheduler.Advance(TimeSpan.FromSeconds(0.2));
         Assert.Equal("Copy", vm.CopyLabel);
+    }
+
+    [Fact]
+    public void LastDictation_CopyFailsOrThrows_NoCopiedFeedback()
+    {
+        var scheduler = new ManualScheduler();
+        var fails = Ready(new TrayPanelActions { Copy = _ => false }, scheduler);
+        fails.SetLastDictation("Hello.");
+        fails.Copy.Execute(null);
+        Assert.Equal("Copy", fails.CopyLabel);
+
+        var throws = Ready(new TrayPanelActions { Copy = _ => throw new InvalidOperationException("clipboard busy") }, scheduler);
+        throws.SetLastDictation("Hello.");
+        throws.Copy.Execute(null);
+        Assert.Equal("Copy", throws.CopyLabel);
+    }
+
+    [Fact]
+    public void LaunchAtStartup_ActionFailsOrThrows_SwitchReverts()
+    {
+        var changed = new List<string?>();
+        var vm = Ready(new TrayPanelActions { SetLaunchAtStartup = _ => false });
+        ((INotifyPropertyChanged)vm).PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.LaunchAtStartup = true;
+        Assert.False(vm.LaunchAtStartup);
+        // On, then back off (and once more posted to the thread's context, when it has one, as xUnit's does).
+        Assert.True(changed.Count(n => n == nameof(TrayPanelViewModel.LaunchAtStartup)) >= 2);
+
+        var throws = Ready(new TrayPanelActions { SetLaunchAtStartup = _ => throw new UnauthorizedAccessException() });
+        throws.SetSettings(new AkoyaSettings(LaunchAtStartup: true));
+        throws.LaunchAtStartup = false;
+        Assert.True(throws.LaunchAtStartup);
     }
 
     [Fact]

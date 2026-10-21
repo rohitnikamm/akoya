@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using Akoya.App.Controls;
 using Akoya.App.Tests.Snapshots;
 using Akoya.App.Tray;
+using Akoya.Core.Dictation;
 using Akoya.Core.Ui;
 using Xunit;
 
@@ -27,8 +28,9 @@ public class TrayPanelWindowTests
         {
             var window = new TrayPanelWindow(TrayPanelSnapshots.Model(_ => { }));
             window.ShowNearTray();
-            Pump(TimeSpan.FromMilliseconds(200));
 
+            // Checked straight away, without pumping: the panel hides itself as soon as anything else on the runner
+            // takes the foreground (tests in other classes run in parallel). ShowNearTray has laid it out already.
             Assert.True(window.IsVisible);
             Assert.True(window.Topmost);
             Assert.False(window.ShowInTaskbar);
@@ -78,7 +80,8 @@ public class TrayPanelWindowTests
         {
             var vm = TrayPanelSnapshots.Model(_ => { });
             var window = new TrayPanelWindow(vm);
-            window.ShowNearTray();
+            window.Toggle(); // the very first click opens it (no earlier deactivation to guard against)
+            Assert.True(window.IsVisible);
             vm.ToggleMicMenu.Execute(null);
 
             window.HandleDeactivated();
@@ -146,33 +149,132 @@ public class TrayPanelWindowTests
         });
     }
 
-    [Fact]
-    public void Icon_HasTheFourTraySizes_AndLoadsAtTheSmallIconSize()
+    [Theory]
+    [InlineData("akoya.ico", true)]
+    [InlineData("akoya-dark.ico", false)]
+    public void Icons_HaveTheFourTraySizes_WhiteOrDarkDots(string file, bool white)
     {
         SnapshotHarness.RunSta(() =>
         {
-            var info = Application.GetResourceStream(new Uri("pack://application:,,,/Akoya.App;component/Assets/akoya.ico"));
+            var uri = new Uri($"pack://application:,,,/Akoya.App;component/Assets/{file}");
+            var info = Application.GetResourceStream(uri);
             Assert.NotNull(info);
             using (var stream = info.Stream)
             {
                 var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
                 Assert.Equal([16, 20, 24, 32], decoder.Frames.Select(f => f.PixelWidth).Order());
+
+                // The brightest opaque pixel of the 32 px frame: white dots or near-black ones.
+                var frame = new FormatConvertedBitmap(decoder.Frames.Single(f => f.PixelWidth == 32), PixelFormats.Bgra32, null, 0);
+                var pixels = new byte[32 * 32 * 4];
+                frame.CopyPixels(pixels, 32 * 4, 0);
+                var opaque = Enumerable.Range(0, 32 * 32).Where(i => pixels[i * 4 + 3] == 255).ToArray();
+                Assert.NotEmpty(opaque);
+                var red = opaque.Max(i => pixels[i * 4 + 2]);
+                if (white) Assert.Equal(255, red);
+                else Assert.InRange(red, 0, 0x40);
             }
 
-            using var icon = TrayIconHost.LoadIcon();
+            using var icon = TrayIconHost.LoadIcon(uri);
             Assert.InRange(icon.Width, 16, 32);
         });
     }
 
     [Fact]
-    public void TrayIconHost_CreatesTheIcon_AndOpensThePanel()
+    public void IconFor_DarkDotsOnTheLightTaskbar()
+    {
+        Assert.Equal(TrayIconHost.DarkIconUri, TrayIconHost.IconFor(lightTaskbar: true));
+        Assert.Equal(TrayIconHost.LightIconUri, TrayIconHost.IconFor(lightTaskbar: false));
+        _ = TrayIconHost.SystemUsesLightTheme(); // reads the registry without throwing
+    }
+
+    [Fact]
+    public void TrayIconHost_CreatesTheIcon_ClicksToggleThePanel_DisposeRemovesIt()
     {
         SnapshotHarness.RunSta(() =>
         {
-            using var host = new TrayIconHost(TrayPanelSnapshots.Model(_ => { }));
+            var light = true;
+            var host = new TrayIconHost(TrayPanelSnapshots.Model(_ => { }), () => light);
+            Assert.True(host.IsCreated);
             Assert.Equal("Akoya", TrayIconHost.ToolTip);
+            Assert.Equal(TrayIconHost.DarkIconUri, host.CurrentIconUri);
+
+            // The theme switches to dark: the white icon replaces the dark one.
+            light = false;
+            host.RefreshIcon();
+            Assert.Equal(TrayIconHost.LightIconUri, host.CurrentIconUri);
+
+            host.OnTrayLeftClick();
+            Assert.True(host.Panel.IsVisible);
+            host.OnTrayLeftClick();
+            Assert.False(host.Panel.IsVisible);
+            host.OnTrayRightClick();
+            Assert.True(host.Panel.IsVisible);
+            host.OnTrayRightClick();
+            Assert.False(host.Panel.IsVisible);
+
             host.ShowPanel();
             Assert.True(host.Panel.IsVisible);
+
+            host.Dispose();
+            Assert.False(host.IsCreated);
+            host.Dispose(); // idempotent
+        });
+    }
+
+    [Fact]
+    public void ViewModel_UpdatedFromWorkerThreads_WithAWindowAttached_ChangesArriveOnTheUiThread()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            var ui = Environment.CurrentManagedThreadId;
+            var vm = TrayPanelSnapshots.Model(_ => { });
+            var window = new TrayPanelWindow(vm);
+            var threads = new HashSet<int>();
+            vm.PropertyChanged += (_, _) => threads.Add(Environment.CurrentManagedThreadId);
+
+            // Throws on the worker if anything there touches the window (DependencyObjects are thread-bound).
+            Task.Run(() =>
+            {
+                vm.SetModel(ModelState.Loading, 0.5);
+                vm.SetLastDictation("From a worker.");
+            }).Wait();
+            Pump(TimeSpan.FromMilliseconds(100));
+            Assert.Equal("Getting the speech model ready… 50%", vm.StatusText);
+            Assert.True(vm.HasLastDictation);
+
+            Task.Run(() =>
+            {
+                vm.SetPhase(DictationPhase.Recording);
+                vm.SetVoiceLevel(1.0);
+            }).Wait();
+            Pump(TimeSpan.FromMilliseconds(100));
+            Assert.Equal("Listening", vm.StatusText);
+            Assert.Equal(1.0, vm.GlowStrength, 3);
+
+            Assert.Equal([ui], threads);
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void LaunchAtStartup_Fails_TheBoundSwitchFlipsBack()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            var calls = new List<bool>();
+            var vm = new TrayPanelViewModel(new TrayPanelActions { SetLaunchAtStartup = v => { calls.Add(v); return false; } });
+            var view = Laid(new TrayPanelView { DataContext = vm });
+            var toggle = (NeutralSwitch)view.FindName("StartupSwitch");
+
+            toggle.IsChecked = true; // the user flips it on
+            Pump(TimeSpan.FromMilliseconds(100));
+
+            Assert.Equal([true], calls);
+            Assert.False(vm.LaunchAtStartup);
+            Assert.False(toggle.IsChecked);
         });
     }
 
