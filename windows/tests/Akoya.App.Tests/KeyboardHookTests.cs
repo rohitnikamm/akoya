@@ -62,6 +62,8 @@ public class KeyboardHookTests
             Assert.InRange(hook.SinceLastKey, TimeSpan.Zero, TimeSpan.FromSeconds(5));
 
             Thread.Sleep(300);
+            // The hook is system-wide: someone typing on this PC meanwhile makes the silence check meaningless.
+            if (hook.KeysSeen > 0) return;
             var before = hook.SinceLastKey;
             Assert.True(before >= TimeSpan.FromMilliseconds(250), $"{before}");
             hook.Reinstall();
@@ -78,6 +80,8 @@ public class KeyboardHookTests
             using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
             hook.Install();
             Thread.Sleep(300);
+            // The hook is system-wide: someone typing on this PC meanwhile makes the silence checks meaningless.
+            if (hook.KeysSeen > 0) return;
 
             // Not silent that long (as when a key arrived after the watchdog looked): left alone, held keys kept.
             var keysBefore = hook.KeysSeen;
