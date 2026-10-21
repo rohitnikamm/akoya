@@ -1,0 +1,54 @@
+<!--
+  Akoya's colours, brushes and font (the Mac's AkoyaTheme, docs/design mockups). Merge it with
+  <ResourceDictionary Source="pack://application:,,,/Akoya.App;component/Theme/Theme.xaml"/> and use the keys
+  with DynamicResource so views also resolve them when hosted outside the app (snapshot tests).
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Font: Outfit (OFL, Fonts/OFL.txt), the variable font embedded as a resource; FontWeight picks its named instances. -->
+    <FontFamily x:Key="Akoya.FontFamily">pack://application:,,,/Akoya.App;component/Fonts/#Outfit</FontFamily>
+
+    <!-- Colours -->
+    <Color x:Key="Akoya.SurfaceColor">#03060F</Color>
+    <Color x:Key="Akoya.AccentColor">#2F6BFF</Color>
+    <Color x:Key="Akoya.AccentDarkColor">#1D4ED8</Color>
+    <Color x:Key="Akoya.AccentLightColor">#93C5FD</Color>
+    <Color x:Key="Akoya.AccentLightSoftColor">#BFDBFE</Color>
+    <Color x:Key="Akoya.AmberColor">#FBBF24</Color>
+    <Color x:Key="Akoya.RedColor">#EF4444</Color>
+    <Color x:Key="Akoya.GreenTextColor">#86EFAC</Color>
+    <Color x:Key="Akoya.GreenDotColor">#4ADE80</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="Akoya.Surface" Color="{StaticResource Akoya.SurfaceColor}" />
+    <SolidColorBrush x:Key="Akoya.Accent" Color="{StaticResource Akoya.AccentColor}" />
+    <SolidColorBrush x:Key="Akoya.AccentDark" Color="{StaticResource Akoya.AccentDarkColor}" />
+    <SolidColorBrush x:Key="Akoya.AccentLight" Color="{StaticResource Akoya.AccentLightColor}" />
+    <SolidColorBrush x:Key="Akoya.AccentLightSoft" Color="{StaticResource Akoya.AccentLightSoftColor}" />
+    <SolidColorBrush x:Key="Akoya.Amber" Color="{StaticResource Akoya.AmberColor}" />
+    <SolidColorBrush x:Key="Akoya.Red" Color="{StaticResource Akoya.RedColor}" />
+    <SolidColorBrush x:Key="Akoya.GreenText" Color="{StaticResource Akoya.GreenTextColor}" />
+    <SolidColorBrush x:Key="Akoya.GreenDot" Color="{StaticResource Akoya.GreenDotColor}" />
+
+    <!-- Primary button gradient, #2F6BFF to #1D4ED8 top to bottom. -->
+    <LinearGradientBrush x:Key="Akoya.AccentGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="{StaticResource Akoya.AccentColor}" />
+        <GradientStop Offset="1" Color="{StaticResource Akoya.AccentDarkColor}" />
+    </LinearGradientBrush>
+
+    <!-- Text levels (white at 1.0 / 0.9 / 0.6 / 0.5, as on the Mac). -->
+    <SolidColorBrush x:Key="Akoya.TextPrimary" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Akoya.TextBody" Color="#E6FFFFFF" />
+    <SolidColorBrush x:Key="Akoya.TextMuted" Color="#99FFFFFF" />
+    <SolidColorBrush x:Key="Akoya.TextEyebrow" Color="#80FFFFFF" />
+
+    <!-- Pill (docs/design/windows-pill-mockup.html .pill) -->
+    <LinearGradientBrush x:Key="Akoya.PillBackground" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#EB0E1222" />
+        <GradientStop Offset="1" Color="#F0090D1E" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Akoya.PillDot" Color="#DBE6FF" />
+    <SolidColorBrush x:Key="Akoya.PillTimer" Color="#80FFFFFF" />
+    <SolidColorBrush x:Key="Akoya.PillLabel" Color="#D9FFFFFF" />
+</ResourceDictionary>
