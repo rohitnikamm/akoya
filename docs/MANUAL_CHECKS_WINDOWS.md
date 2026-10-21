@@ -49,9 +49,10 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Holding the hotkey does not auto-repeat into the app or start extra recordings.
 
 ## Pill and displays
-- [ ] The pill is 34 px tall, centred horizontally, just above the taskbar. It never takes focus, you can click through it, and it has no taskbar button and is not in Alt+Tab.
+- [ ] The pill is 34 px tall, centred horizontally, with a clear gap (52 px at 100% scale) above the top of the taskbar. It never takes focus, you can click through it, and it has no taskbar button and is not in Alt+Tab.
+- [ ] Turn on "Automatically hide the taskbar" (Settings, Personalization, Taskbar, Taskbar behaviors) and dictate: the pill sits at the same height as with auto-hide off (about 100 px above the screen's bottom edge at 100%), and moving the mouse to the bottom edge pops the taskbar up below the pill without covering it. Turn auto-hide off again and check the height is unchanged.
 - [ ] With two monitors, dictate with a window on each: the pill shows on the monitor that holds the window you are typing into. Check it at least once on a monitor with a different display scale (for example 100% and 150%): same size relative to the screen and the same gap above the taskbar.
-- [ ] Taskbar on top or on the side, or auto-hidden: the pill stays inside the work area.
+- [ ] Taskbar on top or on the side (with a tool such as ExplorerPatcher on Windows 11): the pill is 52 px above the bottom of the screen and stays inside the work area. With two monitors and the taskbar shown on all displays, the pill keeps the same gap above the second monitor's taskbar.
 - [ ] Exclusive-fullscreen game: the pill is hidden (accepted) but dictation still pastes. A borderless-window game shows the pill.
 
 ## Pasting and the clipboard

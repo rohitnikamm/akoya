@@ -85,7 +85,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 
 | Feature | Mac | Windows | Status |
 | --- | --- | --- | --- |
-| Where | Menu bar item, left of Control Center, keeps a Cmd-dragged position | Pill centred on the work area of the monitor holding the foreground window (primary if none), bottom 18 DIP above the work area, per-monitor DPI | Different on purpose (no menu bar on Windows) |
+| Where | Menu bar item, left of Control Center, keeps a Cmd-dragged position | Pill centred on the work area of the monitor holding the foreground window (primary if none), bottom 52 DIP above the top of that monitor's taskbar (100 DIP above the screen's bottom with the default taskbar), per-monitor DPI | Different on purpose (no menu bar on Windows) |
 | At rest | Five-bar glyph (4, 8, 12, 8, 4 pt), 28 pt wide | Nothing (pill hidden) | Different on purpose (the tray icon sits in the overflow) |
 | Listening | Live waveform, 22 columns, item widens to 77 pt | Live dot waveform, 23 columns by 4 rows of 3 px dots; middle rows lit from step 2, outer rows rise from step 4 and are full at step 7; plus a timer "m:ss" | Different on purpose (pill design; the menu bar has no room for a timer) |
 | Waveform look | Pixel (stacked 2 pt cells) or Solid (bars), user choice | Dots only | Proposed (see Tray panel: Pill row) |
@@ -96,7 +96,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Colours | Menu bar primary (black or white per menu bar); system red for tint and error | Dark glass (`#0E1222` to `#090D1E`), dots `#DBE6FF`, blue rim glow `#2F6BFF`, red `#EF4444`, timer white 50%, label white 85% | Different on purpose (menu bar vs floating pill) |
 | Show and hide motion | Width tween 0.22 s, cubic-bezier(0.2, 0.8, 0.2, 1), content pinned right; cross-fade over the first 35% (0.12 s when the width does not change) | Pops in from hidden (below); fades and sinks out 0.28 s (10 px, scale 0.94), cubic-bezier(.2,.8,.2,1); shown again while fading out, it fades and rises back; animation effects off: plain fade in, instant hide | Different on purpose (menu bar vs floating pill) |
 | Pop-in animation | Not applicable (no pill) | "Jelly" pop, 0.42 s: a 34 DIP circle grows in (scale 0.55 to 1, slight overshoot), stretches to 107% width and 92% height, springs to 98.5% and 103%, settles; contents fade in from 45%; recording and the timer start at once; plain 0.28 s fade with Windows' animation effects off | Different on purpose (the Mac has no pill) |
-| Auto-hidden taskbar | Not applicable | Today the pill sits 18 DIP above the screen edge and the popped-up taskbar covers it. Proposed: keep the pill above the taskbar's height when it auto-hides | Proposed |
+| Auto-hidden taskbar | Not applicable (no pill) | The pill is placed as if the taskbar were showing (52 DIP above its top), so it is at the same height shown or hidden and the popped-up taskbar never covers it | Different on purpose (the Mac has no pill) |
 | Reduce motion | Reduce Motion: width jumps, short cross-fade only | "Animation effects" off: fades jump to the end | Same |
 | During setup practice | The menu bar item still shows listening and transcribing | Pill stays hidden; the Try it card shows the dictation | Different on purpose (Windows: the card is the feedback) |
 | Focus and clicks | Item is clickable (opens the dropdown) | Click-through, never takes focus, topmost, no taskbar button, not in Alt+Tab | Different on purpose (the pill only shows while talking) |

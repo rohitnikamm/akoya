@@ -124,8 +124,15 @@ Data on disk:
 5. **Max 300 s** → stops as if released.
 
 Target monitor: `MonitorFromWindow(GetForegroundWindow(), MONITOR_DEFAULTTOPRIMARY)`, pill centred
-horizontally on that monitor's work area, bottom edge 18 px (DPI-scaled) above the work area's
-bottom. Per-monitor-v2 DPI aware.
+horizontally on that monitor's work area, bottom edge 52 DIP (DPI-scaled) above the top of that
+monitor's taskbar measured as if the taskbar were showing, so it sits at the same height whether
+the taskbar is shown or auto-hidden (with the default 48 DIP taskbar: 100 DIP above the screen's
+bottom). The taskbar is the `Shell_TrayWnd` or `Shell_SecondaryTrayWnd` window on that monitor
+(`MonitorFromWindow`), its thickness the height of its rectangle (the same shown or hidden), and
+auto-hide comes from `SHAppBarMessage(ABM_GETSTATE)`. Taskbar at the bottom: shown, the gap is
+measured from the work area's bottom; auto-hidden, from the monitor's bottom minus the thickness.
+Taskbar on another edge, or none on that monitor: from the work area's bottom. Always clamped
+inside the work area. Per-monitor-v2 DPI aware.
 
 Pill window: borderless, transparent, topmost, `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW |
 WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in Alt+Tab).

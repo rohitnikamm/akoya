@@ -47,7 +47,8 @@ public class PillWindowTests
             var pill = window.PillScreenRectPx();
             var work = SystemParameters.WorkArea; // primary monitor, DIP
             var scale = VisualScale(window);
-            Assert.InRange(pill.Bottom, work.Bottom * scale - 18 * scale - 1, work.Bottom * scale - 18 * scale + 1);
+            // 52 DIP above the top of the runner's (shown, bottom) taskbar, which is the work area's bottom.
+            Assert.InRange(pill.Bottom, work.Bottom * scale - 52 * scale - 1, work.Bottom * scale - 52 * scale + 1);
             Assert.InRange(pill.Left + pill.Width / 2, work.Left * scale + work.Width * scale / 2 - 1.5, work.Left * scale + work.Width * scale / 2 + 1.5);
 
             window.FadeOut();
@@ -63,6 +64,24 @@ public class PillWindowTests
             Assert.True(window.IsVisible);
 
             window.Close();
+        });
+    }
+
+    [Fact]
+    public void TaskbarOn_PrimaryMonitor_FindsTheBottomTaskbarAtTheWorkAreasBottom()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var monitor = MonitorFromWindow(IntPtr.Zero, 1); // primary
+            var taskbar = PillPlacer.TaskbarOn(monitor);
+
+            Assert.NotNull(taskbar);
+            var bounds = taskbar.Value.Bounds;
+            Assert.True(bounds.Width > bounds.Height, $"not horizontal: {bounds}");
+            Assert.False(taskbar.Value.AutoHide);
+            // Shown at the bottom: its top is the work area's bottom (SystemParameters is DIP; compare in pixels).
+            var scale = System.Windows.Media.VisualTreeHelper.GetDpi(new System.Windows.Controls.Border()).DpiScaleX;
+            Assert.InRange(bounds.Y, SystemParameters.WorkArea.Bottom * scale - 1, SystemParameters.WorkArea.Bottom * scale + 1);
         });
     }
 
@@ -99,6 +118,10 @@ public class PillWindowTests
     {
         SnapshotHarness.RunSta(() =>
         {
+            // The CI runner has Windows' animation effects off.
+            var previous = PillWindow.AnimationsEnabled;
+            PillWindow.AnimationsEnabled = () => true;
+            using var restore = new Restore(() => PillWindow.AnimationsEnabled = previous);
             var window = new PillWindow();
             var vm = new PillViewModel();
             vm.Apply(DictationPhase.Recording);
@@ -182,6 +205,11 @@ public class PillWindowTests
         });
     }
 
+    private sealed class Restore(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
+    }
+
     private static PillViewModel Listening()
     {
         var vm = new PillViewModel();
@@ -209,4 +237,7 @@ public class PillWindowTests
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
 }
