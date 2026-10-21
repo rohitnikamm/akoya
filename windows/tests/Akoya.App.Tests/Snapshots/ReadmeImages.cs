@@ -8,8 +8,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Path = System.IO.Path;
 using Akoya.App.Pill;
-using Akoya.App.Setup;
-using Akoya.App.Tests.Setup;
 using Akoya.App.Tray;
 using Akoya.Core.Dictation;
 using Akoya.Core.Ui;
@@ -72,40 +70,6 @@ public class ReadmeImages
             Canvas.SetTop(panel, h - TaskbarHeight - 12 - panel.ActualHeight);
 
             Save(Render(desk, w, h, 2), Path.Combine(dir, "windows-hero.png"));
-        });
-    }
-
-    /// <summary>Setup's three steps side by side: Welcome, Microphone, Try it.</summary>
-    [Fact]
-    public void Setup()
-    {
-        if (OutputDirectory is not { } dir) return;
-        SnapshotHarness.RunSta(() =>
-        {
-            var welcome = new SetupRig(Devices.Laptop(), Devices.Buds(), Devices.Webcam());
-
-            var mic = new SetupRig(Devices.Laptop(), Devices.Buds(), Devices.Webcam());
-            mic.Model.GetStarted();
-            mic.Talk(0.4, ("laptop", 7), ("buds", 1), ("cam", 3));
-
-            var tryIt = new SetupRig(Devices.Laptop(), Devices.Buds(), Devices.Webcam());
-            tryIt.Model.GetStarted();
-            tryIt.Model.Continue();
-            tryIt.Practice.Phase(DictationPhase.Recording);
-            foreach (var step in new[] { 1, 2, 3, 5, 6, 5, 3, 2, 3, 5, 6, 7, 6, 5, 3, 2, 3, 5, 6, 5, 3, 2, 1 })
-                tryIt.Practice.Rms((float)Math.Pow(10, (-50 + (step - 0.5) * 40 / 7.0) / 20));
-            tryIt.Practice.Text("Okay, this is actually really smooth.", false);
-
-            const double w = 1260, h = 600;
-            var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            foreach (var rig in new[] { welcome, mic, tryIt })
-                row.Children.Add(new SetupView { DataContext = rig.Model, Margin = new Thickness(15, 0, 15, 0), VerticalAlignment = VerticalAlignment.Center });
-            var page = new Grid();
-            page.Resources.MergedDictionaries.Add(PillSnapshots.Theme());
-            page.Children.Add(new Rectangle { Fill = DeskBrush(w, h) });
-            page.Children.Add(row);
-
-            Save(Render(page, w, h, 2), Path.Combine(dir, "windows-setup.png"));
         });
     }
 
