@@ -332,7 +332,7 @@ public class SetupViewModelTests
 
         Assert.False(rig.Model.IsRecording);
         Assert.Equal(PracticeCardKind.RetryHint, rig.Model.CardKind);
-        Assert.Equal("Didn't catch that, try again", rig.Model.CardText);
+        Assert.Equal("Didn't catch that. Try again.", rig.Model.CardText);
         Assert.False(rig.Model.DoneReady);
     }
 
@@ -457,5 +457,98 @@ public class SetupViewModelTests
     public void HotkeyLabel_DefaultsToRightAlt()
     {
         Assert.Equal("Right Alt", Laptop3().Model.HotkeyLabel);
+    }
+
+    [Fact]
+    public void SpeechOnset_AfterLongSilence_OtherMicFirstBy200ms_NeverAmber()
+    {
+        var rig = AtMicrophone(Laptop3());
+        var seen = new List<MicStatusKind>();
+        rig.Model.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SetupViewModel.Status)) seen.Add(rig.Model.Status); };
+
+        rig.Talk(10, ("laptop", 1), ("buds", 1), ("cam", 1));
+        rig.Talk(0.2, ("laptop", 1), ("buds", 1), ("cam", 6));
+        rig.Talk(5, ("laptop", 6), ("buds", 1), ("cam", 6));
+
+        Assert.DoesNotContain(MicStatusKind.NotHearing, seen);
+        Assert.Equal(MicStatusKind.HearingYou, rig.Model.Status);
+    }
+
+    [Fact]
+    public void LoopbackInputHearingSound_NobodySpeaking_NoChip()
+    {
+        var rig = AtMicrophone(new SetupRig(Devices.Laptop(), Devices.StereoMix()));
+        var seen = new List<MicStatusKind>();
+        rig.Model.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SetupViewModel.Status)) seen.Add(rig.Model.Status); };
+
+        rig.Talk(10, ("laptop", 1), ("mix", 6));
+
+        Assert.Empty(seen);
+        Assert.Equal(MicStatusKind.None, rig.Model.Status);
+        Assert.Equal(7, rig.Model.MoreMics[0].LitDots); // still metered
+    }
+
+    [Fact]
+    public void Status_ClearsAfterThreeSecondsWithNoSpeechAnywhere()
+    {
+        var rig = AtMicrophone(Laptop3());
+        rig.Talk(0.5, ("laptop", 6));
+        Assert.Equal(MicStatusKind.HearingYou, rig.Model.Status);
+
+        rig.Talk(3.2, ("laptop", 1), ("buds", 1), ("cam", 1));
+
+        Assert.Equal(MicStatusKind.None, rig.Model.Status);
+    }
+
+    [Fact]
+    public void Status_ClearsWhenMetersRestart()
+    {
+        var rig = AtMicrophone(Laptop3());
+        rig.Talk(0.5, ("laptop", 6));
+        Assert.Equal(MicStatusKind.HearingYou, rig.Model.Status);
+
+        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+
+        Assert.Equal(MicStatusKind.None, rig.Model.Status);
+    }
+
+    [Fact]
+    public void NoMics_ContinueIsInert()
+    {
+        var rig = AtMicrophone(new SetupRig());
+        var chosen = 0;
+        rig.Model.MicChosen += _ => chosen++;
+
+        Assert.False(rig.Model.CanContinue);
+        Assert.Equal("No mic found", rig.Model.MicTitle);
+        rig.Model.Continue();
+        rig.Model.PrimaryAction();
+
+        Assert.Equal(SetupStep.Microphone, rig.Model.Step);
+        Assert.Equal(0, chosen);
+
+        rig.Catalog.Change(Devices.Laptop());
+        Assert.True(rig.Model.CanContinue);
+    }
+
+    [Fact]
+    public void TryIt_LostSecondTake_KeepsThePreviousGoodText()
+    {
+        var rig = AtTryIt(Laptop3());
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Text("First take.", true);
+        rig.Practice.Phase(DictationPhase.Idle);
+
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Text("Second", false);
+        rig.Practice.Phase(DictationPhase.Idle); // Stop threw: no final
+        Assert.Equal("First take.", rig.Model.CardText);
+        Assert.Equal(PracticeCardKind.Text, rig.Model.CardKind);
+
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Text("", true); // empty final
+        rig.Practice.Phase(DictationPhase.Idle);
+        Assert.Equal("First take.", rig.Model.CardText);
+        Assert.True(rig.Model.DoneReady);
     }
 }

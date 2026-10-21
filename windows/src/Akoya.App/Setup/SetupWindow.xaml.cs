@@ -1,13 +1,13 @@
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 
 namespace Akoya.App.Setup;
 
 /// <summary>
-/// Hosts setup. Closes itself when <see cref="SetupViewModel.Finished"/> fires (Done, Skip, ✕); Alt+F4 counts as ✕.
-/// Enter presses the step's primary button. <see cref="Dismiss"/> closes it without finishing (e.g. the app quits).
-/// The view model is disposed when the window closes.
+/// Hosts setup. Only the user's ✕, Skip or Done end setup (<see cref="SetupViewModel.Finished"/>, which closes the
+/// window). Every other close (Alt+F4, the taskbar's Close, the host's <see cref="Window.Close"/> or
+/// <see cref="Dismiss"/>, Application.Shutdown, Windows signing out) is a dismissal: setup is not marked done and shows
+/// again next launch. Enter presses the step's primary button. The view model is disposed when the window closes.
 /// </summary>
 public partial class SetupWindow : Window
 {
@@ -26,12 +26,8 @@ public partial class SetupWindow : Window
         CentreOnPrimaryWorkArea();
     }
 
-    /// <summary>Closes the window without ending setup (it shows again next launch).</summary>
-    public void Dismiss()
-    {
-        _closing = true;
-        Close();
-    }
+    /// <summary>Closes the window without ending setup (it shows again next launch). Same as <see cref="Window.Close"/>.</summary>
+    public void Dismiss() => Close();
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
@@ -44,20 +40,11 @@ public partial class SetupWindow : Window
         }
     }
 
-    protected override void OnClosing(CancelEventArgs e)
-    {
-        base.OnClosing(e);
-        // Alt+F4 or the taskbar's Close: same as ✕.
-        if (!_closing && !e.Cancel)
-        {
-            _closing = true;
-            _model.Skip();
-        }
-    }
-
     protected override void OnClosed(EventArgs e)
     {
+        _closing = true;
         _model.Finished -= OnFinished;
+        // Tears down meters and practice without raising Finished: a close that wasn't ✕/Skip/Done never marks setup done.
         _model.Dispose();
         base.OnClosed(e);
     }
@@ -72,8 +59,7 @@ public partial class SetupWindow : Window
     private void CentreOnPrimaryWorkArea()
     {
         var area = SystemParameters.WorkArea;
-        var card = new Size(Card.Width, Card.Height);
-        Left = area.Left + (area.Width - card.Width) / 2 - ShadowPadding.Left;
-        Top = area.Top + (area.Height - card.Height) / 2 - ShadowPadding.Top;
+        Left = area.Left + (area.Width - Card.Width) / 2 - ShadowPadding.Left;
+        Top = area.Top + (area.Height - Card.Height) / 2 - ShadowPadding.Top;
     }
 }

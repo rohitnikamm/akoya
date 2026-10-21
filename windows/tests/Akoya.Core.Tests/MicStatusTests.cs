@@ -9,92 +9,139 @@ public class MicStatusTests
 
     private static DateTimeOffset At(double seconds) => T0 + TimeSpan.FromSeconds(seconds);
 
-    private static Dictionary<string, (int step, DateTimeOffset at)> Recent(params (string id, int step, double at)[] entries) =>
-        entries.ToDictionary(e => e.id, e => (e.step, At(e.at)));
+    /// <summary>Feeds 40 ms meter windows from <paramref name="from"/> to <paramref name="to"/> seconds.</summary>
+    private static void Feed(MicStatusTracker tracker, double from, double to, Func<double, (string id, int step, bool more)[]> steps,
+        Action<double>? after = null)
+    {
+        for (var i = 0; from + i * 0.04 < to - 1e-9; i++)
+        {
+            var t = from + i * 0.04;
+            foreach (var (id, step, more) in steps(t)) tracker.Record(id, step, more, At(t));
+            after?.Invoke(t);
+        }
+    }
+
+    private static MicActivity Speech(double last, double runStart, bool more = false) => new(At(last), At(runStart), more);
 
     [Fact]
     public void BeforeAnySpeech_IsNone()
     {
-        // Listening to the highlighted mic began at 0; nobody has said anything.
-        var recent = Recent(("buds", 1, 0));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(0)));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(10)));
+        var activity = new Dictionary<string, MicActivity> { ["buds"] = default, ["laptop"] = default };
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", activity, At(0)));
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", activity, At(10)));
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("", activity, At(10)));
     }
 
     [Fact]
-    public void HighlightedWithoutEntry_IsNone()
+    public void HighlightedHearsSpeech_IsHearingYou_ForHalfASecond()
     {
-        var recent = Recent(("laptop", 6, 5));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(5)));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("", recent, At(5)));
+        var activity = new Dictionary<string, MicActivity> { ["laptop"] = Speech(2, 1) };
+        Assert.Equal(MicStatusKind.HearingYou, MicStatus.Evaluate("laptop", activity, At(2)));
+        Assert.Equal(MicStatusKind.HearingYou, MicStatus.Evaluate("laptop", activity, At(2.5)));
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("laptop", activity, At(2.51)));
     }
 
     [Fact]
-    public void HighlightedHearsSpeech_IsHearingYou()
+    public void OtherMicSpeakingThreeSeconds_WhileHighlightedQuiet_IsNotHearing()
     {
-        var recent = Recent(("laptop", 5, 2), ("cam", 3, 2));
-        Assert.Equal(MicStatusKind.HearingYou, MicStatus.Evaluate("laptop", recent, At(2)));
-        Assert.Equal(MicStatusKind.HearingYou, MicStatus.Evaluate("laptop", recent, At(2.5)));
+        var activity = new Dictionary<string, MicActivity> { ["buds"] = default, ["laptop"] = Speech(12.9, 10) };
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", activity, At(12.9)));
+
+        activity["laptop"] = Speech(13, 10);
+        Assert.Equal(MicStatusKind.NotHearing, MicStatus.Evaluate("buds", activity, At(13)));
     }
 
     [Fact]
-    public void Hearing_ExpiresAfterHalfASecond()
+    public void HighlightedHeardPartOfTheRun_IsNotNotHearing()
     {
-        var recent = Recent(("laptop", 5, 2));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("laptop", recent, At(2.51)));
+        var activity = new Dictionary<string, MicActivity> { ["buds"] = Speech(10.2, 10.2), ["laptop"] = Speech(14, 10) };
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", activity, At(14)));
     }
 
     [Fact]
-    public void QuietStepOnHighlighted_IsNotHearingYou()
+    public void OtherMicStoppedSpeaking_IsNotNotHearing()
     {
-        // Step 2 is still the silence gate, not speech.
-        var recent = Recent(("laptop", 2, 2));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("laptop", recent, At(2)));
+        var activity = new Dictionary<string, MicActivity> { ["buds"] = default, ["laptop"] = Speech(14, 10) };
+        Assert.Equal(MicStatusKind.NotHearing, MicStatus.Evaluate("buds", activity, At(14.6)));
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", activity, At(14.61)));
     }
 
     [Fact]
-    public void HighlightedQuiet_OtherHearsSpeech_IsNotHearingAfterThreeSeconds()
+    public void MoreInputs_NeverCountAsAnotherMicHearingYou()
     {
-        // Galaxy Buds highlighted at 0; the laptop mic hears the user.
-        var early = Recent(("buds", 1, 0), ("laptop", 6, 2.9));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", early, At(2.9)));
-
-        var later = Recent(("buds", 1, 0), ("laptop", 6, 3));
-        Assert.Equal(MicStatusKind.NotHearing, MicStatus.Evaluate("buds", later, At(3)));
+        var activity = new Dictionary<string, MicActivity> { ["laptop"] = default, ["mix"] = Speech(20, 0, more: true) };
+        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("laptop", activity, At(20)));
     }
 
     [Fact]
-    public void QuietTime_CountsFromTheHighlightedMicsLastSpeech()
+    public void Tracker_AfterTenSecondsOfSilence_OtherMicFirstBy200ms_NeverNotHearing()
     {
-        // The buds heard speech at 4, then went quiet while the laptop kept hearing it.
-        var recent = Recent(("buds", 5, 4), ("laptop", 6, 6.9));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(6.9)));
+        var tracker = new MicStatusTracker();
+        var seen = new List<MicStatusKind>();
+        Feed(tracker, 0, 10, _ => [("laptop", 1, false), ("buds", 1, false)], t => seen.Add(tracker.Update("laptop", At(t))));
+        // The buds start hearing the user 200 ms before the highlighted laptop mic does, then both keep hearing.
+        Feed(tracker, 10, 16, t => [("buds", 6, false), ("laptop", t >= 10.2 ? 6 : 1, false)],
+            t => seen.Add(tracker.Update("laptop", At(t))));
 
-        recent = Recent(("buds", 5, 4), ("laptop", 6, 7));
-        Assert.Equal(MicStatusKind.NotHearing, MicStatus.Evaluate("buds", recent, At(7)));
+        Assert.DoesNotContain(MicStatusKind.NotHearing, seen);
+        Assert.Equal(MicStatusKind.HearingYou, seen[^1]);
     }
 
     [Fact]
-    public void NotHearing_NeverFiresWhenNoOtherMicHearsSpeech()
+    public void Tracker_OtherMicSpeaksThreeSeconds_WhileHighlightedSilent_NotHearing()
     {
-        var recent = Recent(("buds", 1, 0), ("laptop", 2, 1), ("cam", 1, 1));
-        foreach (var seconds in new[] { 0.0, 3, 5, 30, 300 })
-            Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(seconds)));
+        var tracker = new MicStatusTracker();
+        Feed(tracker, 0, 10, _ => [("laptop", 1, false), ("buds", 1, false)]);
+        var seen = new List<(double t, MicStatusKind kind)>();
+        Feed(tracker, 10, 13.2, _ => [("laptop", 7, false), ("buds", 1, false)], t => seen.Add((t, tracker.Update("buds", At(t)))));
+
+        Assert.All(seen.Where(s => s.t < 12.99), s => Assert.Equal(MicStatusKind.None, s.kind));
+        Assert.Equal(MicStatusKind.NotHearing, seen[^1].kind);
     }
 
     [Fact]
-    public void NotHearing_NeedsTheOtherMicsSpeechDuringTheQuietTime()
+    public void Tracker_PausesBetweenWords_KeepTheRun()
     {
-        // The laptop heard speech before the buds were highlighted (at 5), not since.
-        var recent = Recent(("buds", 1, 5), ("laptop", 6, 4));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(8)));
+        var tracker = new MicStatusTracker();
+        // Words with 0.4 s gaps: one run from 0.
+        Feed(tracker, 0, 3.2, t => [("laptop", t % 1 < 0.6 ? 6 : 1, false), ("buds", 1, false)]);
+        Assert.Equal(MicStatusKind.NotHearing, tracker.Update("buds", At(3.2)));
     }
 
     [Fact]
-    public void NotHearing_EndsThreeSecondsAfterTheOtherMicsLastSpeech()
+    public void Tracker_StereoMixLoud_NobodySpeaking_NoChip()
     {
-        var recent = Recent(("buds", 1, 0), ("laptop", 6, 4));
-        Assert.Equal(MicStatusKind.NotHearing, MicStatus.Evaluate("buds", recent, At(7)));
-        Assert.Equal(MicStatusKind.None, MicStatus.Evaluate("buds", recent, At(7.01)));
+        var tracker = new MicStatusTracker();
+        var seen = new List<MicStatusKind>();
+        Feed(tracker, 0, 10, _ => [("laptop", 1, false), ("mix", 6, true)], t => seen.Add(tracker.Update("laptop", At(t))));
+        Assert.All(seen, s => Assert.Equal(MicStatusKind.None, s));
+    }
+
+    [Fact]
+    public void Tracker_StatusOutlivesWordGaps_ButNotThreeSecondsOfSilence()
+    {
+        var tracker = new MicStatusTracker();
+        Feed(tracker, 0, 1, _ => [("laptop", 6, false)]);
+        Assert.Equal(MicStatusKind.HearingYou, tracker.Update("laptop", At(1)));
+
+        Feed(tracker, 1, 2.5, _ => [("laptop", 1, false)]);
+        Assert.Equal(MicStatusKind.HearingYou, tracker.Update("laptop", At(2.5)));
+
+        Feed(tracker, 2.5, 4.1, _ => [("laptop", 1, false)]);
+        Assert.Equal(MicStatusKind.None, tracker.Update("laptop", At(4.1)));
+    }
+
+    [Fact]
+    public void Tracker_ResetForgetsEverything()
+    {
+        var tracker = new MicStatusTracker();
+        Feed(tracker, 0, 3.2, _ => [("laptop", 7, false), ("buds", 1, false)]);
+        Assert.Equal(MicStatusKind.NotHearing, tracker.Update("buds", At(3.2)));
+
+        tracker.Reset();
+
+        Assert.Equal(MicStatusKind.None, tracker.Shown);
+        Assert.Empty(tracker.Activity);
+        Assert.Equal(MicStatusKind.None, tracker.Update("buds", At(3.2)));
     }
 }
