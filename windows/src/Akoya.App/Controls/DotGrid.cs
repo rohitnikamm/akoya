@@ -42,6 +42,10 @@ public sealed class DotGrid : FrameworkElement
         nameof(DefaultOpacity), typeof(double), typeof(DotGrid),
         new FrameworkPropertyMetadata(0.12, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    private readonly SolidColorBrush?[] _faded = new SolidColorBrush?[256];
+    private Color _fadedColor;
+    private double _fadedOpacity = double.NaN;
+
     public int Columns
     {
         get => (int)GetValue(ColumnsProperty);
@@ -104,6 +108,7 @@ public sealed class DotGrid : FrameworkElement
         var brush = DotBrush;
         if (brush is null || Columns <= 0 || Rows <= 0) return;
 
+        var solid = brush as SolidColorBrush;
         var opacities = Opacities;
         var size = DotSize;
         var pitch = size + Gap;
@@ -118,11 +123,39 @@ public sealed class DotGrid : FrameworkElement
                 opacity = Math.Clamp(opacity, 0, 1);
                 if (opacity <= 0) continue;
 
-                drawingContext.PushOpacity(opacity);
-                drawingContext.DrawEllipse(brush, null, new Point(column * columnPitch + radius, row * pitch + radius), radius, radius);
-                drawingContext.Pop();
+                var center = new Point(column * columnPitch + radius, row * pitch + radius);
+                if (solid is not null)
+                {
+                    drawingContext.DrawEllipse(FadedBrush(solid, opacity), null, center, radius, radius);
+                }
+                else
+                {
+                    drawingContext.PushOpacity(opacity);
+                    drawingContext.DrawEllipse(brush, null, center, radius, radius);
+                    drawingContext.Pop();
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// A frozen copy of <paramref name="brush"/> at <paramref name="opacity"/>, quantised to 1/255 (the alpha precision
+    /// anyway) and cached, so a frame of dots allocates nothing and needs no PushOpacity per dot.
+    /// </summary>
+    private SolidColorBrush FadedBrush(SolidColorBrush brush, double opacity)
+    {
+        if (_fadedColor != brush.Color || _fadedOpacity != brush.Opacity)
+        {
+            Array.Clear(_faded);
+            _fadedColor = brush.Color;
+            _fadedOpacity = brush.Opacity;
+        }
+
+        var level = (int)Math.Round(opacity * 255);
+        if (_faded[level] is { } cached) return cached;
+        var faded = new SolidColorBrush(brush.Color) { Opacity = brush.Opacity * level / 255.0 };
+        faded.Freeze();
+        return _faded[level] = faded;
     }
 
     private double Extent(int count, double gap) => count <= 0 ? 0 : count * DotSize + (count - 1) * gap;

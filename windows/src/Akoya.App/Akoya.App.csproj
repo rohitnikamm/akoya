@@ -13,6 +13,7 @@
     <PackageReference Include="org.k2fsa.sherpa.onnx" />
     <PackageReference Include="SharpCompress" />
     <InternalsVisibleTo Include="Akoya.App.Tests" />
+    <PackageReference Include="NAudio.Wasapi" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Akoya.Core\Akoya.Core.csproj" />

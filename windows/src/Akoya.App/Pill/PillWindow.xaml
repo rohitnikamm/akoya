@@ -30,6 +30,8 @@
                 <TranslateTransform x:Name="RiseShift" Y="10" />
             </TransformGroup>
         </Grid.RenderTransform>
-        <pill:PillView x:Name="View" />
+        <!-- Top-left at its desired size, so the window's pixel-rounded size never stretches it (and the prewarmed
+             rim-glow rasters, keyed by that size, are the ones drawn). -->
+        <pill:PillView x:Name="View" HorizontalAlignment="Left" VerticalAlignment="Top" />
     </Grid>
 </Window>
