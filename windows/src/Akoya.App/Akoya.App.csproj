@@ -16,6 +16,7 @@
   <ItemGroup>
     <PackageReference Include="org.k2fsa.sherpa.onnx" />
     <PackageReference Include="SharpCompress" />
+    <PackageReference Include="H.NotifyIcon.Wpf" />
     <InternalsVisibleTo Include="Akoya.App.Tests" />
     <PackageReference Include="NAudio.Wasapi" />
     <PackageReference Include="Velopack" />
@@ -26,6 +27,8 @@
   <ItemGroup>
     <!-- Outfit (OFL 1.1, Fonts/OFL.txt), the Mac's variable font; WPF picks its named weight instances. -->
     <Resource Include="Fonts\Outfit-Variable.ttf" />
+    <!-- The tray icon (windows/scripts/make-tray-icon.py). -->
+    <Resource Include="Assets\akoya.ico" />
     <None Include="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
