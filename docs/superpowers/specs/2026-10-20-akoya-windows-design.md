@@ -193,7 +193,7 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
      value "Pixel"/"Solid" and a › that turns when open, collapsed whenever the panel opens; inside,
      "Waveform" Pixel | Solid as a neutral segmented control and "Red while recording" as a neutral
      switch, off by default; no note line, since Hide when idle is left out), Launch at startup
-     (switch). When an update is ready: an "Update ready · Restart" row with a blue button.
+     (switch). When an update is ready: an "Update ready · Restart" row; Restart is a light-blue text link like Copy.
      Pill options apply at once, also to a pill on screen. Solid: per column one 3 DIP bar with
      round ends, centred on the dot rows, one dot tall at the quietest step rising linearly to the
      four rows' 18 DIP at the loudest (the transcribing sweep: bars the centre two rows tall, 8 DIP). Red while
