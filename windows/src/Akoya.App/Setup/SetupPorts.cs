@@ -1,3 +1,4 @@
+using Akoya.Core.Dictation;
 using Akoya.Core.Mics;
 
 namespace Akoya.App.Setup;
@@ -34,4 +35,26 @@ public interface IMicPrivacy
 
     /// <summary>Opens Settings > Privacy > Microphone (<c>ms-settings:privacy-microphone</c>).</summary>
     void OpenSettings();
+}
+
+/// <summary>
+/// The dictation coordinator as setup's Try it card sees it (<see cref="CoordinatorPractice"/> wraps the real one).
+/// Events are raised on the UI thread.
+/// </summary>
+public interface IPracticeDictation
+{
+    /// <summary>The coordinator's phase changed.</summary>
+    event Action<DictationPhase>? PhaseChanged;
+
+    /// <summary>RMS of the recording, 0...1, about 25 Hz while recording; 0 when it stops.</summary>
+    event Action<float>? Level;
+
+    /// <summary>
+    /// Sends dictations to <paramref name="onText"/> instead of pasting them: live partials (<c>isFinal = false</c>) while
+    /// recording, then the final transcript, possibly empty.
+    /// </summary>
+    void Begin(Action<string, bool> onText);
+
+    /// <summary>Cancels a practice recording still running and switches dictation back to pasting.</summary>
+    void End();
 }
