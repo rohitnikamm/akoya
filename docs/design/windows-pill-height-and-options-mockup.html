@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pill Height and Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of three review sections (pill height, matching the Mac's options, rare messages). Deliberately dark-only, like Akoya itself. */
+:root{--blue:#2F6BFF;--blue2:#1D4ED8;--red:#EF4444;--amber:#FBBF24;--ink:#e8ecf6;--muted:rgba(232,236,246,.62);--line:rgba(255,255,255,.1);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#07090f;color:var(--ink);font-family:Outfit,"Segoe UI Variable","Segoe UI",sans-serif;padding:32px 16px 80px}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-weight:600;font-size:28px;margin:0 0 6px}
+h2{font-weight:500;font-size:21px;margin:48px 0 6px}
+p.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.5;max-width:760px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:2px}
+.tag.rec{background:rgba(47,107,255,.2);color:#9db8ff}
+.tag.now{background:rgba(255,255,255,.08);color:var(--muted)}
+
+/* ---------- screen strips (the bottom 230 px of a 1000 px-wide screen, real scale) ---------- */
+.scene{margin:0 0 22px}
+.scene h3{font-size:16px;font-weight:500;margin:0 0 8px}
+.scene h3 small{color:var(--muted);font-size:14px;font-weight:400;margin-left:6px}
+.strip{position:relative;height:230px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.07);
+ background:radial-gradient(ellipse 50% 70% at 50% 130%,#2b5cff 0%,transparent 60%),radial-gradient(ellipse 40% 60% at 15% 110%,#13308f 0%,transparent 70%),linear-gradient(180deg,#070a18 0%,#0a1236 100%)}
+.app{position:absolute;left:8%;right:8%;top:0;height:120px;border-radius:0 0 9px 9px;background:#0c0d12;box-shadow:0 0 0 1px rgba(255,255,255,.08);font-family:Consolas,"Cascadia Mono",monospace;font-size:13px;color:#c9d1e3;padding:14px 18px;line-height:1.7}
+.app .d{color:#6b7385}.app .b{color:#7aa2ff}
+.edge{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.18)}
+.ghost{position:absolute;left:0;right:0;bottom:0;height:48px;border-top:1.5px dashed rgba(157,184,255,.45);background:rgba(157,184,255,.04)}
+.ghost span{position:absolute;right:12px;top:14px;font-size:12px;color:rgba(157,184,255,.75)}
+.taskbar{position:absolute;left:0;right:0;bottom:0;height:48px;background:rgba(20,22,32,.9);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;gap:8px}
+.taskbar i{display:block;width:22px;height:22px;border-radius:5px}
+.measure{position:absolute;left:calc(50% + 150px);bottom:0;width:1px;border-left:1px solid rgba(255,255,255,.35)}
+.measure::before,.measure::after{content:"";position:absolute;left:-5px;width:9px;border-top:1px solid rgba(255,255,255,.35)}
+.measure::before{top:0}.measure::after{bottom:0}
+.measure b{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:500;color:rgba(255,255,255,.7);white-space:nowrap}
+
+/* ---------- pill (34 DIP tall, as built) ---------- */
+.pill{position:absolute;left:50%;transform:translateX(-50%);height:34px;border-radius:17px;display:flex;align-items:center;gap:10px;padding:0 15px;
+ background:linear-gradient(180deg,rgba(14,18,34,.94),rgba(9,13,30,.96));
+ box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5)}
+.pill.inline{position:relative;left:auto;transform:none;display:inline-flex}
+.pill.alert{box-shadow:inset 0 0 0 1px rgba(255,150,150,.22),inset 0 -8px 14px -7px rgba(239,68,68,.85),inset 0 -2px 3px -1px rgba(255,170,170,.85),0 12px 40px rgba(239,68,68,.28),0 8px 24px rgba(0,0,0,.5)}
+.grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,3px);gap:2px}
+.grid b{width:3px;height:3px;border-radius:50%;background:#dbe6ff}
+.bars{display:flex;align-items:center;gap:2px;height:18px}
+.bars b{width:3px;border-radius:1.5px;background:#dbe6ff}
+.red .grid b,.red .bars b{background:#ff6b6b}
+.ptime{font-size:11.5px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.ptxt{font-size:13.5px;color:rgba(255,255,255,.9);white-space:nowrap}
+.ico{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;flex:none}
+.ico.ok{background:var(--blue);box-shadow:0 0 12px rgba(47,107,255,.8)}
+.ico.bad{background:var(--red);box-shadow:0 0 12px rgba(239,68,68,.7);font-weight:700;font-size:12px;color:#fff}
+
+/* ---------- panels ---------- */
+.panels{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.pcol{flex:1 1 300px;max-width:320px;min-width:0}
+.cap{font-size:13px;color:#8b93a7;margin-bottom:10px}
+.panel{width:100%;padding:14px;border-radius:30px;background:linear-gradient(180deg,#0E1424,#070A12);box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;gap:10px}
+.group{border-radius:18px;background:rgba(30,36,58,.55);padding:2px 0}
+.gi{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:13px}
+.gl{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.88);white-space:nowrap}.gl svg{color:rgba(255,255,255,.6);flex:none}
+.gv{color:rgba(255,255,255,.62);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gv b{font-size:9px;font-weight:400}
+.gv b.chev{display:inline-block;font-size:15px;line-height:1;transform:rotate(90deg);color:rgba(255,255,255,.6)}
+.sep{height:1px;margin:0 14px;background:rgba(255,255,255,.07)}
+.sw{width:34px;height:20px;border-radius:10px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);position:relative;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:rgba(255,255,255,.55)}
+.sw.on{background:rgba(255,255,255,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}.sw.on i{left:16px;background:#fff}
+.sub2{margin:0 10px 6px;padding:2px 0;border-radius:12px;background:rgba(255,255,255,.035)}
+.sub2.new{box-shadow:0 0 0 1.5px rgba(47,107,255,.7),0 0 22px rgba(47,107,255,.25)}
+.gi.in{padding:8px 12px}.gl2{font-size:12.5px;color:rgba(255,255,255,.8)}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:12px}
+.seg span{padding:3px 10px;border-radius:6px;color:rgba(255,255,255,.55)}
+.seg span.on{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);color:#fff;font-weight:600}
+.note{padding:2px 12px 8px;font-size:11px;color:rgba(255,255,255,.5)}
+.quit{display:flex;justify-content:space-between;padding:6px 14px 4px;font-size:13px;color:rgba(255,255,255,.62)}.sc{color:rgba(255,255,255,.4)}
+.previews{flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.pv{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pv span.l{font-size:13px;color:var(--muted);min-width:150px}
+.diff{margin:16px 0 0;padding:0;list-style:none;font-size:14px;color:var(--muted);line-height:1.6;max-width:760px}
+.diff li{padding-left:18px;position:relative}.diff li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;border-radius:3px;background:#9db8ff}
+.diff b{color:var(--ink);font-weight:500}
+
+/* ---------- messages ---------- */
+.msgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.msg{border:1px solid var(--line);border-radius:14px;padding:18px 16px 14px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:12px;min-width:0}
+.msg .stage{height:56px;border-radius:10px;display:grid;place-items:center;background:radial-gradient(ellipse 80% 120% at 50% 120%,#1c3cb0 0%,transparent 70%),#0a1236;overflow:hidden}
+.msg p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
+.msg p b{color:var(--ink);font-weight:500}
+.chipcard{border-radius:14px;padding:10px 14px;background:#03060F;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:13px;line-height:1.35}
+.chipcard .t{color:#fff;font-weight:500}.chipcard .s{color:rgba(255,255,255,.55);font-size:12px}
+.retry{font-size:12px;color:#fff;background:linear-gradient(180deg,#2F6BFF,#1D4ED8);border-radius:8px;padding:4px 10px;margin-left:10px}
+.demos{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.demo{min-width:0}
+.dstage{height:96px;border-radius:12px;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.07);
+ background:radial-gradient(ellipse 70% 110% at 50% 130%,#2b5cff 0%,transparent 65%),linear-gradient(180deg,#070a18,#0a1236)}
+#jelly{overflow:hidden;justify-content:center;padding:0}
+#jelly .pin{display:flex;align-items:center;gap:10px;padding:0 15px;flex:none}
+@media (max-width:640px){h1{font-size:23px}.ghost span{right:auto;left:12px}.app{left:3%;right:3%}.measure{left:calc(50% + 120px)}}
+</style></head><body><div class="wrap">
+
+<h1>Pill height and Mac options</h1>
+<p class="sub">Three things to look at: where the pill sits when your taskbar is hidden, the Mac's missing options added to the Windows tray panel, and the messages you only see when something goes wrong.</p>
+
+<!-- ======================= 1. pill height ======================= -->
+<h2>1. Pill height when the taskbar auto-hides</h2>
+<p class="sub">Right now the pill sits 18 px above whatever space the taskbar leaves free. With auto-hide, that's the very bottom edge of the screen, so it hugs the edge, and the taskbar covers it if your mouse touches the bottom.</p>
+
+<div class="scene" id="now">
+  <h3>Now <span class="tag now">current build</span><small>taskbar hidden</small></h3>
+  <div class="strip">
+    <div class="app"><div><span class="d">❯</span> claude</div><div><span class="b">&gt;</span> Move the pill up a little when the taskbar is hidden</div></div>
+    <div class="pill" style="bottom:18px"><span class="grid" data-cols="23"></span><span class="ptime">0:03</span></div>
+    <div class="measure" style="height:18px"><b>18 px</b></div>
+    <div class="edge"></div>
+  </div>
+</div>
+
+<div class="scene" id="a">
+  <h3>A. Same spot as with the taskbar showing <span class="tag rec">Recommended</span></h3>
+  <div class="strip">
+    <div class="app"><div><span class="d">❯</span> claude</div><div><span class="b">&gt;</span> Move the pill up a little when the taskbar is hidden</div></div>
+    <div class="ghost"><span>taskbar when it pops up</span></div>
+    <div class="pill" style="bottom:66px"><span class="grid" data-cols="23"></span><span class="ptime">0:03</span></div>
+    <div class="measure" style="height:66px"><b>66 px</b></div>
+    <div class="edge"></div>
+  </div>
+  <p class="sub" style="margin-top:10px">Akoya reads the hidden taskbar's height and keeps the pill above it. It sits where it always does, whether the taskbar is shown or hidden, and nothing covers it. Automatic, no setting.</p>
+</div>
+
+<div class="scene" id="b">
+  <h3>B. A bit higher still</h3>
+  <div class="strip">
+    <div class="app"><div><span class="d">❯</span> claude</div><div><span class="b">&gt;</span> Move the pill up a little when the taskbar is hidden</div></div>
+    <div class="ghost"><span>taskbar when it pops up</span></div>
+    <div class="pill" style="bottom:100px"><span class="grid" data-cols="23"></span><span class="ptime">0:03</span></div>
+    <div class="measure" style="height:100px"><b>100 px</b></div>
+    <div class="edge"></div>
+  </div>
+  <p class="sub" style="margin-top:10px">A clear gap above the taskbar. Same height with the taskbar shown or hidden. It sits closer to what you're typing, so it's more likely to cover the last line of a full-screen app.</p>
+</div>
+
+<!-- ======================= 2. motion and colour ======================= -->
+<h2>2. Pop-up animation and dot colours</h2>
+<p class="sub">Each demo replays on its own every few seconds.</p>
+
+<div class="demos">
+  <div class="demo">
+    <div class="cap">Today: fades in and rises (0.28 s)</div>
+    <div class="dstage"><span class="pill inline" id="fade"><span class="grid" data-cols="23"></span><span class="ptime">0:01</span></span></div>
+  </div>
+  <div class="demo">
+    <div class="cap">Proposed: jelly pop (0.42 s) <span class="tag rec">Recommended</span></div>
+    <div class="dstage"><span class="pill inline" id="jelly"><span class="pin"><span class="grid" data-cols="23"></span><span class="ptime">0:01</span></span></span></div>
+  </div>
+  <div class="demo">
+    <div class="cap">Processing: blue-white (Red while recording off)</div>
+    <div class="dstage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#dbe6ff"></span><span class="ptime">0:04</span></span></div>
+  </div>
+  <div class="demo">
+    <div class="cap">Processing: amber (Red while recording on)</div>
+    <div class="dstage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="ptime">0:04</span></span></div>
+  </div>
+  <div class="demo">
+    <div class="cap">Recording: white dots (today, default)</div>
+    <div class="dstage"><span class="pill inline"><span class="grid live" data-cols="23"></span><span class="ptime">0:02</span></span></div>
+  </div>
+  <div class="demo">
+    <div class="cap">Recording: red dots (Mac's "Red while recording")</div>
+    <div class="dstage"><span class="pill inline red"><span class="grid live" data-cols="23"></span><span class="ptime">0:02</span></span></div>
+  </div>
+</div>
+
+<ul class="diff">
+  <li><b>Jelly pop:</b> the pill appears as a small circle, stretches out past its full width, and springs back. It's done in 0.42 s, so it never holds up your first words (recording starts the moment you press, whatever the animation is doing).</li>
+  <li><b>Processing colour: I'd keep it blue-white.</b> Akoya already uses yellow for "something's off" (the mic row that isn't detected, "isn't hearing you" in setup), so a yellow sweep on every dictation would read like a warning.</li>
+  <li><b>Red while recording: I'd make it a switch, off by default,</b> same as the Mac (section 3). Red is a familiar "recording" signal, but in the pill it's also the error colour, so it's better as your choice than the default.</li>
+</ul>
+
+<!-- ======================= 3. options ======================= -->
+<h2>3. The Mac's options, on Windows</h2>
+<p class="sub">The Mac's <b>Menu bar icon</b> row controls the waveform you watch while talking. On Windows that waveform is the pill, so the same options become a <b>Pill</b> row. Everything else already matches.</p>
+
+<div class="panels">
+  <div class="pcol">
+    <div class="cap">Mac today</div>
+    <div class="panel">
+      <div class="group">
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+        <div class="sep"></div>
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv"><b class="chev">›</b></span></div>
+        <div class="sub2">
+          <div class="gi in"><span class="gl2">Waveform</span><span class="seg"><span class="on">Pixel</span><span>Solid</span></span></div>
+          <div class="gi in"><span class="gl2">Red while recording</span><span class="sw"><i></i></span></div>
+          <div class="gi in"><span class="gl2">Hide when idle</span><span class="sw"><i></i></span></div>
+          <div class="note">Hidden? Open Akoya from Spotlight to get back here.</div>
+        </div>
+        <div class="sep"></div>
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+      </div>
+      <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div>
+    </div>
+  </div>
+
+  <div class="pcol">
+    <div class="cap">Windows, proposed (new part outlined)</div>
+    <div class="panel">
+      <div class="group">
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">This PC's microphone <b>▾</b></span></div>
+        <div class="sep"></div>
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Pill</span><span class="gv"><b class="chev">›</b></span></div>
+        <div class="sub2 new">
+          <div class="gi in"><span class="gl2">Waveform</span><span class="seg"><span class="on">Pixel</span><span>Solid</span></span></div>
+          <div class="gi in"><span class="gl2">Red while recording</span><span class="sw"><i></i></span></div>
+        </div>
+        <div class="sep"></div>
+        <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at startup</span><span class="sw on"><i></i></span></div>
+      </div>
+      <div class="quit"><span>Quit Akoya</span></div>
+    </div>
+  </div>
+
+  <div class="previews">
+    <div class="cap">What the pill looks like with each</div>
+    <div class="pv"><span class="l">Pixel (today)</span><span class="pill inline"><span class="grid" data-cols="16"></span><span class="ptime">0:03</span></span></div>
+    <div class="pv"><span class="l">Solid</span><span class="pill inline"><span class="bars" data-cols="16"></span><span class="ptime">0:03</span></span></div>
+    <div class="pv"><span class="l">Red while recording</span><span class="pill inline red"><span class="grid" data-cols="16"></span><span class="ptime">0:03</span></span></div>
+  </div>
+</div>
+
+<ul class="diff">
+  <li><b>Waveform: Pixel or Solid</b>, and <b>Red while recording</b>: same as the Mac, applied to the pill. Only the waveform turns red; the glow stays blue so it never looks like an error.</li>
+  <li><b>Hide when idle</b> is left out: on Windows it's already how things work. The tray icon sits tucked behind ⌃ and the pill only shows while you talk.</li>
+  <li><b>Hotkey choices</b> differ on purpose: Windows has Right Alt, Right Ctrl and the Copilot key instead of Option, Command and Control.</li>
+</ul>
+
+<!-- ======================= 3. messages ======================= -->
+<h2>4. Messages you'll only see when something goes wrong</h2>
+<p class="sub">This is why you didn't see them: a normal dictation only shows the waveform and then "Pasted". Each of these comes up in one specific situation.</p>
+
+<div class="msgs">
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="ico ok"><svg width="10" height="8" viewBox="0 0 11 9"><path d="M1 4.5l3 3L10 1" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ptxt">Copied. Press Ctrl+V</span></span></div>
+    <p><b>You're typing into an app running as administrator.</b> Windows blocks other apps from pasting into it, so Akoya copies your words and you paste them yourself.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Couldn't paste</span></span></div>
+    <p><b>Another app is holding the clipboard.</b> Your words are kept in the tray panel under Last dictation, with Copy.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Microphone not detected</span></span></div>
+    <p><b>Your chosen mic is unplugged.</b> Nothing is recorded, and the Microphone row in the tray panel turns yellow.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Turn on your mic in Settings</span></span></div>
+    <p><b>Windows' microphone privacy switch is off.</b> The tray panel gets an Open Settings button.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="ptxt">Getting the speech model ready…</span></span></div>
+    <p><b>You hold the key during the first-time download.</b> The tray panel shows the progress.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Speech model failed</span></span></div>
+    <p><b>The download or loading failed.</b> The tray panel gets a Retry button.</p></div>
+  <div class="msg"><div class="stage"><span class="chipcard"><span class="t">No mic found</span><br><span class="s">Plug one in. It will show up here.</span></span></div>
+    <p><b>Setup, when the PC has no microphone at all.</b> The list fills in by itself when you plug one in.</p></div>
+  <div class="msg"><div class="stage"><span class="chipcard"><span class="t">Didn't catch that. Try again.</span></span></div>
+    <p><b>Setup's Try it step, if it heard silence.</b> Your previous take stays on screen.</p></div>
+  <div class="msg"><div class="stage"><span class="chipcard" style="display:flex;align-items:center"><span class="t">Model download failed</span><span class="retry">Retry</span></span></div>
+    <p><b>Setup's Try it step, if the download breaks</b> (Wi-Fi drops, for example).</p></div>
+</div>
+
+</div>
+<script>
+// Fill dot grids and bars with a fixed, speech-like shape (no animation, so screenshots match what you see).
+function lvl(c,n){const x=(c+.5)/n;const env=Math.pow(Math.sin(Math.PI*x),.7);return env*(0.35+0.65*Math.abs(Math.sin(c*1.7+0.6)))}
+document.querySelectorAll('.grid').forEach(g=>{const n=+g.dataset.cols;let h='';for(let c=0;c<n;c++){const L=lvl(c,n)*4*1.3;for(let r=0;r<4;r++){const d=Math.abs(r-1.5);const o=d<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(L-2)/1.6));h+=`<b style="opacity:${o.toFixed(2)}"></b>`}}g.innerHTML=h});
+// Live demos: waveform, processing sweep, and the two entrances.
+const Q=new URLSearchParams(location.search), FIX=Q.has('t')?parseFloat(Q.get('t')):null;
+function tick(now){
+  if(FIX!==null)now=FIX;const t=now/1000;
+  document.querySelectorAll('.grid.live').forEach(g=>{const n=+g.dataset.cols,d=g.children;for(let c=0;c<n;c++){const x=(c+.5)/n;const env=Math.pow(Math.sin(Math.PI*x),.7);const L=env*(0.28+0.72*Math.abs(Math.sin(t*6.1+c*.8))*(0.65+0.35*Math.sin(t*2.3+c*.31)))*5.2;for(let r=0;r<4;r++){const dd=Math.abs(r-1.5);d[c*4+r].style.opacity=dd<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(L-2)/1.6))}}});
+  // The app's scanner (PillDots.Scanner, period 1.4 s): centre two rows only, outer rows at rest; lit columns take the tint.
+  document.querySelectorAll('.grid.scan').forEach(g=>{const n=+g.dataset.cols,d=g.children,p=(t%1.4)/1.4,leg=p<.5?p*2:2-p*2,head=(1-Math.cos(Math.PI*leg))/2*(n-1);for(let c=0;c<n;c++){const k=Math.abs(c-head);const o=k<1?1:k<2?.7:k<3?.48:k<4?.32:.18;for(let r=0;r<4;r++){const mid=r===1||r===2;d[c*4+r].style.opacity=mid?o:.18;d[c*4+r].style.background=mid&&o>.18?g.dataset.tint:'#dbe6ff'}}});
+  if(FIX===null)requestAnimationFrame(tick);
+}
+const jelly=document.getElementById('jelly'), pin=jelly.querySelector('.pin'), fade=document.getElementById('fade');
+function play(){
+  const W=pin.getBoundingClientRect().width||180, H=34;
+  jelly.animate([
+    {width:H+'px',transform:'scale(.55)',opacity:0,offset:0,easing:'cubic-bezier(.2,.9,.3,1.2)'},
+    {width:H+'px',transform:'scale(1)',opacity:1,offset:.24,easing:'cubic-bezier(.3,.8,.4,1)'},
+    {width:(W*1.07)+'px',transform:'scale(1,.92)',offset:.64,easing:'ease-in-out'},
+    {width:(W*.985)+'px',transform:'scale(1,1.03)',offset:.84,easing:'ease-in-out'},
+    {width:W+'px',transform:'scale(1)',opacity:1,offset:1}
+  ],{duration:420,easing:'linear',fill:'both'});
+  pin.animate([{opacity:0},{opacity:0,offset:.45},{opacity:1}],{duration:420,fill:'both'});
+  fade.animate([{opacity:0,transform:'translateY(10px) scale(.94)'},{opacity:1,transform:'none'}],{duration:280,easing:'cubic-bezier(.2,.8,.2,1)',fill:'both'});
+}
+if(FIX===null){play();setInterval(play,2600);requestAnimationFrame(tick);}
+else{tick(0);const W=pin.getBoundingClientRect().width;jelly.style.width=W+'px';}
+document.querySelectorAll('.bars').forEach(g=>{const n=+g.dataset.cols;let h='';for(let c=0;c<n;c++){h+=`<b style="height:${(3+lvl(c,n)*15).toFixed(1)}px;opacity:.95"></b>`}g.innerHTML=h});
+</script>
+</body></html>

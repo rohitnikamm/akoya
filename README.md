@@ -6,9 +6,9 @@
 
 **Hold a key, speak, release. Your words appear in any app.**
 
-On-device dictation for the macOS menu bar.
+On-device dictation for macOS and Windows.
 
-[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rohitnikamm/akoya?color=2F6BFF&label=release&filter=v*)](https://github.com/rohitnikamm/akoya/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-1D4ED8) ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-only-1D4ED8) ![Windows 11](https://img.shields.io/badge/Windows-11-1D4ED8) [![License: MIT](https://img.shields.io/badge/license-MIT-1D4ED8)](LICENSE)
 
 <img src="docs/assets/hero.png" alt="Akoya listening in the menu bar, with its dropdown and the Try it card" width="100%">
 
@@ -46,11 +46,39 @@ See the [guide](docs/GUIDE.md) for setup details, microphone handling and upgrad
 
 ## Windows
 
-A Windows 11 version is in the works. It's the same hold-to-talk dictation, but with a slim pill above the taskbar in place of the menu bar icon.
+Akoya runs on Windows 11 too: the same hold-to-talk dictation, with a slim pill above the taskbar in place of the menu bar icon.
 
 <div align="center">
-<img src="docs/assets/windows-preview.gif" alt="Mockup of Akoya on Windows: a pill above the taskbar shows a waveform, a transcribing scan, then Pasted" width="100%">
+<img src="docs/assets/windows-dictation.png" alt="Akoya on Windows: a pill pops up above the taskbar, shows a live waveform, sweeps while transcribing, says Pasted, and the sentence appears in a terminal" width="100%">
 </div>
+
+- **Hold Right Alt.** Or tap it once to start and again to stop. Right Ctrl and the Copilot key work too.
+- **A pill, only while you talk.** It shows on the monitor you're typing on, then gets out of the way.
+- **Settings in the tray.** One panel for the hotkey, microphone, pill style and launch at startup.
+- **Your clipboard is kept.** Everything on it, from Excel cells to images, is put back after the paste.
+
+<div align="center">
+<img src="docs/assets/windows-hero.png" alt="Akoya on Windows: the pill listening above the taskbar and the tray panel open in the corner" width="100%">
+</div>
+
+### Install on Windows
+
+Download `Akoya-win-Setup.exe` from the [releases page](https://github.com/rohitnikamm/akoya/releases) (the one named "Akoya for Windows") and run it. It installs just for you, with no admin prompt and no .NET install. Akoya is not code-signed, so the first time Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**.
+
+Setup takes a minute: pick the mic you talk into, then try it while the speech model downloads (about 480 MB). After that Akoya updates itself; the tray panel shows "Update ready · Restart" when a new version is in.
+
+<div align="center">
+<img src="docs/assets/windows-setup.png" alt="Akoya for Windows setup: Welcome, a microphone list with live meters, and the Try it card" width="100%">
+</div>
+
+| Action | How |
+| --- | --- |
+| Dictate | Hold **Right Alt**, speak, release |
+| Hands-free | Tap **Right Alt** to start, tap again to stop |
+| Cancel | **Esc** while recording |
+| Settings | Click the Akoya icon in the tray (behind **^**) |
+
+Building it yourself: [windows/README.md](windows/README.md).
 
 ## Build from source
 

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Akoya.Core/Akoya.Core.csproj" />
+    <Project Path="src/Akoya.App/Akoya.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Akoya.Core.Tests/Akoya.Core.Tests.csproj" />
+    <Project Path="tests/Akoya.App.Tests/Akoya.App.Tests.csproj" />
+  </Folder>
+</Solution>

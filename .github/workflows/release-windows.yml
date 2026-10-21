@@ -1,0 +1,73 @@
+name: release-windows
+
+# Tag push windows-vX.Y.Z: build Setup.exe with Velopack and attach everything to a DRAFT GitHub release.
+# Publishing the draft stays a manual step. Tag pushes ignore the paths filter below.
+# Pushes to a branch that touch this file, the packaging script or Program.cs (vpk checks VelopackApp.Run is
+# there), and manual runs, only do a dry run:
+# the package is built, nothing is uploaded, and the size of Setup.exe is printed as a notice.
+on:
+  push:
+    tags: ['windows-v*']
+    branches: ['**']
+    paths:
+      - '.github/workflows/release-windows.yml'
+      - 'windows/scripts/package.ps1'
+      - 'windows/src/Akoya.App/Program.cs'
+  workflow_dispatch:
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    if: github.ref_type == 'branch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack (no upload)
+        shell: pwsh
+        run: pwsh windows/scripts/package.ps1 -Version 0.0.1 -OutDir Releases
+
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'windows-v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Work out the version
+        id: ver
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^windows-v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "tag $env:GITHUB_REF_NAME is not windows-vX.Y.Z" }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Pack
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pwsh windows/scripts/package.ps1 -Version '${{ steps.ver.outputs.version }}' -OutDir Releases -Token $env:GH_TOKEN -RequireIcon
+
+      - name: Upload as a draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # No --publish: vpk leaves the release as a draft.
+          & $env:VPK upload github --outputDir Releases --channel win --repoUrl "https://github.com/${{ github.repository }}" --token $env:GH_TOKEN --tag $env:GITHUB_REF_NAME --releaseName "Akoya for Windows ${{ steps.ver.outputs.version }}"
+          if ($LASTEXITCODE -ne 0) { throw "vpk upload failed with exit code $LASTEXITCODE" }
