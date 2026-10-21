@@ -1,0 +1,212 @@
+<!--
+  Setup window styles (docs/design/windows-onboarding-mockup.html). Theme colours come from Theme/Theme.xaml through
+  DynamicResource; the values below are the mockup's setup-only colours. SetupView merges this dictionary.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:Akoya.App.Controls"
+                    xmlns:setup="clr-namespace:Akoya.App.Setup">
+
+    <!-- Card: radial-gradient(ellipse 80% 45% at 50% -5%, rgba(40,90,200,.22) 0, transparent 60%), #03060F; 380×520. -->
+    <DrawingBrush x:Key="Setup.CardBackground" Stretch="None" AlignmentX="Left" AlignmentY="Top"
+                  ViewboxUnits="Absolute" Viewbox="0,0,380,520" ViewportUnits="Absolute" Viewport="0,0,380,520">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#03060F">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,380,520" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing>
+                    <GeometryDrawing.Brush>
+                        <!-- CSS fades in premultiplied space: to the same colour at alpha 0, not to transparent black. -->
+                        <RadialGradientBrush MappingMode="Absolute" Center="190,-26" GradientOrigin="190,-26" RadiusX="304" RadiusY="234">
+                            <GradientStop Offset="0" Color="#38285AC8" />
+                            <GradientStop Offset="0.6" Color="#00285AC8" />
+                        </RadialGradientBrush>
+                    </GeometryDrawing.Brush>
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,380,520" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- .grid: 1px rgba(80,140,255,.07) lines every 34px, over the lower 55% of the card, fading out upward. -->
+    <DrawingBrush x:Key="Setup.GridLines" TileMode="Tile" Stretch="None" AlignmentX="Left" AlignmentY="Top"
+                  ViewboxUnits="Absolute" Viewbox="0,0,34,34" ViewportUnits="Absolute" Viewport="0,0,34,34">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,34,34" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#12508CFF">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,34,1" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#12508CFF">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,1,34" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+    <LinearGradientBrush x:Key="Setup.GridMask" StartPoint="0,1" EndPoint="0,0">
+        <GradientStop Offset="0" Color="Black" />
+        <GradientStop Offset="0.3" Color="Black" />
+        <GradientStop Offset="1" Color="Transparent" />
+    </LinearGradientBrush>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="Setup.BodyText" Color="#ADFFFFFF" />
+    <SolidColorBrush x:Key="Setup.Hint" Color="#CCFFFFFF" />
+    <SolidColorBrush x:Key="Setup.HintSecondary" Color="#8CFFFFFF" />
+    <SolidColorBrush x:Key="Setup.Placeholder" Color="#66FFFFFF" />
+
+    <!-- Chrome -->
+    <SolidColorBrush x:Key="Setup.CloseFill" Color="#12FFFFFF" />
+    <SolidColorBrush x:Key="Setup.CloseGlyph" Color="#99FFFFFF" />
+    <SolidColorBrush x:Key="Setup.PageDot" Color="#4DFFFFFF" />
+
+    <!-- Buttons -->
+    <SolidColorBrush x:Key="Setup.ButtonLightFill" Color="#F1F1F6" />
+    <SolidColorBrush x:Key="Setup.ButtonLightText" Color="#0B0B18" />
+    <SolidColorBrush x:Key="Setup.ButtonQuietFill" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="Setup.ButtonQuietText" Color="#B3FFFFFF" />
+
+    <!-- Hotkey keycap -->
+    <SolidColorBrush x:Key="Setup.KeycapFill" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="Setup.KeycapBorder" Color="#598CB4FF" />
+
+    <!-- Status chips -->
+    <SolidColorBrush x:Key="Setup.ChipOkFill" Color="#2634C759" />
+    <SolidColorBrush x:Key="Setup.ChipWaitFill" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="Setup.ChipWaitText" Color="#99FFFFFF" />
+
+    <!-- Mic list -->
+    <SolidColorBrush x:Key="Setup.ListFill" Color="#8C1E243A" />
+    <SolidColorBrush x:Key="Setup.RowText" Color="#E0FFFFFF" />
+    <SolidColorBrush x:Key="Setup.RowSeparator" Color="#12FFFFFF" />
+    <SolidColorBrush x:Key="Setup.RowSelected" Color="#242F6BFF" />
+    <SolidColorBrush x:Key="Setup.RowHover" Color="#0AFFFFFF" />
+    <SolidColorBrush x:Key="Setup.RadioRing" Color="#59FFFFFF" />
+    <SolidColorBrush x:Key="Setup.MoreText" Color="#80FFFFFF" />
+    <SolidColorBrush x:Key="Setup.MoreChevron" Color="#73FFFFFF" />
+    <SolidColorBrush x:Key="Setup.MeterDot" Color="#DBE6FF" />
+
+    <!-- Try it -->
+    <SolidColorBrush x:Key="Setup.TextCard" Color="#991E243A" />
+    <SolidColorBrush x:Key="Setup.WaveDot" Color="#DBEAFE" />
+
+    <!-- Blocked -->
+    <SolidColorBrush x:Key="Setup.WellFill" Color="#2E3B82F6" />
+    <SolidColorBrush x:Key="Setup.WellRing" Color="#4793C5FD" />
+
+    <!-- Text styles. Line heights are the browser's: "normal" for Outfit is size + round(0.26 × size). -->
+    <Style x:Key="Setup.Eyebrow" TargetType="controls:TrackedText">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Tracking" Value="0.96" />
+        <Setter Property="Foreground" Value="{DynamicResource Akoya.TextEyebrow}" />
+    </Style>
+    <Style x:Key="Setup.Title" TargetType="TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+        <Setter Property="LineHeight" Value="28" />
+        <Setter Property="Foreground" Value="{DynamicResource Akoya.TextPrimary}" />
+    </Style>
+    <Style x:Key="Setup.Body" TargetType="TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="FontSize" Value="14.5" />
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+        <Setter Property="LineHeight" Value="21.025" />
+        <Setter Property="Foreground" Value="{DynamicResource Setup.BodyText}" />
+    </Style>
+
+    <!-- Buttons: full width, 43 tall, fully rounded, 15px semibold (.btn). -->
+    <Style x:Key="Setup.ButtonBase" TargetType="Button">
+        <Setter Property="Height" Value="43" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    </Style>
+    <Style x:Key="Setup.ButtonLight" TargetType="Button" BasedOn="{StaticResource Setup.ButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource Setup.ButtonLightText}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Face" CornerRadius="21.5" Background="{DynamicResource Setup.ButtonLightFill}">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{TemplateBinding Content}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Face" Property="Opacity" Value="0.85" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="Setup.ButtonQuiet" TargetType="Button" BasedOn="{StaticResource Setup.ButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource Setup.ButtonQuietText}" />
+        <Setter Property="Cursor" Value="Arrow" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border CornerRadius="21.5" Background="{DynamicResource Setup.ButtonQuietFill}">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{TemplateBinding Content}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="Setup.ButtonBlue" TargetType="Button" BasedOn="{StaticResource Setup.ButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource Akoya.TextPrimary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <controls:RimGlowBorder x:Name="Face" CornerRadius="21.5"
+                                            Background="{DynamicResource Akoya.AccentGradient}"
+                                            setup:TemplateBindings.Shadows="{x:Static setup:SetupGlows.BlueButton}">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{TemplateBinding Content}" />
+                    </controls:RimGlowBorder>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Face" Property="Opacity" Value="0.85" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A bare clickable area (rows, Skip, ✕, Retry): the template is just the content. -->
+    <Style x:Key="Setup.Bare" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

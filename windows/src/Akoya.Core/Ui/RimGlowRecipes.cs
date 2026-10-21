@@ -30,6 +30,19 @@ public static partial class RimGlowRecipes
     ];
 
     /// <summary>
+    /// The setup window's card (windows-onboarding-mockup.html <c>.card</c>): thin rim, bottom-weighted blue glow, bright
+    /// bottom edge, a soft all-round blue wash, and the drop shadow below the card.
+    /// </summary>
+    public static readonly IReadOnlyList<BoxShadow> OnboardingCard =
+    [
+        new(0, 0, 0, 1, new ShadowColor(140, 170, 255, 0.16), Inset: true),
+        new(0, -22, 46, -12, new ShadowColor(47, 107, 255, 0.75), Inset: true),
+        new(0, -3, 5, -1, new ShadowColor(150, 185, 255, 0.55), Inset: true),
+        new(0, 0, 70, 8, new ShadowColor(29, 78, 216, 0.28), Inset: true),
+        new(0, 30, 80, 0, new ShadowColor(0, 0, 0, 0.55)),
+    ];
+
+    /// <summary>
     /// The pill recipe for a glow colour: the exact mockup values for the accent blue and the alert red, and for any
     /// other colour the blue recipe re-tinted (edge and rim mixed halfway toward white).
     /// </summary>

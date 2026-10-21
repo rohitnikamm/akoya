@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using Akoya.Core.Ui;
 
 namespace Akoya.App.Controls;
 
@@ -26,6 +27,10 @@ public sealed class DotGrid : FrameworkElement
         nameof(Gap), typeof(double), typeof(DotGrid),
         new FrameworkPropertyMetadata(2.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty ColumnGapProperty = DependencyProperty.Register(
+        nameof(ColumnGap), typeof(double), typeof(DotGrid),
+        new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty OpacitiesProperty = DependencyProperty.Register(
         nameof(Opacities), typeof(double[]), typeof(DotGrid),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -37,6 +42,10 @@ public sealed class DotGrid : FrameworkElement
     public static readonly DependencyProperty DefaultOpacityProperty = DependencyProperty.Register(
         nameof(DefaultOpacity), typeof(double), typeof(DotGrid),
         new FrameworkPropertyMetadata(0.12, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty HaloProperty = DependencyProperty.Register(
+        nameof(Halo), typeof(IReadOnlyList<BoxShadow>), typeof(DotGrid),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private readonly SolidColorBrush?[] _faded = new SolidColorBrush?[256];
     private Color _fadedColor;
@@ -68,6 +77,13 @@ public sealed class DotGrid : FrameworkElement
         set => SetValue(GapProperty, value);
     }
 
+    /// <summary>Space between neighbouring columns, DIP; NaN (the default) uses <see cref="Gap"/>.</summary>
+    public double ColumnGap
+    {
+        get => (double)GetValue(ColumnGapProperty);
+        set => SetValue(ColumnGapProperty, value);
+    }
+
     public double[]? Opacities
     {
         get => (double[]?)GetValue(OpacitiesProperty);
@@ -87,7 +103,20 @@ public sealed class DotGrid : FrameworkElement
         set => SetValue(DefaultOpacityProperty, value);
     }
 
-    protected override Size MeasureOverride(Size availableSize) => new(Extent(Columns), Extent(Rows));
+    /// <summary>
+    /// An outer box-shadow painted under every dot at the dot's opacity, as CSS does for a dot with a
+    /// <c>box-shadow</c> (e.g. <c>0 0 4px rgba(96,165,250,.7)</c>); null for none. Use a static recipe: rasters are
+    /// cached by reference in <see cref="RimGlowCache"/>. The halo draws outside the grid's bounds.
+    /// </summary>
+    public IReadOnlyList<BoxShadow>? Halo
+    {
+        get => (IReadOnlyList<BoxShadow>?)GetValue(HaloProperty);
+        set => SetValue(HaloProperty, value);
+    }
+
+    protected override Size MeasureOverride(Size availableSize) => new(Extent(Columns, HorizontalGap), Extent(Rows, Gap));
+
+    private double HorizontalGap => double.IsNaN(ColumnGap) ? Gap : ColumnGap;
 
     protected override void OnRender(DrawingContext drawingContext)
     {
@@ -99,7 +128,9 @@ public sealed class DotGrid : FrameworkElement
         var opacities = Opacities;
         var size = DotSize;
         var pitch = size + Gap;
+        var columnPitch = size + HorizontalGap;
         var radius = size / 2;
+        var halo = Halo is { Count: > 0 } recipe ? RimGlowCache.Get(size, size, radius, RimGlowCache.ScaleFor(this), recipe).Outer : null;
         for (var column = 0; column < Columns; column++)
         {
             for (var row = 0; row < Rows; row++)
@@ -109,7 +140,16 @@ public sealed class DotGrid : FrameworkElement
                 opacity = Math.Clamp(opacity, 0, 1);
                 if (opacity <= 0) continue;
 
-                var center = new Point(column * pitch + radius, row * pitch + radius);
+                var center = new Point(column * columnPitch + radius, row * pitch + radius);
+                if (halo is not null)
+                {
+                    // Each dot's shadow, then the dot, in order, as a browser paints them.
+                    var bounds = halo.Bounds;
+                    bounds.Offset(center.X - radius, center.Y - radius);
+                    drawingContext.PushOpacity(opacity);
+                    drawingContext.DrawImage(halo.Image, bounds);
+                    drawingContext.Pop();
+                }
                 if (solid is not null)
                 {
                     drawingContext.DrawEllipse(FadedBrush(solid, opacity), null, center, radius, radius);
@@ -144,5 +184,5 @@ public sealed class DotGrid : FrameworkElement
         return _faded[level] = faded;
     }
 
-    private double Extent(int count) => count <= 0 ? 0 : count * DotSize + (count - 1) * Gap;
+    private double Extent(int count, double gap) => count <= 0 ? 0 : count * DotSize + (count - 1) * gap;
 }
