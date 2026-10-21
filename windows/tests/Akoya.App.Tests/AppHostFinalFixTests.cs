@@ -74,6 +74,31 @@ public class AppHostFinalFixTests
     }
 
     [Fact]
+    public void Quit_WhileTranscribing_GivesUpWaitingAfterTenSeconds()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var paste = new TaskCompletionSource<InsertResult>();
+            rig.Inserter.Pending = paste.Task; // a transcription or paste that never finishes
+            var host = rig.Start();
+            Dictate(rig, host, until: DictationPhase.Transcribing);
+            UiThread.PumpUntil(() => rig.Inserter.Inserted.Count == 1);
+
+            rig.Tray.Commands!.Quit();
+            rig.Scheduler.Advance(TimeSpan.FromSeconds(9.9));
+            Assert.Equal(0, rig.Shutdowns);
+            rig.Scheduler.Advance(TimeSpan.FromSeconds(0.1));
+            Assert.Equal(1, rig.Shutdowns);
+
+            paste.SetResult(InsertResult.Pasted); // finishing late doesn't quit twice
+            UiThread.PumpUntil(() => host.Coordinator.Phase == DictationPhase.Pasted);
+            rig.Scheduler.Advance(TimeSpan.FromSeconds(2));
+            Assert.Equal(1, rig.Shutdowns);
+        });
+    }
+
+    [Fact]
     public void M8_DownloadFailure_KeepsModelDownloadFailed_AndDiscardsNothing()
     {
         UiThread.Run(() =>

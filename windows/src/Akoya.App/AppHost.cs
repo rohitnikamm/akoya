@@ -31,6 +31,9 @@ public sealed class AppHost : IDisposable
     /// <summary>Input this long after the hook's last key means Windows removed the hook: re-install it.</summary>
     public static readonly TimeSpan HookSilenceLimit = TimeSpan.FromSeconds(60);
 
+    /// <summary>Quit waits this long at most for a transcription and its paste to finish.</summary>
+    public static readonly TimeSpan QuitWaitLimit = TimeSpan.FromSeconds(10);
+
     private static readonly TimeSpan TranscriberDisposeWait = TimeSpan.FromSeconds(2);
 
     private readonly AppPorts _p;
@@ -58,6 +61,7 @@ public sealed class AppHost : IDisposable
     private bool _updateReady;
     private bool _restartPending;
     private bool _quitPending;
+    private IDisposable? _quitTimer; // gives up waiting for a transcription on Quit
     private IDisposable? _frameTimer;
     private IDisposable? _updateTimer;
     private IDisposable? _hookCheckTimer;
@@ -747,10 +751,21 @@ public sealed class AppHost : IDisposable
                 _coordinator.Handle(HotkeyEvent.Cancel); // dropped, never pasted on the way out
                 break;
             case DictationPhase.Transcribing:
-                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here.
+                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here. A
+                // transcription that hangs must not keep Akoya from quitting, though.
                 _quitPending = true;
+                _quitTimer ??= _p.Scheduler.After(QuitWaitLimit, () =>
+                {
+                    _quitTimer = null;
+                    if (_disposed || !_quitPending) return;
+                    _quitPending = false;
+                    _p.Log.Info($"Quit: gave up waiting for the transcription after {QuitWaitLimit.TotalSeconds:0} s");
+                    _p.Shutdown();
+                });
                 return;
         }
+        _quitTimer?.Dispose();
+        _quitTimer = null;
         _p.Log.Info("Quit");
         _p.Shutdown();
     }

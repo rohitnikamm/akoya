@@ -213,7 +213,7 @@ Every user-visible string not already quoted above, with when it appears.
 | Settings storage | UserDefaults `com.rohitnikamm.akoya` | `%AppData%\Akoya\settings.json`, atomic save; corrupt file or bad values fall back to defaults; an unreadable file is never overwritten | Different on purpose (platform conventions) |
 | No settings window | Everything is in the dropdown | Everything is in the tray panel | Same |
 | Look | Dark only, Outfit font, electric-blue accents (`#2F6BFF` to `#1D4ED8`) | Same | Same |
-| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish | Same |
+| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish, for up to 10 s | Same |
 
 ## Open differences
 
