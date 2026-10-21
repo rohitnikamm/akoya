@@ -34,7 +34,7 @@ public partial class PillView : UserControl
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PillViewModel.Mode) or nameof(PillViewModel.IsRed)) Refresh();
+        if (e.PropertyName is nameof(PillViewModel.Mode) or nameof(PillViewModel.IsRed) or nameof(PillViewModel.AlertText)) Refresh();
     }
 
     private void Refresh()
@@ -50,6 +50,9 @@ public partial class PillView : UserControl
         Check.Visibility = Show(check);
         AlertBadge.Visibility = Show(alertBadge);
         Label.Visibility = Show(!waveform);
+        // Set directly rather than bound, so the pill's size is right the moment the model changes (PillWindow.Prewarm
+        // measures it synchronously).
+        Label.Text = _model?.AlertText ?? "";
         Label.Margin = check || alertBadge ? new Thickness(10, 0, 0, 0) : default;
 
         // Red alert: white text; everything else uses the pill's label colour.

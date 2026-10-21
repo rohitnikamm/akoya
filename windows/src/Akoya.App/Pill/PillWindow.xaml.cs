@@ -3,12 +3,15 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Akoya.App.Controls;
+using Akoya.Core.Dictation;
+using Akoya.Core.Ui;
 
 namespace Akoya.App.Pill;
 
 /// <summary>
 /// The window that floats the pill above the taskbar. <see cref="ShowFor"/> fades and rises it in on the foreground
-/// window's monitor; <see cref="Hide"/> fades and sinks it out (0.28 s, cubic-bezier(.2,.8,.2,1), as in the mockup).
+/// window's monitor; <see cref="FadeOut"/> fades and sinks it out (0.28 s, cubic-bezier(.2,.8,.2,1), as in the mockup).
+/// The constructor starts <see cref="Prewarm"/>, so the first show doesn't rasterise the glow on the UI thread.
 /// </summary>
 public partial class PillWindow : Window
 {
@@ -28,7 +31,11 @@ public partial class PillWindow : Window
         InitializeComponent();
         View.SizeChanged += (_, _) => Recentre();
         DpiChanged += (_, _) => Dispatcher.InvokeAsync(Recentre);
+        PrewarmTask = Prewarm();
     }
+
+    /// <summary>The prewarm started by the constructor.</summary>
+    public Task PrewarmTask { get; }
 
     /// <summary>The pill's size, DIP.</summary>
     public Size PillSizeDip
@@ -67,7 +74,7 @@ public partial class PillWindow : Window
     }
 
     /// <summary>Fades the pill out, then hides the window. A <see cref="ShowFor"/> during the fade cancels it.</summary>
-    public new void Hide()
+    public void FadeOut()
     {
         if (!IsVisible || _hiding) return;
         _hiding = true;
@@ -76,8 +83,55 @@ public partial class PillWindow : Window
         {
             if (generation != _generation) return;
             _hiding = false;
-            base.Hide();
+            Hide();
         });
+    }
+
+    /// <summary>
+    /// Rasterises the rim glows of the pill's sizes (listening, pasted, copied and each alert) in blue and red, and the
+    /// badge halos, on worker threads. Sizes are measured here on the UI thread (cheap); the task completes when all
+    /// rasters are cached.
+    /// </summary>
+    public Task Prewarm()
+    {
+        var scale = RimGlowCache.ScaleFor(this);
+        var sizes = new HashSet<Size>();
+        DictationPhase[] phases =
+        [
+            DictationPhase.Recording, DictationPhase.Pasted, DictationPhase.Copied, DictationPhase.MicMissing,
+            DictationPhase.MicBlocked, DictationPhase.ModelFailed, DictationPhase.PasteFailed, DictationPhase.ModelNotReady,
+        ];
+        foreach (var phase in phases)
+        {
+            var probe = new PillViewModel();
+            probe.Apply(phase);
+            View.DataContext = probe;
+            // Measure() skips a parent whose own measure is still valid, even when a child (the label) changed, so
+            // invalidate the whole pill before measuring it again.
+            InvalidateMeasureDeep(View);
+            View.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            sizes.Add(View.DesiredSize);
+        }
+        View.ClearValue(DataContextProperty); // inherit the window's DataContext again
+
+        var work = new List<Task>
+        {
+            RimGlowCache.PrewarmAsync(18, 18, 9, scale, PillView.CheckHalo),
+            RimGlowCache.PrewarmAsync(18, 18, 9, scale, PillView.AlertHalo),
+        };
+        foreach (var size in sizes)
+        {
+            var radius = Math.Min(17, Math.Min(size.Width, size.Height) / 2);
+            work.Add(RimGlowCache.PrewarmAsync(size.Width, size.Height, radius, scale, RimGlowRecipes.PillBlue));
+            work.Add(RimGlowCache.PrewarmAsync(size.Width, size.Height, radius, scale, RimGlowRecipes.PillRed));
+        }
+        return Task.WhenAll(work);
+    }
+
+    private static void InvalidateMeasureDeep(DependencyObject element)
+    {
+        if (element is UIElement ui) ui.InvalidateMeasure();
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++) InvalidateMeasureDeep(VisualTreeHelper.GetChild(element, i));
     }
 
     /// <summary>The pill's rectangle on screen in physical pixels (for tests and diagnostics).</summary>
