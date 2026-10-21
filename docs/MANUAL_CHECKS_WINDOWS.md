@@ -33,7 +33,7 @@ Nothing here could be checked by CI: it needs a real screen, microphones, a Wind
 
 ## Dictation, per app
 Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude Code running in a terminal, Notepad, and a browser text box (Chrome or Edge).
-- [ ] Hold Right Alt, speak for a second or two, release: the pill rises above the taskbar with a live waveform and timer, a blue scan while transcribing, then "Pasted" with a blue check for about a second, and the text (with a trailing space) appears at the cursor.
+- [ ] Hold Right Alt, speak for a second or two, release: the pill pops in above the taskbar (a small circle that springs out to full width) with a live waveform and timer, a blue sweep across the centre two dot rows while transcribing, then "Pasted" with a blue check for about a second, and the text (with a trailing space) appears at the cursor.
 - [ ] Tap Right Alt (under 0.3 s): recording keeps going hands-free. Speak, tap again: it stops, transcribes and pastes.
 - [ ] Esc while recording cancels: the pill fades, nothing is pasted, and Esc does not reach the app (it does not close a dialog or cancel a running command). Esc while NOT recording behaves normally in the app.
 - [ ] A lone Right Alt tap never opens a menu bar or does anything in the app (Akoya swallows it). Left Alt is untouched (Alt+Tab, Alt+F work).
@@ -54,10 +54,14 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] With two monitors, dictate with a window on each: the pill shows on the monitor that holds the window you are typing into. Check it at least once on a monitor with a different display scale (for example 100% and 150%): same size relative to the screen and the same gap above the taskbar.
 - [ ] Taskbar on top or on the side (with a tool such as ExplorerPatcher on Windows 11): the pill is 52 px above the bottom of the screen and stays inside the work area. With two monitors and the taskbar shown on all displays, the pill keeps the same gap above the second monitor's taskbar.
 - [ ] Exclusive-fullscreen game: the pill is hidden (accepted) but dictation still pastes. A borderless-window game shows the pill.
+- [ ] Tray panel, Pill row: Solid turns the dots into bars and the sweep into short bars on the centre rows; Red while recording turns the listening waveform red and the sweep amber. Both change a pill already on screen. With Windows' animation effects off, the pill fades in instead of popping.
 
 ## Pasting and the clipboard
 - [ ] Copy some text, dictate, then paste: the text you copied before is back on the clipboard (restored after about 0.3 s).
 - [ ] Copy an image (or files in Explorer) first, dictate, then paste somewhere that accepts it: the image or files are back.
+- [ ] Take a full-screen screenshot on a 4K monitor (Win+Shift+S or Print Screen), then dictate: it pastes as usual (not typed letter by letter), and the screenshot pastes afterwards.
+- [ ] Copy cells in Excel, dictate, then paste into Excel: the cells (with formatting) come back. Cut a file in Explorer, dictate, then paste in another folder: it moves (still a cut).
+- [ ] Open the tray panel while typing in an app, then press Esc (or click the tray icon again): the cursor is back in that app and you can keep typing. Open it again and click another window: focus stays in the window you clicked.
 - [ ] Win+V clipboard history: after several dictations none of the dictated text is in the history, and cloud clipboard sync does not carry it.
 - [ ] Hold Shift or Ctrl while releasing the hotkey: the paste still works, and no modifier key is left stuck afterwards.
 - [ ] Another app holding the clipboard open (some remote desktop or clipboard managers): the pill goes red with "Couldn't paste" and the text is kept as Last dictation with Copy.

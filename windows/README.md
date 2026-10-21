@@ -10,7 +10,7 @@ Hold a key, speak, release, and your words appear in any app. The same behaviour
 | `src/Akoya.App` | net10.0-windows, WPF and Win32 adapters: keyboard hook, WASAPI recorder, paste, pill, tray, setup, Velopack updater |
 | `tests/Akoya.Core.Tests` | xUnit, runs on any OS |
 | `tests/Akoya.App.Tests` | xUnit, needs Windows: renders every view to PNG, engine smoke test, clipboard |
-| `scripts/ci.sh` | Push the branch, wait for the Windows CI run, print its summary (for working from Linux) |
+| `scripts/ci.sh` | Push the branch, wait for the Windows CI run, print its summary (bash with `gh` logged in; Linux, macOS or Git Bash) |
 | `scripts/package.ps1` | Build the self-contained package and `Setup.exe` with Velopack |
 
 ## Build and test
@@ -22,6 +22,12 @@ dotnet build windows/Akoya.Windows.slnx -c Release
 dotnet test windows/tests/Akoya.Core.Tests -c Release     # any OS, seconds
 dotnet test windows/tests/Akoya.App.Tests -c Release      # Windows only
 dotnet run --project windows/src/Akoya.App -c Release     # Windows only
+```
+
+The README's Windows images (`docs/assets/windows-*.png`) are drawn by the app's own views. After a UI change, redraw them on Windows from the repo root (PowerShell):
+
+```powershell
+$env:AKOYA_README_DIR = "$PWD\docs\assets"; dotnet test windows/tests/Akoya.App.Tests -c Release --filter ReadmeImages
 ```
 
 On Linux or macOS add `-p:EnableWindowsTargeting=true` to `dotnet build` to compile the WPF project. Everything that needs Windows is verified by the `windows` GitHub workflow (`windows-latest`), and `scripts/ci.sh` runs it from a terminal.

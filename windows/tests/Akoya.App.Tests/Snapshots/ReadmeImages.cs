@@ -20,7 +20,8 @@ namespace Akoya.App.Tests.Snapshots;
 /// <summary>
 /// The Windows images in the README, drawn by the app's own views (pill, tray panel, setup) on a staged desktop.
 /// Only runs with <c>AKOYA_README_DIR</c> set:
-/// <c>$env:AKOYA_README_DIR="docs/assets"; dotnet test windows/tests/Akoya.App.Tests -c Release --filter ReadmeImages</c>.
+/// <c>$env:AKOYA_README_DIR="$PWD\docs\assets"; dotnet test windows/tests/Akoya.App.Tests -c Release --filter ReadmeImages</c>
+/// from the repo root (an absolute path: tests run from their build folder).
 /// </summary>
 public class ReadmeImages
 {

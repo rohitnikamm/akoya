@@ -154,7 +154,10 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
 - Esc is swallowed only while recording.
 - Key repeat (auto-repeat key-downs while held) is ignored.
 - If the hook is removed by Windows (hook timeout), it is re-installed; hook callbacks do no work
-  beyond queueing an event.
+  beyond queueing an event. Re-installed after unlock and after sleep; a watchdog checks every 30 s
+  for a hook Windows dropped silently (input per `GetLastInputInfo` more than 60 s after the hook's
+  last key) and re-installs it, never during a recording. The hook thread checks the silence again
+  just before, so a key that arrives meanwhile is never lost; the log notes it once per silence.
 
 ## Pasting
 
@@ -164,12 +167,18 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
   cut), PNG/DIBV5 images and password managers' `CanIncludeInClipboardHistory` /
   `ExcludeClipboardContentFromMonitorProcessing` markers. Formats Windows synthesises from others
   (`CF_BITMAP`, `CF_PALETTE`, `CF_METAFILEPICT`) or that only work inside their owner
-  (`CF_OWNERDISPLAY`, `CF_DSP*`, `CF_PRIVATEFIRST`..`CF_GDIOBJLAST`) are skipped. Restore after
-  300 ms, as on the Mac, also marked `ExcludeClipboardContentFromMonitorProcessing` so it isn't a
-  new Win+V entry. If any other format can't be copied, or the clipboard holds more than 64 MB,
-  Akoya doesn't borrow the clipboard: it types the text with `SendInput` `KEYEVENTF_UNICODE`
-  (held modifiers released first, as for Ctrl+V). If writing Akoya's text fails after the
-  clipboard was emptied, the snapshot is put back at once.
+  (`CF_OWNERDISPLAY`, `CF_DSP*`, `CF_PRIVATEFIRST`..`CF_GDIOBJLAST`) are skipped. Of the DIB family
+  (`CF_DIB`, `CF_DIBV5`) and the text family (`CF_TEXT`, `CF_OEMTEXT`, `CF_UNICODETEXT`) only the
+  first one listed is copied: the rest are Windows' conversions of it, made again after the
+  restore, so a 4K screenshot counts once against the cap. Restore after 300 ms, as on the Mac, also
+  marked `ExcludeClipboardContentFromMonitorProcessing` so it isn't a new Win+V entry; if another
+  app holds the clipboard then, the restore is tried again every 20 ms for about 1 s without
+  blocking the UI thread. If any other format can't be copied, or the clipboard holds more than
+  64 MB, Akoya doesn't borrow the clipboard: it types the text with `SendInput`
+  `KEYEVENTF_UNICODE` (held modifiers released first, as for Ctrl+V; a line break as Shift+Enter,
+  which is a new line where plain Enter would send a chat message or run a terminal line; a tab as
+  a space, since the Tab key moves focus), and the log names the format that stopped it. If
+  writing Akoya's text fails after the clipboard was emptied, the snapshot is put back at once.
 - Akoya's temporary clipboard content is marked with `ExcludeClipboardContentFromMonitorProcessing`
   and `CanIncludeInClipboardHistory = 0`, so Windows clipboard history (Win+V) and cloud clipboard
   skip it.
@@ -184,7 +193,10 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
 - Tray icon: the dot logo (columns 2-4-6-4-2) as a multi-size `.ico` (16, 20, 24, 32 px; white
   dots). Tooltip "Akoya". Left- or right-click opens the panel.
 - Panel: a borderless rounded window anchored above the tray corner of the work area on the
-  taskbar's monitor, closing when it loses focus or on Esc. Contents, top to bottom, as the Mac
+  taskbar's monitor, closing when it loses focus or on Esc. Esc, a click in its shadow, a second
+  click on the tray icon and the dictation hotkey give focus back to the window the user was
+  typing in (activated before the panel hides, while Windows still lets Akoya do it); a click on
+  another window leaves focus there. Contents, top to bottom, as the Mac
   dropdown:
   1. **Status card:** "Akoya", status dot + text (Ready / Listening / Transcribing / Getting the
      speech model ready… with % / Model download failed + Retry / Microphone not detected), the
@@ -266,6 +278,9 @@ Windows.
 - Download to a `.part` file with progress, verify size and hash, extract (SharpCompress for
   bzip2 + tar) into a temp folder, then rename it into place (atomic). Interrupted downloads restart cleanly. Failure → status "Model download failed"
   with Retry (setup and tray).
+- A model that is on disk but fails to load → "Speech model failed" with Retry, which loads the
+  same files again (the failure may be out of memory or an antivirus scan). When the same files
+  fail a second time in a row they are deleted, so the next Retry downloads them again.
 - Loaded once at launch on a background thread; "Ready" only after a warm-up transcription of
   0.5 s of silence.
 
@@ -281,6 +296,8 @@ Windows.
 
 ## Other behaviour
 
+- **Quit:** a recording is dropped, never pasted. During a transcription and its paste Quit waits
+  for them (and the clipboard restore) to finish, for at most 10 s.
 - **Single instance:** named mutex `Local\Akoya-<user SID>`. A second launch signals the first
   (named event) to open the tray panel, then exits.
 - **Launch at startup:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Akoya` = the Velopack
