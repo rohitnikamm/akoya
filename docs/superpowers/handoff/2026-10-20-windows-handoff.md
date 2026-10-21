@@ -53,6 +53,36 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
    `windows/src/Akoya.App/Platform/SystemClipboard.cs` and `ClipboardPasteInserter.cs` (handle ownership after
    SetClipboardData, OpenClipboard/CloseClipboard on every path, the typing fallback with surrogate pairs and
    newlines).
+   **Update 9:35 PM: the re-review came back "With fixes". Everything from the fix round was fixed correctly
+   (clipboard handle ownership, open/close and markers all clean), but it found new issues. Fix these (TDD, run
+   the App tests locally):**
+   - Important 1. A 4K screenshot on the clipboard makes every dictation type instead of paste.
+     `SystemClipboard.cs` ~254-281 (Capture) reads every member of the DIB family, including the one Windows
+     synthesises, and counts all of them against the 64 MB cap (33 MB CF_DIB + 33 MB synthesised CF_DIBV5 + PNG).
+     Fix: once one member of a synthesised family (DIB/DIBV5/BITMAP, the text family) is captured, skip its
+     siblings, because Windows re-synthesises them. Test with a 3840x2160 bitmap.
+   - Important 2 (re-review #3). Tray focus is given back after the panel hides, when Akoya is no longer
+     foreground, so SetForegroundWindow may be refused. `TrayPanelWindow.xaml.cs` ~123-129 `HidePanel`. Fix:
+     activate the target window first, then Hide.
+   - Minor (do them, they're cheap):
+     - Don't delete the model on every load failure (`AppHost.cs` ~489-500). Delete only when the files fail the
+       pinned check (add per-file SHA-256, hashed only on failure), or after a second failure on the same files.
+       Otherwise an out-of-memory error or an antivirus block means a 482 MB re-download on every Retry.
+     - A click in the panel's shadow should not pull focus back to the remembered window. After
+       HandleDeactivated, forget the target, so a tray click within 400 ms doesn't steal focus back
+       (`TrayPanelWindow.xaml.cs` ~185-212).
+     - Quit while Transcribing waits with no limit (`AppHost.cs` ~708-722). Cap the wait at about 10 s.
+     - Hook watchdog: log once per silence episode, not once a minute. Re-check silence on the hook thread
+       before `_decoder.Reset()` so a key arriving mid-check isn't lost.
+     - Restore gives up after about 30 ms if another app holds the clipboard (`SystemClipboard.cs` ~185-188).
+       Retry asynchronously for about 1 s, like the set.
+     - Typing fallback (`KeyInjector.cs` ~69-75): decide '\n' and '\t'. Typed Enter sends chat messages and
+       runs terminal lines. Prefer Shift+Enter for '\n' and a literal tab character via Unicode input.
+     - Log which format made a clipboard snapshot incomplete (`SystemClipboard.cs` ~284-290).
+     - Missing tests: a delayed-rendered format leads to typing; CF_TEXT read between set and restore still
+       restores; emoji and accents typed into a real TextBox.
+   - Check on this PC: Excel cells, Explorer cut and Word content survive a dictation; typing with a Japanese
+     IME on; the Try it glow next to `docs/design/tryit-glow-target.png`.
 3. Things the implementers flagged for a real PC: the hook watchdog re-installs about once a minute during
    mouse-only use (GetLastInputInfo counts the mouse; harmless but check); tray focus restore under Windows'
    foreground rules; an auto-hidden taskbar on an edge shared with another monitor; Solid bar scaling and which
