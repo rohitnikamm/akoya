@@ -3,8 +3,43 @@ using Xunit;
 
 namespace Akoya.App.Tests;
 
+[Collection(DesktopCollection.Name)]
 public class KeyInjectorTests
 {
+    /// <summary>
+    /// The typing fallback into a real WPF TextBox: accents, a surrogate pair, a new line. Keys are only injected while
+    /// the test's own window holds the foreground, so they can never land in another app; when Windows won't give
+    /// it the foreground (a desktop in use) the check is skipped.
+    /// </summary>
+    [Fact]
+    public void SendText_TypesAccentsEmojiAndNewLines_IntoARealTextBox()
+    {
+        UiThread.Run(() =>
+        {
+            var box = new System.Windows.Controls.TextBox { AcceptsReturn = true, AcceptsTab = true };
+            var window = new System.Windows.Window { Width = 300, Height = 120, Content = box, Topmost = true, Title = "Akoya typing test" };
+            window.Show();
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+            window.Activate();
+            box.Focus();
+            UiThread.Pump(TimeSpan.FromMilliseconds(200));
+            try
+            {
+                if (Tray.TrayNative.GetForegroundWindow() != hwnd || !box.IsKeyboardFocused) return; // never type elsewhere
+
+                const string text = "naïve café ünd 😀\nnext\tline ";
+                KeyInjector.SendText(text);
+                UiThread.PumpUntil(() => box.Text.Length >= text.Length || Tray.TrayNative.GetForegroundWindow() != hwnd, 5000);
+
+                Assert.Equal(text.Replace("\n", "\r\n", StringComparison.Ordinal).Replace('\t', ' '), box.Text);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     private const ushort Ctrl = 0x11;
     private const ushort V = 0x56;
 
@@ -84,7 +119,7 @@ public class KeyInjectorTests
     }
 
     [Fact]
-    public void Typing_SurrogatePairs_AreSentAsTwoUnits_AndNewlinesAsEnter()
+    public void Typing_SurrogatePairs_AreSentAsTwoUnits_AndNewlinesAsShiftEnter()
     {
         var sequence = KeyInjector.BuildTypingSequence("\U0001F600\r\n", _ => false);
 
@@ -95,9 +130,21 @@ public class KeyInjectorTests
                 new KeyStroke(0, true, false, '\uD83D'),
                 new KeyStroke(0, false, false, '\uDE00'),
                 new KeyStroke(0, true, false, '\uDE00'),
+                // Plain Enter would send a chat message or run a terminal line; Shift+Enter is a new line.
+                new KeyStroke(0x10, false, false),
                 new KeyStroke(0x0D, false, false),
                 new KeyStroke(0x0D, true, false),
+                new KeyStroke(0x10, true, false),
             },
             sequence);
+    }
+
+    [Fact]
+    public void Typing_TabIsASpace_NotTheTabKey()
+    {
+        // The Tab key would move focus out of the field, and a tab sent as Unicode input is dropped by some apps (WPF).
+        var sequence = KeyInjector.BuildTypingSequence("\t", _ => false);
+
+        Assert.Equal(new[] { new KeyStroke(0, false, false, ' '), new KeyStroke(0, true, false, ' ') }, sequence);
     }
 }

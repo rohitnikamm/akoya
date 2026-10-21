@@ -14,7 +14,7 @@ public static class KeyInjector
 
     private const ushort VkControl = 0x11;
     private const ushort VkV = 0x56;
-    private const ushort VkTab = 0x09;
+    private const ushort VkShift = 0x10;
     private const ushort VkReturn = 0x0D;
 
     private static readonly (ushort Vk, bool Extended, bool OpensMenuOrStart)[] Modifiers =
@@ -50,7 +50,9 @@ public static class KeyInjector
     /// <summary>
     /// The injected sequence that types <paramref name="text"/> without the clipboard: held modifiers are released
     /// first, as for Ctrl+V, then each UTF-16 unit goes down and up as KEYEVENTF_UNICODE input (a surrogate pair is
-    /// two units, which Windows recombines). Line breaks are Enter and tabs Tab, which apps expect as keys.
+    /// two units, which Windows recombines). A line break is Shift+Enter, a new line in chat boxes and Claude Code where
+    /// plain Enter would send the message or run the line; a tab is a space, since the Tab key would move focus out of
+    /// the field and a tab sent as Unicode input is dropped by some apps (WPF). Speech never produces tabs anyway.
     /// </summary>
     public static IReadOnlyList<KeyStroke> BuildTypingSequence(string text, Func<ushort, bool> isPhysicallyDown)
     {
@@ -66,16 +68,18 @@ public static class KeyInjector
                 continue; // CRLF is one Enter
             }
 
-            if (unit is '\r' or '\n' or '\t')
+            if (unit is '\r' or '\n')
             {
-                var vk = unit == '\t' ? VkTab : VkReturn;
-                strokes.Add(new KeyStroke(vk, false, false));
-                strokes.Add(new KeyStroke(vk, true, false));
+                strokes.Add(new KeyStroke(VkShift, false, false));
+                strokes.Add(new KeyStroke(VkReturn, false, false));
+                strokes.Add(new KeyStroke(VkReturn, true, false));
+                strokes.Add(new KeyStroke(VkShift, true, false));
                 continue;
             }
 
-            strokes.Add(new KeyStroke(0, false, false, unit));
-            strokes.Add(new KeyStroke(0, true, false, unit));
+            var typed = unit == '\t' ? ' ' : unit;
+            strokes.Add(new KeyStroke(0, false, false, typed));
+            strokes.Add(new KeyStroke(0, true, false, typed));
         }
 
         return strokes;
