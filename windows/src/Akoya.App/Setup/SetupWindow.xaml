@@ -1,0 +1,21 @@
+<!--
+  The first-run window: borderless and transparent so only the rounded card (SetupView) shows, with room around it for
+  the card's drop shadow. Centred on the primary monitor's work area; dragged by the card.
+-->
+<Window x:Class="Akoya.App.Setup.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:setup="clr-namespace:Akoya.App.Setup"
+        Title="Akoya"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        ShowInTaskbar="True"
+        WindowStartupLocation="Manual">
+    <Window.Resources>
+        <ResourceDictionary Source="pack://application:,,,/Akoya.App;component/Theme/Theme.xaml" />
+    </Window.Resources>
+    <setup:SetupView x:Name="Card" Margin="{x:Static setup:SetupWindow.ShadowPadding}" />
+</Window>
