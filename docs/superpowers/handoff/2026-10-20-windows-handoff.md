@@ -17,7 +17,7 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
 ## Rohit's decisions (all binding)
 - Pill: compact dot waveform; jelly pop-in (circle that springs out, 0.42 s; plain fade when Windows animations are
   off); sits 52 DIP above the taskbar's top edge measured as if shown, so the same height shown or auto-hidden
-  ("height B"; if it feels too high, go to "A": 18 DIP above the taskbar's shown top).
+  ("height B"; Rohit confirmed he likes it).
 - Tray panel matches the Mac's all-in-one dropdown, with a "Pill" row in place of the Mac's "Menu bar icon" row:
   Waveform Pixel | Solid, Red while recording (off by default). With Red while recording on, the processing sweep is
   amber (red, then amber, then the blue Pasted check). With it off, white dots and a blue-white sweep. No "Hide when
@@ -43,7 +43,18 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
 - Try it: "Didn't catch that. Try again." after a silent take; the card's glow rises with the voice. Tray glow holds
   still when Windows animations are off. A watchdog re-installs the keyboard hook if Windows drops it.
 
+## Rohit's second test (9:23 PM): results and one new request
+- Jelly pop works and looks as intended. He likes height B: keep it (drop the "go to A" fallback).
+- NEW REQUEST: the processing sweep (the scan that moves side to side after he stops talking) should light only the
+  centre two dot rows (rows 2 and 3 of the 4), not all four, because it looks cleaner. He said it for the amber
+  sweep; apply it to both sweep colours (amber with Red while recording on, blue-white with it off) unless he says
+  otherwise. CLAUDE.md says Rohit sees a render before UI work is built, so first show him a quick before/after
+  (render both sweep colours, all-4-rows vs centre-2-rows, as an HTML mockup or PNG). Build it after his OK. Then
+  update the pill-transcribing snapshots, `docs/FEATURES.md` (pill sweep row; the Mac's menu bar sweep is a
+  different shape, so note it as Different on purpose or ask him) and the spec.
+
 ## Open items, in order
+0. The centre-two-rows sweep above.
 1. Rohit's second hands-on test of b3e1bd7 (he may be doing it now): jelly pop and height with his auto-hidden
    taskbar; the Pill row (Solid, Red while recording, amber sweep); tray focus restore; clipboard round-trip with
    Excel cells and an image; quick tap with Bluetooth headphones. Fix what he reports. Logs:
