@@ -71,7 +71,7 @@ public sealed record TrayCommands(
     Func<string, bool> Copy,
     Action<HotkeyKey> SelectHotkey,
     Action<string?> SelectMic,
-    Action<bool> SetLaunchAtStartup,
+    Func<bool, bool> SetLaunchAtStartup,
     Action Retry,
     Action OpenMicSettings,
     Action RestartToUpdate,

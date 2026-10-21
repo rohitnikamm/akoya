@@ -563,19 +563,21 @@ public sealed class AppHost : IDisposable
         RefreshMicrophones();
     }
 
-    private void SetLaunchAtStartup(bool enabled)
+    /// <summary>The Launch at startup switch. False (the switch springs back) when the Run entry can't be written.</summary>
+    private bool SetLaunchAtStartup(bool enabled)
     {
-        if (_disposed) return;
+        if (_disposed) return false;
         try
         {
             _p.Startup.Set(enabled);
             UpdateSettings(s => s with { LaunchAtStartup = enabled });
+            return true;
         }
         catch (Exception e)
         {
             _p.Log.Error("Could not change Launch at startup", e);
+            return false;
         }
-        _tray?.SetSettings(_settings);
     }
 
     private void SyncLaunchAtStartup()
