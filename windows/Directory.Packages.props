@@ -8,5 +8,6 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
     <PackageVersion Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
     <PackageVersion Include="SharpCompress" Version="0.50.4" />
+    <PackageVersion Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 </Project>
