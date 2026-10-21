@@ -6,4 +6,13 @@
   checked (screenshot it and look at it) before it is shown to him.
 - The repo and the Homebrew tap (`rohitnikamm/homebrew-tap`) are public.
 - Mac app: `swift test`, `scripts/build-app.sh debug`. Releases: `scripts/release.sh VERSION`.
-- Windows version: in design. Start with `docs/superpowers/specs/2026-10-20-akoya-windows-design.md`.
+- Windows version (in `windows/`, spec: `docs/superpowers/specs/2026-10-20-akoya-windows-design.md`):
+  - Local, any OS with the .NET 10 SDK: `dotnet build windows/Akoya.Windows.slnx -c Release -p:EnableWindowsTargeting=true`
+    and `dotnet test windows/tests/Akoya.Core.Tests -c Release` (seconds). The App tests (WPF rendering,
+    clipboard, Win32, the speech model) only run on Windows.
+  - Windows CI: `windows/scripts/ci.sh` pushes the current branch, waits for the `windows` workflow and prints its
+    summary; results (summary.md, logs, `.trx`, snapshot PNGs) come from the `ci-output` branches. It only runs for
+    pushes touching `windows/**` or the workflow. Never push a `windows-v*` tag: that publishes a release build and is
+    Rohit's step.
+  - Releases: tag `windows-vX.Y.Z` makes the `release-windows` workflow build a Velopack `Setup.exe` into a draft
+    release (`windows/scripts/package.ps1`). Manual checks on a real PC: `docs/MANUAL_CHECKS_WINDOWS.md`.

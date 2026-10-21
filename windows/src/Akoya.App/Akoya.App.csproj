@@ -4,6 +4,10 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>Akoya.App</RootNamespace>
+    <!-- What Task Manager and the file properties show. The assembly keeps its name (pack URIs use it);
+         windows/scripts/package.ps1 renames the exe to Akoya.exe for Velopack. -->
+    <AssemblyTitle>Akoya</AssemblyTitle>
+    <Product>Akoya</Product>
     <!-- Only the win-x64 sherpa-onnx natives ship; the shared framework is still used. -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
@@ -14,6 +18,7 @@
     <PackageReference Include="SharpCompress" />
     <InternalsVisibleTo Include="Akoya.App.Tests" />
     <PackageReference Include="NAudio.Wasapi" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Akoya.Core\Akoya.Core.csproj" />

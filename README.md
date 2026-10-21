@@ -52,6 +52,12 @@ A Windows 11 version is in the works. It's the same hold-to-talk dictation, but 
 <img src="docs/assets/windows-preview.gif" alt="Mockup of Akoya on Windows: a pill above the taskbar shows a waveform, a transcribing scan, then Pasted" width="100%">
 </div>
 
+### Install (once released)
+
+When the first Windows release is published, download `Akoya-win-Setup.exe` from the [releases page](https://github.com/rohitnikamm/akoya/releases) (the one named "Akoya for Windows") and run it. It installs just for you, with no admin prompt, adds a Start menu entry and an uninstaller, and needs no .NET install.
+
+Akoya is not code-signed, so Windows SmartScreen shows "Windows protected your PC" the first time: click **More info → Run anyway**. First-run setup lets you pick your microphone and downloads the speech model (about 480 MB). After that, Akoya updates itself from new releases: the tray panel shows "Update ready · Restart". Details for contributors are in [windows/README.md](windows/README.md).
+
 ## Build from source
 
 Requires macOS 14+ on Apple Silicon and Swift 6 (the Command Line Tools are enough).
