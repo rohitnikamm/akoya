@@ -27,9 +27,9 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |
-| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Byte-for-byte Win32 snapshot of every format (private app formats, Excel cells, an Explorer cut, PNG, password managers' history markers), restored after 300 ms (tried again for about 1 s while another app holds the clipboard) unless something changed it meanwhile; the restore is marked excluded from Win+V history. Formats Windows converts from another (a screenshot's second bitmap copy, the older text formats) are not copied, so a 4K screenshot still pastes. A format that can't be copied, or over 64 MB: the clipboard is left alone and the text is typed instead (a line break as Shift+Enter, a tab as a space) | Same |
-| Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | Marks it excluded from monitoring, Win+V history and cloud clipboard | Same |
-| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V", no restore | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
+| Clipboard after a dictation | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | The dictated text stays on the clipboard as the latest copy, so Ctrl+V pastes it again anywhere (for example after switching windows mid-sentence); what was copied before is not put back but stays in Win+V history | Missing on Mac (Rohit's choice on Windows, 2026-10-20; the Mac still restores) |
+| Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | An ordinary copy: it shows in Win+V history and cloud clipboard like any other | Different on purpose (the dictation is meant to stay as a copy on Windows) |
+| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V" | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
 | Screen lock mid-dictation | Nothing special | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
@@ -213,10 +213,11 @@ Every user-visible string not already quoted above, with when it appears.
 | Settings storage | UserDefaults `com.rohitnikamm.akoya` | `%AppData%\Akoya\settings.json`, atomic save; corrupt file or bad values fall back to defaults; an unreadable file is never overwritten | Different on purpose (platform conventions) |
 | No settings window | Everything is in the dropdown | Everything is in the tray panel | Same |
 | Look | Dark only, Outfit font, electric-blue accents (`#2F6BFF` to `#1D4ED8`) | Same | Same |
-| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish, for up to 10 s | Same |
+| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it to finish, for up to 10 s | Same |
 
 ## Open differences
 
+- Dictation: the dictated text stays on the clipboard (Missing on Mac)
 - Dictation: paste blocked fallback (Missing on Mac)
 - Dictation: screen lock mid-dictation (Missing on Mac)
 - Speech model: warm-up before "Ready" (Missing on Mac)

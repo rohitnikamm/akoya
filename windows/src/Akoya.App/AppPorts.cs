@@ -263,7 +263,7 @@ public sealed class AppPorts
 
     /// <summary>
     /// Puts text on the clipboard (Last dictation's Copy) in one attempt, without blocking. False when the clipboard is
-    /// busy. Must not share the paste's clipboard instance (its restore guard).
+    /// busy.
     /// </summary>
     public Func<string, bool> CopyToClipboard { get; init; } = _ => false;
 

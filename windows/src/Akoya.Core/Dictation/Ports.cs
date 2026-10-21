@@ -52,7 +52,7 @@ public interface ITextInserter
 {
     /// <summary>
     /// Inserts <paramref name="text"/> into the foreground app. The task completes only after the
-    /// clipboard has been restored, so the caller can treat its completion as the end of the paste.
+    /// paste has been sent, so the caller can treat its completion as the end of the paste.
     /// </summary>
     Task<InsertResult> InsertAsync(string text);
 }

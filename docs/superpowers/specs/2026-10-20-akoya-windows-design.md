@@ -90,8 +90,7 @@ windows/
 - `MicrophoneCatalog`: enumerates active capture endpoints (NAudio `MMDeviceEnumerator`), reads
   form factor, bus enumerator, friendly names; watches add/remove/default-change notifications.
 - `MultiMeter`: opens every active input at once (setup only) for live per-row meters.
-- `ClipboardPasteInserter`: snapshot clipboard → set text → `SendInput` Ctrl+V → wait 300 ms →
-  restore.
+- `ClipboardPasteInserter`: set text (it stays on the clipboard) → `SendInput` Ctrl+V.
 - `SherpaTranscriber`: sherpa-onnx offline transducer (`model_type = nemo_transducer`) with the
   int8 Parakeet TDT 0.6B v2 model, CPU provider; provider is a setting so the GPU can be added
   (see GPU).
@@ -161,32 +160,17 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
 
 ## Pasting
 
-- Clipboard snapshot is a raw Win32 copy (`EnumClipboardFormats`, each HGLOBAL format byte for
-  byte, `CF_ENHMETAFILE` as its bits), so every format survives: registered private formats
-  (Photoshop, Figma, CAD), Excel's cell formats, Explorer's `Preferred DropEffect` (a cut stays a
-  cut), PNG/DIBV5 images and password managers' `CanIncludeInClipboardHistory` /
-  `ExcludeClipboardContentFromMonitorProcessing` markers. Formats Windows synthesises from others
-  (`CF_BITMAP`, `CF_PALETTE`, `CF_METAFILEPICT`) or that only work inside their owner
-  (`CF_OWNERDISPLAY`, `CF_DSP*`, `CF_PRIVATEFIRST`..`CF_GDIOBJLAST`) are skipped. Of the DIB family
-  (`CF_DIB`, `CF_DIBV5`) and the text family (`CF_TEXT`, `CF_OEMTEXT`, `CF_UNICODETEXT`) only the
-  first one listed is copied: the rest are Windows' conversions of it, made again after the
-  restore, so a 4K screenshot counts once against the cap. Restore after 300 ms, as on the Mac, also
-  marked `ExcludeClipboardContentFromMonitorProcessing` so it isn't a new Win+V entry; if another
-  app holds the clipboard then, the restore is tried again every 20 ms for about 1 s without
-  blocking the UI thread. If any other format can't be copied, or the clipboard holds more than
-  64 MB, Akoya doesn't borrow the clipboard: it types the text with `SendInput`
-  `KEYEVENTF_UNICODE` (held modifiers released first, as for Ctrl+V; a line break as Shift+Enter,
-  which is a new line where plain Enter would send a chat message or run a terminal line; a tab as
-  a space, since the Tab key moves focus), and the log names the format that stopped it. If
-  writing Akoya's text fails after the clipboard was emptied, the snapshot is put back at once.
-- Akoya's temporary clipboard content is marked with `ExcludeClipboardContentFromMonitorProcessing`
-  and `CanIncludeInClipboardHistory = 0`, so Windows clipboard history (Win+V) and cloud clipboard
-  skip it.
+- The dictated text is copied, as if the user pressed Ctrl+C (`CF_UNICODETEXT`, an ordinary copy:
+  it shows in Win+V history), then pasted with Ctrl+V, and it **stays on the clipboard**: after
+  switching to another window the user can press Ctrl+V to paste it again (Rohit's choice,
+  2026-10-20). What was copied before is not put back; Win+V history keeps it. If another app
+  holds the clipboard, the copy is tried again every 20 ms, 10 times, without blocking the UI
+  thread; then "Couldn't paste" (the text stays as Last dictation).
 - `SendInput` Ctrl+V. If any modifier is still physically held, it's released in the injected
   sequence first and restored state isn't faked.
 - **Admin windows (UIPI):** if the foreground window belongs to an elevated process and Akoya isn't
-  elevated, Akoya doesn't attempt the paste. It leaves the text on the clipboard (no restore) and
-  the pill says "Copied. Press Ctrl+V" (blue, like Pasted), then fades.
+  elevated, Akoya doesn't attempt the paste. It leaves the text on the clipboard and the pill says
+  "Copied. Press Ctrl+V" (blue, like Pasted), then fades.
 
 ## Tray icon and panel
 
@@ -300,7 +284,7 @@ Windows.
 ## Other behaviour
 
 - **Quit:** a recording is dropped, never pasted. During a transcription and its paste Quit waits
-  for them (and the clipboard restore) to finish, for at most 10 s.
+  for them to finish, for at most 10 s.
 - **Single instance:** named mutex `Local\Akoya-<user SID>`. A second launch signals the first
   (named event) to open the tray panel, then exits.
 - **Launch at startup:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Akoya` = the Velopack
@@ -342,10 +326,10 @@ Windows.
   More expanded, mic amber, mic blocked, Try it) — CI commits the PNGs to the `ci-output` branch
   for visual review against the mockups. Engine smoke test: transcribe the model's bundled test
   WAV on CI (model cached between runs) and assert the expected words and timing. Clipboard
-  snapshot/restore round-trip. Naming against the runner's real endpoints (smoke only).
+  copy leaves the text on the clipboard. Naming against the runner's real endpoints (smoke only).
 - **Manual checklist** `docs/MANUAL_CHECKS_WINDOWS.md` on Rohit's PC: hold/tap/Esc in Windows
   Terminal, VS Code, Claude Code, Notepad, a browser; AltGr layout; Copilot key if present; pill
-  on each monitor; admin window; unplugging the headset; clipboard restored; Win+V history clean;
+  on each monitor; admin window; unplugging the headset; dictated text stays on the clipboard;
   setup with the real device list; launch at startup; install/update/uninstall.
 
 ## Windows pitfalls covered

@@ -43,7 +43,7 @@ public abstract record Destination
 /// <c>MicBlocked</c> for <see cref="AlertDisplay"/>. A silent recording, an empty transcript or a
 /// transcription error goes straight back to <c>Idle</c> (the pill fades). The phase stays
 /// <c>Transcribing</c> until the inserter returns, so a press cannot start a recording while the
-/// clipboard is still being restored.</para>
+/// paste is still going into the app.</para>
 /// <para>The hotkey is hold-or-tap: releasing at least <see cref="HoldThreshold"/> after the press
 /// stops (push-to-talk); releasing sooner latches the recording on and the next press stops it.
 /// Esc and <see cref="SessionLocked"/> cancel either way.</para>
