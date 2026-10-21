@@ -243,15 +243,23 @@ public sealed class SystemClipboard : IClipboard, IDisposable
             if (format == 0)
             {
                 // Zero with an error is a failed enumeration, not the end of the list.
-                if (Marshal.GetLastWin32Error() != 0)
+                if (Marshal.GetLastWin32Error() is var error and not 0)
                 {
-                    return ClipboardSnapshot.Incomplete;
+                    return ClipboardSnapshot.IncompleteBecause($"listing the formats failed, error {error}");
                 }
 
                 break;
             }
 
             if (IsSkipped(format))
+            {
+                continue;
+            }
+
+            // Formats come in the order they were set, the synthesised ones last, so once one member of a family is
+            // copied the rest are Windows' conversions of it: it makes them again after the restore. Copying them too
+            // would count a 4K screenshot two or three times against the cap.
+            if (FamilyOf(format) is { } siblings && siblings.Contains(format) && items.Any(i => siblings.Contains(i.Format)))
             {
                 continue;
             }
@@ -263,11 +271,11 @@ public sealed class SystemClipboard : IClipboard, IDisposable
             }
             catch (OverflowException)
             {
-                return ClipboardSnapshot.Incomplete; // over the size cap
+                return ClipboardSnapshot.IncompleteBecause($"over the {_maxSnapshotBytes / (1024 * 1024)} MB cap at {Describe(format)}");
             }
             catch (OutOfMemoryException)
             {
-                return ClipboardSnapshot.Incomplete;
+                return ClipboardSnapshot.IncompleteBecause($"out of memory copying {Describe(format)}");
             }
 
             if (data is null)
@@ -286,11 +294,20 @@ public sealed class SystemClipboard : IClipboard, IDisposable
             var family = FamilyOf(missing);
             if (family is null || !items.Any(i => family.Contains(i.Format)))
             {
-                return ClipboardSnapshot.Incomplete;
+                return ClipboardSnapshot.IncompleteBecause($"{Describe(missing)} could not be read");
             }
         }
 
         return items.Count == 0 ? ClipboardSnapshot.Empty : ClipboardSnapshot.Of(items);
+    }
+
+    /// <summary>A format's number and, for a registered one, its name (for the log).</summary>
+    private static string Describe(uint format)
+    {
+        var name = new System.Text.StringBuilder(128);
+        return NativeMethods.GetClipboardFormatName(format, name, name.Capacity) > 0
+            ? $"format {format} \"{name}\""
+            : $"format {format}";
     }
 
     /// <summary>The bytes of one format; null when it cannot be read. Throws <see cref="OverflowException"/> past <paramref name="budget"/>.</summary>

@@ -13,12 +13,16 @@ public sealed record ClipboardItem(uint Format, byte[] Data);
 /// </summary>
 public sealed class ClipboardSnapshot
 {
-    private ClipboardSnapshot(IReadOnlyList<ClipboardItem> items, bool isUnreadable, bool isIncomplete)
+    private ClipboardSnapshot(IReadOnlyList<ClipboardItem> items, bool isUnreadable, bool isIncomplete, string? reason = null)
     {
         Items = items;
         IsUnreadable = isUnreadable;
         IsIncomplete = isIncomplete;
+        IncompleteReason = reason;
     }
+
+    /// <summary>For the log: which format made the snapshot incomplete (never clipboard contents).</summary>
+    public string? IncompleteReason { get; }
 
     /// <summary>The detached copies of every format; empty when empty, unreadable or incomplete.</summary>
     public IReadOnlyList<ClipboardItem> Items { get; }
@@ -34,6 +38,8 @@ public sealed class ClipboardSnapshot
     public static ClipboardSnapshot Unreadable { get; } = new([], true, false);
 
     public static ClipboardSnapshot Incomplete { get; } = new([], false, true);
+
+    public static ClipboardSnapshot IncompleteBecause(string reason) => new([], false, true, reason);
 
     public static ClipboardSnapshot Of(IReadOnlyList<ClipboardItem> items)
     {
@@ -79,17 +85,20 @@ public sealed class ClipboardPasteInserter : ITextInserter
     private readonly Action<string> _typeText;
     private readonly IScheduler _scheduler;
     private readonly Func<TimeSpan, Task> _delay;
+    private readonly Action<string> _log;
 
     /// <param name="sendCtrlV">Sends Ctrl+V to the foreground window; throws if the input was blocked.</param>
     /// <param name="typeText">Types text into the foreground window as Unicode key input; throws if it was blocked.</param>
     /// <param name="delay">The wait between clipboard attempts; replaced in tests.</param>
+    /// <param name="log">Says why the text was typed instead of pasted (never the text).</param>
     public ClipboardPasteInserter(
         IClipboard clipboard,
         Func<bool> foregroundIsElevated,
         Action sendCtrlV,
         Action<string> typeText,
         IScheduler scheduler,
-        Func<TimeSpan, Task>? delay = null)
+        Func<TimeSpan, Task>? delay = null,
+        Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(foregroundIsElevated);
@@ -102,6 +111,7 @@ public sealed class ClipboardPasteInserter : ITextInserter
         _typeText = typeText;
         _scheduler = scheduler;
         _delay = delay ?? Task.Delay;
+        _log = log ?? (_ => { });
     }
 
     public async Task<InsertResult> InsertAsync(string text)
@@ -123,6 +133,7 @@ public sealed class ClipboardPasteInserter : ITextInserter
         // would lose it, so type the text instead and never touch the clipboard.
         if (snapshot.IsIncomplete)
         {
+            _log($"Typing instead of pasting: the clipboard can't be copied ({snapshot.IncompleteReason ?? "unknown"})");
             try
             {
                 _typeText(text);

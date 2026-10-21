@@ -31,7 +31,8 @@ public static class AppComposition
             Recorder = recorder,
             Microphones = catalog,
             Inserter = new ClipboardPasteInserter(
-                pasteClipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV, KeyInjector.SendText, scheduler),
+                pasteClipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV, KeyInjector.SendText, scheduler,
+                log: log.Info),
             Scheduler = scheduler,
             CreateHotkeyHook = (key, onEvent) => new KeyboardHookPort(key, onEvent),
             Model = new SpeechModel(new ModelStore(modelsRoot ?? SpeechModel.DefaultRoot, http)),

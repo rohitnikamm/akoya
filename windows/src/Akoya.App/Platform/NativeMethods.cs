@@ -181,6 +181,9 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern uint EnumClipboardFormats(uint format);
 
+    [DllImport("user32.dll", EntryPoint = "GetClipboardFormatNameW", CharSet = CharSet.Unicode)]
+    internal static extern int GetClipboardFormatName(uint format, System.Text.StringBuilder name, int maxCount);
+
     [DllImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern uint RegisterClipboardFormat(string name);
 

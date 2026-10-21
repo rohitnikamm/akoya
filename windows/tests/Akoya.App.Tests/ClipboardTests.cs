@@ -58,6 +58,22 @@ public class ClipboardTests
     }
 
     [Fact]
+    public async Task Insert_IncompleteSnapshot_LogsWhichFormat()
+    {
+        var clipboard = new FakeClipboard(ClipboardSnapshot.IncompleteBecause("format 49999 \"Odd\" could not be read"));
+        var logged = new List<string>();
+        var inserter = new ClipboardPasteInserter(
+            clipboard, () => false, () => clipboard.Calls.Add("ctrl+v"), t => clipboard.Calls.Add("type:" + t),
+            new ManualScheduler(), _ => Task.CompletedTask, logged.Add);
+
+        await inserter.InsertAsync("secret words ");
+
+        var line = Assert.Single(logged);
+        Assert.Contains("format 49999 \"Odd\" could not be read", line);
+        Assert.DoesNotContain("secret", line); // never the transcript
+    }
+
+    [Fact]
     public async Task Insert_IncompleteSnapshot_TypingBlocked_Fails()
     {
         var clipboard = new FakeClipboard(ClipboardSnapshot.Incomplete);
@@ -313,6 +329,34 @@ public class ClipboardTests
 
             Assert.True(snapshot.IsIncomplete);
             Assert.False(snapshot.IsEmpty);
+            Assert.Contains("\"Akoya Test Big\"", snapshot.IncompleteReason); // the log says which format
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_4kScreenshot_FitsUnderTheCap_SynthesisedSiblingsAreNotCopied()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var dib = ClipboardSamples.Dib(3840, 2160); // 33 MB; Windows offers a synthesised CF_DIBV5 of the same size
+            var png = RawClipboard.Format("PNG");
+            var pngBytes = Enumerable.Range(0, 2_000_000).Select(i => (byte)i).ToArray();
+            RawClipboard.Set(new[] { (RawClipboard.CfDib, dib), (png, pngBytes) });
+            Assert.True(RawClipboard.Has(RawClipboard.CfDibV5));
+
+            var snapshot = clipboard.Snapshot();
+
+            Assert.False(snapshot.IsIncomplete);
+            Assert.Contains(snapshot.Items, i => i.Format == RawClipboard.CfDib);
+            Assert.DoesNotContain(snapshot.Items, i => i.Format == RawClipboard.CfDibV5);
+
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+            clipboard.Restore(snapshot);
+
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfDib), dib));
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(png), pngBytes));
+            Assert.True(RawClipboard.Has(RawClipboard.CfDibV5)); // Windows synthesises it again
         });
     }
 

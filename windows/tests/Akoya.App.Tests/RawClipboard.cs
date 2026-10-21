@@ -12,6 +12,7 @@ internal static class RawClipboard
     public const uint CfUnicodeText = 13;
     public const uint CfEnhMetaFile = 14;
     public const uint CfHdrop = 15;
+    public const uint CfDibV5 = 17;
 
     public static uint Format(string name)
     {
@@ -123,16 +124,17 @@ internal static class RawClipboard
 /// <summary>Sample clipboard payloads.</summary>
 internal static class ClipboardSamples
 {
-    /// <summary>A valid 2×2 32-bit bottom-up DIB.</summary>
-    public static byte[] Dib()
+    /// <summary>A valid 32-bit bottom-up DIB, 2×2 unless given a size.</summary>
+    public static byte[] Dib(int width = 2, int height = 2)
     {
-        var bytes = new byte[40 + 16];
+        var pixels = width * height * 4;
+        var bytes = new byte[40 + pixels];
         BitConverter.GetBytes(40).CopyTo(bytes, 0);      // biSize
-        BitConverter.GetBytes(2).CopyTo(bytes, 4);       // biWidth
-        BitConverter.GetBytes(2).CopyTo(bytes, 8);       // biHeight
+        BitConverter.GetBytes(width).CopyTo(bytes, 4);   // biWidth
+        BitConverter.GetBytes(height).CopyTo(bytes, 8);  // biHeight
         BitConverter.GetBytes((short)1).CopyTo(bytes, 12); // biPlanes
         BitConverter.GetBytes((short)32).CopyTo(bytes, 14); // biBitCount
-        BitConverter.GetBytes(16).CopyTo(bytes, 20);     // biSizeImage
+        BitConverter.GetBytes(pixels).CopyTo(bytes, 20); // biSizeImage
         for (var i = 40; i < bytes.Length; i++) bytes[i] = (byte)(i * 7);
         return bytes;
     }
