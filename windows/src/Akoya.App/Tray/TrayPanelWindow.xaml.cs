@@ -32,6 +32,7 @@ public partial class TrayPanelWindow : Window
     private readonly PanelFocus _focus;
     private long? _deactivatedAt; // Environment.TickCount64 of the last hide on deactivation
     private bool _prewarmQueued;
+    private bool _closing; // HidePanel is giving focus back
 
     public TrayPanelWindow(TrayPanelViewModel model)
         : this(model, PanelFocus.ForDesktop())
@@ -124,8 +125,18 @@ public partial class TrayPanelWindow : Window
     {
         _model.CloseMenus.Execute(null);
         if (!IsVisible) return;
+        // Give focus back while Akoya still holds the foreground: Windows refuses SetForegroundWindow from a process
+        // that no longer has it. The deactivation this causes is not a click away (HandleDeactivated ignores it).
+        _closing = true;
+        try
+        {
+            _focus.Restore();
+        }
+        finally
+        {
+            _closing = false;
+        }
         Hide();
-        _focus.Restore();
     }
 
     /// <summary>
@@ -178,11 +189,14 @@ public partial class TrayPanelWindow : Window
 
     /// <summary>
     /// Losing activation hides the panel (like the Windows flyouts). Focus stays where the user clicked; only a tray
-    /// click that follows within <see cref="ReopenGuard"/> gives it back (<see cref="Toggle"/>).
+    /// click that follows within <see cref="ReopenGuard"/> gives it back (<see cref="Toggle"/>), and only when the
+    /// click went to the taskbar on its way: a click on another window (or through the panel's see-through shadow
+    /// onto one) forgets the window to give back.
     /// </summary>
     internal void HandleDeactivated()
     {
-        if (!IsVisible) return;
+        if (!IsVisible || _closing) return;
+        _focus.LostTo();
         _deactivatedAt = Environment.TickCount64;
         _model.CloseMenus.Execute(null);
         Hide();

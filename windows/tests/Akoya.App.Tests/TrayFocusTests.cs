@@ -112,6 +112,55 @@ public class TrayFocusTests
     }
 
     [Fact]
+    public void Window_GivesFocusBackWhileStillShowing_SoWindowsAllowsIt_AndThatDeactivationIsNotAClickAway()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var rig = new FocusRig();
+            TrayPanelWindow? window = null;
+            var visibleWhenActivated = new List<bool>();
+            var focus = new PanelFocus(() => rig.Foreground, () => rig.LastOutside, hwnd => hwnd != IntPtr.Zero && hwnd != Taskbar,
+                hwnd =>
+                {
+                    visibleWhenActivated.Add(window!.IsVisible);
+                    rig.Foreground = hwnd;
+                    window.HandleDeactivated(); // Windows deactivates the panel inside SetForegroundWindow
+                });
+            window = new TrayPanelWindow(TrayPanelSnapshots.Model(_ => { }), focus);
+
+            window.ShowNearTray();
+            PressEscape(window);
+
+            Assert.False(window.IsVisible);
+            Assert.Equal(new[] { true }, visibleWhenActivated);
+            rig.Foreground = Taskbar;
+            window.Toggle(); // a tray click right after Esc opens the panel again
+            Assert.True(window.IsVisible);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void Window_ClickedAwayToAnotherWindow_ATrayClickRightAfterDoesNotPullFocusBack()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var other = new IntPtr(0x9999);
+            var rig = new FocusRig();
+            var window = new TrayPanelWindow(TrayPanelSnapshots.Model(_ => { }), rig.Create());
+
+            window.ShowNearTray();
+            rig.Foreground = other; // a click in the panel's see-through shadow lands on the window behind it
+            window.HandleDeactivated();
+            window.Toggle();
+
+            Assert.Empty(rig.Activated);
+            window.Close();
+        });
+    }
+
+    [Fact]
     public void Window_CloseForDictation_HidesAndGivesFocusBack_OnlyWhenOpen()
     {
         SnapshotHarness.RunSta(() =>

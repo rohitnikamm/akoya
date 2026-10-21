@@ -79,6 +79,15 @@ public sealed class PanelFocus : IDisposable
     /// <summary>Drops the remembered window (the user clicked another one).</summary>
     public void Forget() => _target = IntPtr.Zero;
 
+    /// <summary>
+    /// The panel lost activation: if another window now has the foreground the user chose it, so drop the remembered
+    /// one. Kept when the taskbar has it (a tray click on its way to the icon) or nothing does yet.
+    /// </summary>
+    public void LostTo()
+    {
+        if (Restorable(SafeCall(_foreground))) Forget();
+    }
+
     public void Dispose() => _owned?.Dispose();
 
     private bool Restorable(IntPtr hwnd) => hwnd != IntPtr.Zero && _canRestore(hwnd);
