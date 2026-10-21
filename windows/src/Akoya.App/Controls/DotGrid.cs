@@ -26,6 +26,10 @@ public sealed class DotGrid : FrameworkElement
         nameof(Gap), typeof(double), typeof(DotGrid),
         new FrameworkPropertyMetadata(2.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty ColumnGapProperty = DependencyProperty.Register(
+        nameof(ColumnGap), typeof(double), typeof(DotGrid),
+        new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty OpacitiesProperty = DependencyProperty.Register(
         nameof(Opacities), typeof(double[]), typeof(DotGrid),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -64,6 +68,13 @@ public sealed class DotGrid : FrameworkElement
         set => SetValue(GapProperty, value);
     }
 
+    /// <summary>Space between neighbouring columns, DIP; NaN (the default) uses <see cref="Gap"/>.</summary>
+    public double ColumnGap
+    {
+        get => (double)GetValue(ColumnGapProperty);
+        set => SetValue(ColumnGapProperty, value);
+    }
+
     public double[]? Opacities
     {
         get => (double[]?)GetValue(OpacitiesProperty);
@@ -83,7 +94,9 @@ public sealed class DotGrid : FrameworkElement
         set => SetValue(DefaultOpacityProperty, value);
     }
 
-    protected override Size MeasureOverride(Size availableSize) => new(Extent(Columns), Extent(Rows));
+    protected override Size MeasureOverride(Size availableSize) => new(Extent(Columns, HorizontalGap), Extent(Rows, Gap));
+
+    private double HorizontalGap => double.IsNaN(ColumnGap) ? Gap : ColumnGap;
 
     protected override void OnRender(DrawingContext drawingContext)
     {
@@ -94,6 +107,7 @@ public sealed class DotGrid : FrameworkElement
         var opacities = Opacities;
         var size = DotSize;
         var pitch = size + Gap;
+        var columnPitch = size + HorizontalGap;
         var radius = size / 2;
         for (var column = 0; column < Columns; column++)
         {
@@ -105,11 +119,11 @@ public sealed class DotGrid : FrameworkElement
                 if (opacity <= 0) continue;
 
                 drawingContext.PushOpacity(opacity);
-                drawingContext.DrawEllipse(brush, null, new Point(column * pitch + radius, row * pitch + radius), radius, radius);
+                drawingContext.DrawEllipse(brush, null, new Point(column * columnPitch + radius, row * pitch + radius), radius, radius);
                 drawingContext.Pop();
             }
         }
     }
 
-    private double Extent(int count) => count <= 0 ? 0 : count * DotSize + (count - 1) * Gap;
+    private double Extent(int count, double gap) => count <= 0 ? 0 : count * DotSize + (count - 1) * gap;
 }
