@@ -70,8 +70,16 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
   sweep with the app's scanner; the main mockup pops in with the jelly at 52 px). Spec, FEATURES.md and
   MANUAL_CHECKS_WINDOWS.md describe every fix above. Rohit tried the app and likes it.
 - This PC: `gh` installed and logged in (ci.sh works from Git Bash); the repo remote is SSH.
-- Still to check by hand on this PC (unchanged): Excel cells, Explorer cut and Word content surviving a dictation, a
-  Japanese IME, the Try it glow.
+- Released: windows-design merged to main (PR #1); `windows-v1.0.0` and `windows-v1.0.1` published (not "Latest",
+  so the Mac's v0.2.0 badge and Homebrew are unaffected). Akoya 1.0.0 installed on this PC from Setup.exe.
+- 1.0.1 (PR #3): the dictated text stays on the clipboard (Rohit's choice; the snapshot, restore and typing fallback
+  were removed; the Mac still restores, FEATURES.md: Missing on Mac), and Try it shows the model download as dots
+  filling under the hint with the status under them (option A), not in the text card.
+- Waveform idea, NOT built: Pixel as round dots growing from one centre line (Round 5 or Round 7 with 2.5 px dots).
+  Rohit keeps today's Pixel for now. Mockups on the "Pill Pixel Waveform" design canvas
+  (https://claude.ai/artifact/WCoDv8qsipNgC7L4xW1veJ); 14 designer reviews: none kept today's, 6 of 10 in the
+  second round picked Round 7 (Mac's diamond shape), 4 picked Round 5 (crisper at 1x). FEATURES.md: Proposed.
+- Still to check by hand on this PC: a Japanese IME, the Try it glow.
 
 ## Open items, in order
 0. The centre-two-rows sweep above.
