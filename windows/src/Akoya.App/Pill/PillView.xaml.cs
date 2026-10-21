@@ -6,9 +6,16 @@ using Akoya.Core.Ui;
 
 namespace Akoya.App.Pill;
 
-/// <summary>The pill's visuals for a <see cref="PillViewModel"/> DataContext.</summary>
+/// <summary>
+/// The pill's visuals for a <see cref="PillViewModel"/> DataContext. <see cref="PopInProgress"/> poses it partway
+/// through the jelly pop-in (<see cref="PillPopIn"/>); its layout size never changes, only what is drawn.
+/// </summary>
 public partial class PillView : UserControl
 {
+    public static readonly DependencyProperty PopInProgressProperty = DependencyProperty.Register(
+        nameof(PopInProgress), typeof(double), typeof(PillView),
+        new FrameworkPropertyMetadata(1.0, (d, _) => ((PillView)d).UpdatePopIn()));
+
     /// <summary>The Pasted check's glow, <c>0 0 14px rgba(47,107,255,.8)</c>.</summary>
     public static readonly IReadOnlyList<BoxShadow> CheckHalo = RimGlowRecipes.Halo(new ShadowColor(47, 107, 255, 0.8), 14);
 
@@ -21,7 +28,36 @@ public partial class PillView : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, e) => Attach(e.NewValue as PillViewModel);
+        Pill.SizeChanged += (_, _) => UpdatePopIn();
         Refresh();
+    }
+
+    /// <summary>0..1 through the pop-in; 1 (the default) is the settled pill.</summary>
+    public double PopInProgress
+    {
+        get => (double)GetValue(PopInProgressProperty);
+        set => SetValue(PopInProgressProperty, value);
+    }
+
+    /// <summary>The pop-in pose now drawn (for tests).</summary>
+    internal PillPopInFrame PopInFrame { get; private set; } = new(0, 1, 1, 1, 1);
+
+    private void UpdatePopIn()
+    {
+        var progress = PopInProgress;
+        // Before the first layout use the measured size, so a pose set up front is right on the first frame.
+        var width = Pill.ActualWidth > 0 ? Pill.ActualWidth : Pill.DesiredSize.Width;
+        var height = Pill.ActualHeight > 0 ? Pill.ActualHeight : Pill.Height;
+        var settled = !(progress < 1);
+        // Not measured yet: pose it as a circle (invisible at the start); SizeChanged poses it again at its real width.
+        var frame = settled ? new PillPopInFrame(width, 1, 1, 1, 1) : PillPopIn.At(progress, Math.Max(width, height), height);
+        PopInFrame = frame;
+
+        Pill.ShapeWidth = settled ? double.NaN : frame.Width;
+        PopScale.ScaleX = frame.ScaleX;
+        PopScale.ScaleY = frame.ScaleY;
+        Pill.Opacity = frame.Opacity;
+        Contents.Opacity = frame.ContentOpacity;
     }
 
     private void Attach(PillViewModel? model)

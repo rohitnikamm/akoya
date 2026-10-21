@@ -107,8 +107,14 @@ Data on disk:
 1. **Hotkey down.** `KeyboardHook` → `HotkeyDecoder` → `Pressed`. If the model isn't ready, the
    pill shows "Getting the speech model ready…" in the same style and nothing records. If the
    chosen mic is missing → `MicMissing` (red pill, see Errors). Otherwise `WasapiRecorder.Start`,
-   pill appears in **listening** on the target monitor (fade/rise 0.28 s as in the mockup), timer
-   starts, waveform follows the level.
+   pill appears in **listening** on the target monitor, timer starts, waveform follows the level.
+   A pill appearing from hidden (listening, or a message) pops in: the 0.42 s "jelly" of
+   `docs/design/windows-pill-height-and-options-mockup.html` (a 34 DIP circle at 55 % scale and
+   transparent grows to full size by 24 %, stretches to 107 % width and 92 % height by 64 %, springs
+   to 98.5 % and 103 % by 84 %, settles at 100 %; contents fade in from 45 %). It only changes
+   what is drawn: recording, levels and the timer start on the press. With Windows' animation
+   effects off it is a plain 0.28 s fade. Fade-out (fade and sink 0.28 s) and width changes between
+   states are unchanged.
 2. **Hotkey up** after ≥ 0.30 s → stop. Up sooner → keep recording (hands-free); the next down
    stops. **Esc** while recording → cancel, pill fades, nothing pasted.
 3. **Stop.** Silence gate; if silent → pill fades, nothing pasted. Else pill → **transcribing**

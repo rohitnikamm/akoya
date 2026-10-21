@@ -16,8 +16,12 @@
                             CornerRadius="17"
                             Padding="15,0"
                             Background="{DynamicResource Akoya.PillBackground}"
-                            GlowColor="{DynamicResource Akoya.AccentColor}">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            GlowColor="{DynamicResource Akoya.AccentColor}"
+                            RenderTransformOrigin="0.5,0.5">
+        <controls:RimGlowBorder.RenderTransform>
+            <ScaleTransform x:Name="PopScale" />
+        </controls:RimGlowBorder.RenderTransform>
+        <StackPanel x:Name="Contents" Orientation="Horizontal" VerticalAlignment="Center">
             <controls:DotGrid x:Name="Dots"
                               Columns="23" Rows="4" DotSize="3" Gap="2"
                               VerticalAlignment="Center"

@@ -62,6 +62,21 @@ public class PillSnapshots
     [Fact]
     public void AlertModelNotReady() => Render("pill-alert-model-not-ready", () => Make(DictationPhase.ModelNotReady));
 
+    /// <summary>The jelly pop-in of the listening pill at 50, 170, 270 and 420 ms (the mockup's <c>play()</c>).</summary>
+    [Theory]
+    [InlineData(50)]
+    [InlineData(170)]
+    [InlineData(270)]
+    [InlineData(420)]
+    public void PopIn(int ms) => Render($"pill-pop-{ms:000}", () =>
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+        vm.SetLevels(Steps);
+        vm.SetElapsed(TimeSpan.FromSeconds(1));
+        return vm;
+    }, popInProgress: ms / 420.0);
+
     private static PillViewModel Make(DictationPhase phase)
     {
         var vm = new PillViewModel();
@@ -69,7 +84,7 @@ public class PillSnapshots
         return vm;
     }
 
-    private static void Render(string name, Func<PillViewModel> model)
+    private static void Render(string name, Func<PillViewModel> model, double popInProgress = 1)
     {
         SnapshotHarness.Render(
             () =>
@@ -79,6 +94,7 @@ public class PillSnapshots
                 scene.Children.Add(new PillView
                 {
                     DataContext = model(),
+                    PopInProgress = popInProgress,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                 });

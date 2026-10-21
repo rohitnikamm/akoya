@@ -94,6 +94,101 @@ public class PillWindowTests
         });
     }
 
+    [Fact]
+    public void ShowFor_FromHidden_PopsIn_ThenSettles_WhileTheModelUpdatesAtOnce()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var window = new PillWindow();
+            var vm = new PillViewModel();
+            vm.Apply(DictationPhase.Recording);
+
+            window.ShowFor(vm);
+            Assert.True(window.IsPoppingIn);
+            var view = window.PillVisual;
+            Assert.True(view.PopInProgress < 0.2);
+
+            // The dictation isn't held up: the timer moves while the pill is still popping in.
+            vm.SetElapsed(TimeSpan.FromSeconds(1));
+            Assert.Equal("0:01", vm.TimerText);
+
+            Pump(TimeSpan.FromMilliseconds(200));
+            Assert.True(window.IsPoppingIn);
+            Assert.InRange(view.PopInProgress, 0.2, 0.999);
+
+            Pump(TimeSpan.FromMilliseconds(500));
+            Assert.False(window.IsPoppingIn);
+            Assert.Equal(1, view.PopInProgress);
+            Assert.Equal(new PillPopInFrame(window.PillSizeDip.Width, 1, 1, 1, 1), view.PopInFrame);
+
+            // Showing again while it is up doesn't pop it in again.
+            window.ShowFor(vm);
+            Assert.False(window.IsPoppingIn);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void ShowFor_AnimationEffectsOff_PlainFade_NoPopIn()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var previous = PillWindow.AnimationsEnabled;
+            PillWindow.AnimationsEnabled = () => false;
+            try
+            {
+                var window = new PillWindow();
+                var vm = new PillViewModel();
+                vm.Apply(DictationPhase.Recording);
+
+                window.ShowFor(vm);
+                Assert.False(window.IsPoppingIn);
+                var root = (FrameworkElement)window.Content;
+                Assert.True(root.Opacity < 0.5);
+
+                Pump(TimeSpan.FromMilliseconds(500));
+                Assert.Equal(1, root.Opacity, 3);
+                Assert.Equal(1, window.PillVisual.PopInProgress);
+                window.Close();
+            }
+            finally
+            {
+                PillWindow.AnimationsEnabled = previous;
+            }
+        });
+    }
+
+    [Fact]
+    public void PillView_PopInPose_DrawsNarrowerScaledAndFaded_LayoutUnchanged()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var view = new PillView { DataContext = Listening() };
+            view.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            view.Arrange(new Rect(view.DesiredSize));
+            var width = view.ActualWidth;
+
+            view.PopInProgress = 0.24;
+            Assert.Equal(PillPopIn.At(0.24, width, 34), view.PopInFrame);
+            Assert.Equal(34, view.PopInFrame.Width, 6);
+            Assert.Equal(width, view.ActualWidth); // the layout keeps the settled size
+
+            view.PopInProgress = 0.64;
+            Assert.Equal(1.07 * width, view.PopInFrame.Width, 6);
+
+            view.PopInProgress = 1;
+            Assert.Equal(new PillPopInFrame(width, 1, 1, 1, 1), view.PopInFrame);
+        });
+    }
+
+    private static PillViewModel Listening()
+    {
+        var vm = new PillViewModel();
+        vm.Apply(DictationPhase.Recording);
+        return vm;
+    }
+
     private static double VisualScale(System.Windows.Media.Visual visual) => System.Windows.Media.VisualTreeHelper.GetDpi(visual).DpiScaleX;
 
     private static void Pump(TimeSpan duration)
