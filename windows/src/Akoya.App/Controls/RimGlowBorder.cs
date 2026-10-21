@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using Akoya.Core.Ui;
 
 namespace Akoya.App.Controls;
@@ -11,7 +10,8 @@ namespace Akoya.App.Controls;
 /// background, the inset rim and bottom-weighted glow above it) painted exactly as a browser does by
 /// <see cref="ShadowRaster"/>, then the child on top. By default the shadows are the pill recipe for
 /// <see cref="GlowColor"/> (<see cref="RimGlowRecipes.Pill"/>); set <see cref="Shadows"/> for another recipe.
-/// Outer shadows draw outside the element's bounds, so leave room around it.
+/// Outer shadows draw outside the element's bounds, so leave room around it. Rasters come from <see cref="RimGlowCache"/>
+/// (prewarm it to keep rasterising off the UI thread).
 /// </summary>
 public sealed class RimGlowBorder : Decorator
 {
@@ -39,9 +39,8 @@ public sealed class RimGlowBorder : Decorator
         nameof(Padding), typeof(Thickness), typeof(RimGlowBorder),
         new FrameworkPropertyMetadata(default(Thickness), FrameworkPropertyMetadataOptions.AffectsMeasure));
 
-    private (double W, double H, double R, double Scale, IReadOnlyList<BoxShadow> Shadows)? _cacheKey;
-    private (ImageSource Image, Rect Bounds)? _outer;
-    private (ImageSource Image, Rect Bounds)? _inset;
+    private RimGlowLayer? _outer;
+    private RimGlowLayer? _inset;
     private Color _recipeColor;
     private IReadOnlyList<BoxShadow>? _recipe;
 
@@ -141,17 +140,9 @@ public sealed class RimGlowBorder : Decorator
     private void UpdateRasters(Size size, double radius)
     {
         var shadows = Shadows ?? PillRecipe(GlowColor);
-        // Rasterise at 2x at least, so 2x snapshots and high-DPI screens stay crisp.
-        var scale = Math.Max(2.0, VisualTreeHelper.GetDpi(this).DpiScaleX);
-        if (_cacheKey is { } cached && cached.W == size.Width && cached.H == size.Height && cached.R == radius
-            && cached.Scale == scale && ReferenceEquals(cached.Shadows, shadows))
-        {
-            return;
-        }
-
-        _cacheKey = (size.Width, size.Height, radius, scale, shadows);
-        _outer = ToImage(ShadowRaster.RenderOuter(size.Width, size.Height, radius, shadows, scale), scale);
-        _inset = ToImage(ShadowRaster.RenderInset(size.Width, size.Height, radius, shadows, scale), scale);
+        var images = RimGlowCache.Get(size.Width, size.Height, radius, RimGlowCache.ScaleFor(this), shadows);
+        _outer = images.Outer;
+        _inset = images.Inset;
     }
 
     private IReadOnlyList<BoxShadow> PillRecipe(Color color)
@@ -162,15 +153,5 @@ public sealed class RimGlowBorder : Decorator
             _recipe = RimGlowRecipes.Pill(new ShadowColor(color.R, color.G, color.B, color.A / 255.0));
         }
         return _recipe;
-    }
-
-    private static (ImageSource, Rect)? ToImage(ShadowImage? image, double scale)
-    {
-        if (image is null) return null;
-        var bitmap = BitmapSource.Create(
-            image.PixelWidth, image.PixelHeight, 96 * scale, 96 * scale, PixelFormats.Pbgra32, null,
-            image.Pixels, image.PixelWidth * 4);
-        bitmap.Freeze();
-        return (bitmap, new Rect(image.Left, image.Top, image.Width, image.Height));
     }
 }

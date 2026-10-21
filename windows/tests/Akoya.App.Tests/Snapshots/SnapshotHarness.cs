@@ -22,6 +22,14 @@ public static class SnapshotHarness
         // Register the pack:// URI scheme (normally done by System.Windows.Application) so tests can load
         // pack://application:,,,/Akoya.App;component/... resources, e.g. the theme, without an Application.
         _ = System.IO.Packaging.PackUriHelper.UriSchemePack;
+        // Run Application's static initialisation once, up front: it (re)registers the application:/// resource
+        // package, and doing that lazily while another test thread loads a pack:// resource races ("The URI prefix
+        // is not recognized").
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(System.Windows.Application).TypeHandle);
+        if (typeof(System.Windows.Application).Assembly.GetType("System.Windows.Navigation.BaseUriHelper") is { } baseUriHelper)
+        {
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(baseUriHelper.TypeHandle);
+        }
     }
 
     /// <summary>

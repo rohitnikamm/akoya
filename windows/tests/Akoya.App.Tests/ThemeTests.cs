@@ -41,6 +41,22 @@ public class ThemeTests
                 Assert.True(typeface.TryGetGlyphTypeface(out var glyphs), $"Outfit {weight} did not load");
                 Assert.Contains("Outfit", glyphs.FamilyNames.Values.First(), StringComparison.Ordinal);
             }
+
+            // 400 and 700 are different faces, not one face drawn twice: bold is wider, and real rather than simulated.
+            var regular = Measure(family, FontWeights.Normal, out var regularFace);
+            var bold = Measure(family, FontWeights.Bold, out var boldFace);
+            Assert.True(bold > regular * 1.015, $"Outfit 700 ({bold:F2}) is not wider than 400 ({regular:F2})");
+            Assert.Equal(StyleSimulations.None, regularFace.StyleSimulations);
+            Assert.Equal(StyleSimulations.None, boldFace.StyleSimulations);
         });
+    }
+
+    private static double Measure(FontFamily family, FontWeight weight, out GlyphTypeface face)
+    {
+        var typeface = new Typeface(family, FontStyles.Normal, weight, FontStretches.Normal);
+        Assert.True(typeface.TryGetGlyphTypeface(out face));
+        var text = new FormattedText("Microphone not detected", System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight, typeface, 13, Brushes.White, 1.0);
+        return text.WidthIncludingTrailingWhitespace;
     }
 }
