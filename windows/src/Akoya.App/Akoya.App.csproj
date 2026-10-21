@@ -12,6 +12,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Program.Main runs VelopackApp first and enforces a single instance before WPF starts. -->
+    <StartupObject>Akoya.App.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="org.k2fsa.sherpa.onnx" />

@@ -73,6 +73,16 @@ public partial class PillWindow : Window
         }
     }
 
+    /// <summary>
+    /// Moves a visible pill to the foreground window's monitor (a new recording while the last result still shows), and
+    /// keeps that monitor for later re-centring. Does nothing while hidden: <see cref="ShowFor"/> places it then.
+    /// </summary>
+    public void Retarget()
+    {
+        if (!IsVisible || _hiding) return;
+        _target = PillPlacer.PlaceOnForegroundMonitor(this);
+    }
+
     /// <summary>Fades the pill out, then hides the window. A <see cref="ShowFor"/> during the fade cancels it.</summary>
     public void FadeOut()
     {
