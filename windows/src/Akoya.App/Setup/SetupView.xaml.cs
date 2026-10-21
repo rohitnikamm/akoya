@@ -21,7 +21,15 @@ public partial class SetupView : UserControl
         // Drag the window by any part of the card that isn't a control.
         MouseLeftButtonDown += (_, e) =>
         {
-            if (e.ButtonState == MouseButtonState.Pressed && Window.GetWindow(this) is { } window) window.DragMove();
+            if (e.ButtonState != MouseButtonState.Pressed || Window.GetWindow(this) is not { } window) return;
+            try
+            {
+                window.DragMove();
+            }
+            catch (InvalidOperationException)
+            {
+                // The button was already released (DragMove needs it held); nothing to drag.
+            }
         };
         Refresh(animate: false);
     }

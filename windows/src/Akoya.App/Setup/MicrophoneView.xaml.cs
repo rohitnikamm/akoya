@@ -27,7 +27,10 @@ public partial class MicrophoneView : UserControl
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(SetupViewModel.Status) or nameof(SetupViewModel.IsBlocked)) Refresh();
+        if (e.PropertyName is nameof(SetupViewModel.Status) or nameof(SetupViewModel.IsBlocked) or nameof(SetupViewModel.CanContinue))
+        {
+            Refresh();
+        }
     }
 
     private void Refresh()
@@ -35,6 +38,11 @@ public partial class MicrophoneView : UserControl
         var blocked = _model?.IsBlocked ?? false;
         ListLayout.Visibility = blocked ? Visibility.Collapsed : Visibility.Visible;
         BlockedLayout.Visibility = blocked ? Visibility.Visible : Visibility.Collapsed;
+
+        // No mic to save: Continue is dimmed and inert.
+        var canContinue = _model?.CanContinue ?? true;
+        ContinueButton.Opacity = canContinue ? 1 : 0.4;
+        ContinueButton.IsHitTestVisible = canContinue;
 
         var status = _model?.Status ?? MicStatusKind.None;
         Chip.Visibility = status == MicStatusKind.None ? Visibility.Hidden : Visibility.Visible;

@@ -89,7 +89,7 @@
     <Grid>
         <!-- The list -->
         <DockPanel x:Name="ListLayout" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Bottom" Style="{DynamicResource Setup.ButtonLight}"
+            <Button x:Name="ContinueButton" DockPanel.Dock="Bottom" Style="{DynamicResource Setup.ButtonLight}"
                     Content="Continue" Command="{Binding ContinueCommand}" />
             <StackPanel>
                 <controls:TrackedText Margin="0,6,0,0" Style="{DynamicResource Setup.Eyebrow}" Text="MICROPHONE" />
