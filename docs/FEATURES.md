@@ -116,7 +116,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Download progress bar | 180 by 3 bar under the hint | Same | Same |
 | Logo and hint | Dot logo; "Hold [keycap ▾] to talk"; "or tap it once to start, again to stop" | Same | Same |
 | Voice glow | Status card rim glow follows the voice while listening (0.2 floor, attack 0.10 s, release 0.45 s), none at rest | Same | Same |
-| Glow with reduced motion | Reduce Motion: fixed glow while recording | Always follows the voice | Missing on Windows |
+| Glow with reduced motion | Reduce Motion: fixed glow while recording | "Animation effects" off: the same fixed glow (opacity 0.5) while listening, none at rest | Same |
 | Last dictation | "LAST DICTATION" card with "Copy" (flips to "Copied" for 1.5 s), up to 4 lines; hidden until the first dictation; only set by a successful paste; in memory only | Same card; also set when the paste failed, only copied, or the screen locked; Copy refused while a paste is in progress, "Copied" only when it worked | Different on purpose (Windows keeps the words when the paste did not land) |
 | Menu bar icon row | "Menu bar icon" with the Waveform value and ›, collapsed by default, expands inline (spring 0.32 s, chevron rotates): "Waveform" Pixel / Solid, "Red while recording", "Hide when idle", note "Hidden? Open Akoya from Spotlight to get back here." | Not built | Proposed (Windows "Pill" row with the same chevron: "Waveform" Pixel / Solid and "Red while recording" applied to the pill; only the dots turn red, the glow stays blue) |
 | Hide when idle | Switch: the menu bar item shrinks to nothing at rest | Left out of the proposal: the tray icon already sits behind the ^ overflow and the pill only shows while talking | Proposed |
@@ -220,7 +220,6 @@ Every user-visible string not already quoted above, with when it appears.
 - Dictation: screen lock mid-dictation (Missing on Mac)
 - Hotkey: recovery from a hook Windows removed silently (Missing on Windows)
 - Speech model: warm-up before "Ready" (Missing on Mac)
-- Tray / menu bar panel: glow with reduced motion (Missing on Windows)
 - Tray / menu bar panel: update row (Missing on Mac)
 - Setup / onboarding: voice glow on Try it (Missing on Windows)
 - Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)

@@ -72,7 +72,7 @@ public class TrayPanelSnapshots
     /// <summary>A panel with three mics (the laptop's the default and selected), Launch at startup on.</summary>
     internal static TrayPanelViewModel Model(Action<TrayPanelViewModel> setup)
     {
-        var vm = new TrayPanelViewModel();
+        var vm = new TrayPanelViewModel(reduceMotion: () => false); // the breathing glow, whatever the runner sets
         vm.SetMicrophones([Laptop, HyperX, Webcam], savedId: null);
         vm.LaunchAtStartup = true;
         setup(vm);

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using Akoya.Core.Dictation;
 using Akoya.Core.Hotkey;
@@ -96,11 +97,19 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private bool _launchAtStartup;
     private bool _updateReady;
     private double _glowStrength;
+    private readonly Func<bool> _reduceMotion;
 
-    public TrayPanelViewModel(TrayPanelActions? actions = null, IScheduler? scheduler = null)
+    /// <param name="actions">What the controls do.</param>
+    /// <param name="scheduler">Timers (the Copied label).</param>
+    /// <param name="reduceMotion">
+    /// Whether Windows' "Animation effects" is off (read on every glow update); then the glow holds steady while
+    /// listening, like the Mac with Reduce Motion. Defaults to <see cref="SystemParameters.ClientAreaAnimation"/>.
+    /// </param>
+    public TrayPanelViewModel(TrayPanelActions? actions = null, IScheduler? scheduler = null, Func<bool>? reduceMotion = null)
     {
         _actions = actions ?? new TrayPanelActions();
         _scheduler = scheduler;
+        _reduceMotion = reduceMotion ?? (() => !SystemParameters.ClientAreaAnimation);
         _context = SynchronizationContext.Current;
         _ownerThread = Environment.CurrentManagedThreadId;
 
@@ -587,9 +596,22 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
 
     private void UpdateGlow()
     {
-        // The Mac's mapping: GlowEnvelope opacity (0.2 floor, 0.8 at peak voice) scaled so peak voice is full strength.
-        var opacity = GlowEnvelope.Opacity(_voiceLevel, IsListening, reduceMotion: false);
+        // The Mac's mapping: GlowEnvelope opacity (0.2 floor, 0.8 at peak voice; a fixed 0.5 with animations off)
+        // scaled so peak voice is full strength.
+        var opacity = GlowEnvelope.Opacity(_voiceLevel, IsListening, ReduceMotion());
         GlowStrength = Math.Min(1, opacity / 0.8);
+    }
+
+    private bool ReduceMotion()
+    {
+        try
+        {
+            return _reduceMotion();
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
     }
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
