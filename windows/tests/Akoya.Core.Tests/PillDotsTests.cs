@@ -95,23 +95,28 @@ public class PillDotsTests
     }
 
     [Fact]
-    public void Scanner_AtStart_HeadAndTailOnAllRows()
+    public void Scanner_AtStart_HeadAndTailOnTheCentreRows_OuterRowsAtRest()
     {
         var d = PillDots.Scanner(0);
         double[] expected = { 1, 0.7, 0.48, 0.32, 0.18 };
         for (var c = 0; c < expected.Length; c++)
-            for (var row = 0; row < 4; row++)
-                Assert.Equal(expected[c], Dot(d, c, row), Tol);
-        Assert.Equal(1.0, Dot(d, 0, 0), Tol);
-        Assert.Equal(0.18, Dot(d, 22, 0), Tol);
+        {
+            Assert.Equal(expected[c], Dot(d, c, 1), Tol);
+            Assert.Equal(expected[c], Dot(d, c, 2), Tol);
+            Assert.Equal(0.18, Dot(d, c, 0), Tol);
+            Assert.Equal(0.18, Dot(d, c, 3), Tol);
+        }
+        Assert.Equal(0.18, Dot(d, 22, 1), Tol);
     }
 
     [Fact]
     public void Scanner_AtFarEnd_LastColumnIsHead()
     {
         var d = PillDots.Scanner(0.7);
-        for (var row = 0; row < 4; row++) Assert.Equal(1.0, Dot(d, 22, row), Tol);
-        Assert.Equal(0.18, Dot(d, 0, 0), Tol);
+        Assert.Equal(1.0, Dot(d, 22, 1), Tol);
+        Assert.Equal(1.0, Dot(d, 22, 2), Tol);
+        Assert.Equal(0.18, Dot(d, 22, 0), Tol);
+        Assert.Equal(0.18, Dot(d, 0, 1), Tol);
     }
 
     [Fact]
@@ -119,8 +124,8 @@ public class PillDotsTests
     {
         // Mac ran this with 22 columns: head lands at 10.5, so columns 10 and 11 are both lit.
         var d = PillDots.Scanner(0.35, 22);
-        Assert.Equal(1.0, Dot(d, 10, 0), Tol);
-        Assert.Equal(1.0, Dot(d, 11, 0), Tol);
+        Assert.Equal(1.0, Dot(d, 10, 1), Tol);
+        Assert.Equal(1.0, Dot(d, 11, 1), Tol);
     }
 
     [Fact]
@@ -176,7 +181,7 @@ public class PillDotsTests
     }
 
     [Fact]
-    public void SolidScanner_FullHeightBars_WithTheScannersOpacities()
+    public void SolidScanner_CentreTwoRowsTallBars_WithTheScannersOpacities()
     {
         var bars = PillDots.SolidScanner(0.3);
         var dots = PillDots.Scanner(0.3);
@@ -184,8 +189,8 @@ public class PillDotsTests
         Assert.Equal(23, bars.Length);
         for (var c = 0; c < bars.Length; c++)
         {
-            Assert.Equal(18, bars[c].Height, Tol);
-            Assert.Equal(Dot(dots, c, 0), bars[c].Opacity, Tol);
+            Assert.Equal(8, bars[c].Height, Tol);
+            Assert.Equal(Dot(dots, c, 1), bars[c].Opacity, Tol);
         }
         Assert.Equal(10, PillDots.SolidScanner(0, 10).Length);
     }
@@ -196,7 +201,7 @@ public class PillDotsTests
     public void ScannerLit_TheHeadAndItsTail_NotTheRestingColumns()
     {
         var d = PillDots.Scanner(0);
-        var lit = Enumerable.Range(0, 23).Where(c => PillDots.IsScannerLit(Dot(d, c, 0))).ToArray();
+        var lit = Enumerable.Range(0, 23).Where(c => PillDots.IsScannerLit(Dot(d, c, 1))).ToArray();
 
         Assert.Equal([0, 1, 2, 3], lit);
         Assert.False(PillDots.IsScannerLit(0.18));

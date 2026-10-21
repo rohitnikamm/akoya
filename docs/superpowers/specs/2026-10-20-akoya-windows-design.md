@@ -28,7 +28,7 @@ think hard about.
   typing into** (falls back to the primary monitor).
 - **Compact pill:** dot waveform **4 dots tall** (outer rows light only on louder sound) plus a
   timer. States: listening (live waveform + timer) → transcribing (a blue scan sweeps across the
-  dots, timer frozen) → "Pasted" with a blue check → fades out. Exact look: the pill mockup.
+  centre two dot rows, timer frozen) → "Pasted" with a blue check → fades out. Exact look: the pill mockup.
 - **Look:** Akoya's dark glass with the bottom-weighted electric-blue rim glow (`#2F6BFF` →
   `#1D4ED8`), Outfit font, as on the Mac.
 - **Settings in the tray.** The dot logo sits in the tray overflow (behind ⌃); the user can drag
@@ -200,7 +200,7 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
      (switch). When an update is ready: an "Update ready · Restart" row with a blue button.
      Pill options apply at once, also to a pill on screen. Solid: per column one 3 DIP bar with
      round ends, centred on the dot rows, one dot tall at the quietest step rising linearly to the
-     four rows' 18 DIP at the loudest (the transcribing sweep: full-height bars). Red while
+     four rows' 18 DIP at the loudest (the transcribing sweep: bars the centre two rows tall, 8 DIP). Red while
      recording: the listening waveform is `#FF6B6B` and the transcribing sweep's lit columns
      (head and tail) are amber `#FBBF24`; the rim glow stays blue. Setup's Try it is unchanged.
   4. **Quit Akoya** (quiet text row).

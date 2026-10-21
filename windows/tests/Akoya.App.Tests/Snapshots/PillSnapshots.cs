@@ -61,18 +61,26 @@ public class PillSnapshots
     public void ListeningSolidRed() => Render("pill-listening-solid-red", () => ListeningWith(WaveLook.Solid, redTint: true));
 
     [Fact]
-    public void TranscribingAmber()
+    public void TranscribingAmber() =>
+        Render("pill-transcribing-amber", () => TranscribingWith(WaveLook.Pixel, redTint: true));
+
+    [Fact]
+    public void TranscribingSolid() =>
+        Render("pill-transcribing-solid", () => TranscribingWith(WaveLook.Solid, redTint: false));
+
+    [Fact]
+    public void TranscribingSolidAmber() =>
+        Render("pill-transcribing-solid-amber", () => TranscribingWith(WaveLook.Solid, redTint: true));
+
+    private static PillViewModel TranscribingWith(WaveLook look, bool redTint)
     {
-        Render("pill-transcribing-amber", () =>
-        {
-            var vm = new PillViewModel();
-            vm.SetOptions(WaveLook.Pixel, redTint: true);
-            vm.Apply(DictationPhase.Recording);
-            vm.SetElapsed(TimeSpan.FromSeconds(4.2));
-            vm.Apply(DictationPhase.Transcribing);
-            vm.Tick(0.3);
-            return vm;
-        });
+        var vm = new PillViewModel();
+        vm.SetOptions(look, redTint);
+        vm.Apply(DictationPhase.Recording);
+        vm.SetElapsed(TimeSpan.FromSeconds(4.2));
+        vm.Apply(DictationPhase.Transcribing);
+        vm.Tick(0.3);
+        return vm;
     }
 
     private static PillViewModel ListeningWith(WaveLook look, bool redTint)

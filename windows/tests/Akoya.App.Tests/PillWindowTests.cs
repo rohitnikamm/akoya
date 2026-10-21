@@ -47,8 +47,13 @@ public class PillWindowTests
             var pill = window.PillScreenRectPx();
             var work = SystemParameters.WorkArea; // primary monitor, DIP
             var scale = VisualScale(window);
-            // 52 DIP above the top of the runner's (shown, bottom) taskbar, which is the work area's bottom.
-            Assert.InRange(pill.Bottom, work.Bottom * scale - 52 * scale - 1, work.Bottom * scale - 52 * scale + 1);
+            // 52 DIP above the top of the bottom taskbar measured as if shown: the work area's bottom on the runner
+            // (shown), the screen's bottom minus its thickness when it auto-hides.
+            var taskbar = PillPlacer.TaskbarOn(MonitorFromWindow(IntPtr.Zero, 1));
+            var taskbarTop = taskbar is { AutoHide: true } bar
+                ? SystemParameters.PrimaryScreenHeight * scale - bar.Bounds.Height
+                : work.Bottom * scale;
+            Assert.InRange(pill.Bottom, taskbarTop - 52 * scale - 1, taskbarTop - 52 * scale + 1);
             Assert.InRange(pill.Left + pill.Width / 2, work.Left * scale + work.Width * scale / 2 - 1.5, work.Left * scale + work.Width * scale / 2 + 1.5);
 
             window.FadeOut();
@@ -78,10 +83,14 @@ public class PillWindowTests
             Assert.NotNull(taskbar);
             var bounds = taskbar.Value.Bounds;
             Assert.True(bounds.Width > bounds.Height, $"not horizontal: {bounds}");
-            Assert.False(taskbar.Value.AutoHide);
-            // Shown at the bottom: its top is the work area's bottom (SystemParameters is DIP; compare in pixels).
+            // Shown at the bottom (the runner): its top is the work area's bottom. Auto-hidden (some PCs): its top is
+            // somewhere between its shown place and just above the screen's bottom edge. SystemParameters is DIP.
             var scale = System.Windows.Media.VisualTreeHelper.GetDpi(new System.Windows.Controls.Border()).DpiScaleX;
-            Assert.InRange(bounds.Y, SystemParameters.WorkArea.Bottom * scale - 1, SystemParameters.WorkArea.Bottom * scale + 1);
+            var screenBottom = SystemParameters.PrimaryScreenHeight * scale;
+            if (taskbar.Value.AutoHide)
+                Assert.InRange(bounds.Y, screenBottom - bounds.Height - 1, screenBottom);
+            else
+                Assert.InRange(bounds.Y, SystemParameters.WorkArea.Bottom * scale - 1, SystemParameters.WorkArea.Bottom * scale + 1);
         });
     }
 

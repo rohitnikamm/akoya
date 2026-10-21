@@ -20,6 +20,9 @@ public static class PillDots
     /// <summary>The four dot rows' height, DIP: the tallest Solid bar.</summary>
     public const double MaxBarHeight = Rows * DotSize + (Rows - 1) * Gap;
 
+    /// <summary>The centre two dot rows' height, DIP: the Solid scanner's bars.</summary>
+    public const double ScannerBarHeight = 2 * DotSize + Gap;
+
     /// <summary>A transcribing column at rest (away from the scanner's head and tail).</summary>
     public const double ScannerRest = 0.18;
 
@@ -60,7 +63,7 @@ public static class PillDots
 
     /// <summary>
     /// Transcribing scanner: a bright head eases back and forth across the columns (period 1.4 s)
-    /// with a fading tail, applied to every row.
+    /// with a fading tail, lighting the centre two rows (1, 2); the outer rows stay at rest.
     /// </summary>
     public static double[] Scanner(double elapsedSeconds, int columns = 23)
     {
@@ -73,7 +76,10 @@ public static class PillDots
         {
             var d = Math.Abs(c - head);
             var opacity = d < 1 ? 1.0 : d < 2 ? 0.7 : d < 3 ? 0.48 : d < 4 ? 0.32 : ScannerRest;
-            for (var row = 0; row < Rows; row++) dots[c * Rows + row] = opacity;
+            dots[c * Rows + 0] = ScannerRest;
+            dots[c * Rows + 1] = opacity;
+            dots[c * Rows + 2] = opacity;
+            dots[c * Rows + 3] = ScannerRest;
         }
         return dots;
     }
@@ -98,14 +104,14 @@ public static class PillDots
     }
 
     /// <summary>
-    /// Transcribing scanner, Solid look: full-height bars (the extent the dot scanner lights) at the dot scanner's
-    /// opacities, as the Mac's Solid scanner keeps the Pixel scanner's extent.
+    /// Transcribing scanner, Solid look: bars the centre two rows tall (the extent the dot scanner lights) at the dot
+    /// scanner's opacities, as the Mac's Solid scanner keeps the Pixel scanner's extent.
     /// </summary>
     public static PillBar[] SolidScanner(double elapsedSeconds, int columns = 23)
     {
         var dots = Scanner(elapsedSeconds, columns);
         var bars = new PillBar[columns];
-        for (var c = 0; c < columns; c++) bars[c] = new PillBar(MaxBarHeight, dots[c * Rows]);
+        for (var c = 0; c < columns; c++) bars[c] = new PillBar(ScannerBarHeight, dots[c * Rows + 1]);
         return bars;
     }
 
