@@ -16,3 +16,6 @@
     Rohit's step.
   - Releases: tag `windows-vX.Y.Z` makes the `release-windows` workflow build a Velopack `Setup.exe` into a draft
     release (`windows/scripts/package.ps1`). Manual checks on a real PC: `docs/MANUAL_CHECKS_WINDOWS.md`.
+- Features: `docs/FEATURES.md` lists every user-facing feature on the Mac and Windows versions. When you add or change
+  one on either platform, update that file in the same change and either build it on the other platform or mark it
+  Different on purpose (with the reason) or Missing.
