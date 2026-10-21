@@ -28,8 +28,9 @@ public class TrayPanelWindowTests
         {
             var window = new TrayPanelWindow(TrayPanelSnapshots.Model(_ => { }));
             window.ShowNearTray();
-            Pump(TimeSpan.FromMilliseconds(200));
 
+            // Checked straight away, without pumping: the panel hides itself as soon as anything else on the runner
+            // takes the foreground (tests in other classes run in parallel). ShowNearTray has laid it out already.
             Assert.True(window.IsVisible);
             Assert.True(window.Topmost);
             Assert.False(window.ShowInTaskbar);
