@@ -4,7 +4,7 @@ namespace Akoya.Core.Ui;
 /// The box-shadow recipes of the mockups (docs/design/windows-pill-mockup.html, windows-onboarding-mockup.html),
 /// first shadow on top as in CSS.
 /// </summary>
-public static class RimGlowRecipes
+public static partial class RimGlowRecipes
 {
     public static readonly ShadowColor Accent = new(0x2F, 0x6B, 0xFF, 1);
     public static readonly ShadowColor Red = new(0xEF, 0x44, 0x44, 1);
