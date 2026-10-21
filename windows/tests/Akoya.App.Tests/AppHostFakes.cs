@@ -10,6 +10,16 @@ using Akoya.Core.Settings;
 
 namespace Akoya.App.Tests;
 
+/// <summary>
+/// Tests that create the tray icon or activate windows: one at a time, after the parallel ones. Two tray icons of one
+/// process alive at once make Shell_NotifyIcon fail, and a parallel window steals the panel's activation.
+/// </summary>
+[Xunit.CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class DesktopCollection
+{
+    public const string Name = "Desktop";
+}
+
 /// <summary>Runs a test on an STA thread with a dispatcher and its SynchronizationContext, as the app's UI thread.</summary>
 internal static class UiThread
 {
@@ -123,6 +133,8 @@ internal sealed class FakeRecorder : IAudioRecorder, IDisposable
 
     public int Cancels { get; private set; }
 
+    public int Stops { get; private set; }
+
     public bool Disposed { get; private set; }
 
     public void Start(string? deviceId)
@@ -134,6 +146,7 @@ internal sealed class FakeRecorder : IAudioRecorder, IDisposable
 
     public float[] Stop()
     {
+        Stops++;
         Recording = false;
         return new float[16_000];
     }
@@ -286,12 +299,15 @@ internal sealed class FakePill : IPillPresenter
 
     public bool Visible { get; private set; }
 
+    public bool ThrowOnShow { get; set; }
+
     public int Retargets { get; private set; }
 
     public bool Disposed { get; private set; }
 
     public void Show(PillViewModel model, bool retarget)
     {
+        if (ThrowOnShow) throw new InvalidOperationException("pill window is gone");
         if (retarget && Visible) Retargets++;
         Model = model;
         Visible = true;
@@ -338,7 +354,13 @@ internal sealed class FakeTray : ITrayPresenter
 
     public bool Disposed { get; private set; }
 
-    public void SetPhase(DictationPhase phase) => Phases.Add(phase);
+    public bool ThrowOnSetPhase { get; set; }
+
+    public void SetPhase(DictationPhase phase)
+    {
+        if (ThrowOnSetPhase) throw new InvalidOperationException("panel binding failed");
+        Phases.Add(phase);
+    }
 
     public void SetVoiceLevel(double level) => VoiceLevel = level;
 
@@ -449,15 +471,25 @@ internal sealed class FakeUpdates : IUpdates
 
     public Exception? LastError { get; private set; }
 
+    public bool IsInstalled { get; set; } = true;
+
+    private bool _ready;
+
     public Task<bool> CheckAndDownloadAsync()
     {
         Checks++;
         var (ready, error) = Next();
         LastError = error;
+        _ready = ready;
         return Task.FromResult(ready);
     }
 
-    public void ApplyAndRestart() => Applies++;
+    public bool ScheduleApplyOnExit()
+    {
+        if (!_ready) return false;
+        Applies++;
+        return true;
+    }
 }
 
 internal sealed class MemoryLog : ILog
@@ -509,6 +541,9 @@ internal sealed class HostRig : IDisposable
     public int Shutdowns { get; private set; }
     public int SetupsCreated { get; private set; }
 
+    /// <summary>Replaces the fake setup.</summary>
+    public Func<SetupContext, ISetupPresenter>? SetupFactory { get; set; }
+
     /// <summary>Replaces the fake tray (e.g. with the real TrayPresenter).</summary>
     public Func<TrayCommands, ITrayPresenter>? TrayFactory { get; set; }
 
@@ -542,12 +577,12 @@ internal sealed class HostRig : IDisposable
                 Tray.Commands = commands;
                 return Tray;
             }),
-            CreateSetup = context =>
+            CreateSetup = SetupFactory ?? (context =>
             {
                 SetupsCreated++;
                 Setup.Context = context;
                 return Setup;
-            },
+            }),
             Updates = Updates,
             MicAccessAllowed = () => MicAllowed,
             CopyToClipboard = text =>

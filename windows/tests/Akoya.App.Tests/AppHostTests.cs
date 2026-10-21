@@ -11,6 +11,7 @@ using Xunit;
 
 namespace Akoya.App.Tests;
 
+[Collection(DesktopCollection.Name)]
 public class AppHostTests
 {
     private const float Speech = 0.05f; // about -26 dBFS: well above the silence gate
@@ -455,7 +456,7 @@ public class AppHostTests
 
             rig.Tray.Commands!.RestartToUpdate();
             Assert.Equal(1, rig.Updates.Applies);
-            Assert.True(rig.Hook.Disposed); // the hook is released before restarting
+            Assert.Equal(1, rig.Shutdowns); // a normal exit (Dispose runs); Velopack applies after it
         });
     }
 
@@ -465,6 +466,7 @@ public class AppHostTests
         UiThread.Run(() =>
         {
             using var rig = new HostRig();
+            rig.Updates.Next = () => (true, null);
             var paste = new TaskCompletionSource<InsertResult>();
             rig.Inserter.Pending = paste.Task; // the paste (and the clipboard restore) is still running
             var host = rig.Start();
@@ -473,11 +475,13 @@ public class AppHostTests
 
             rig.Tray.Commands!.RestartToUpdate();
             Assert.Equal(0, rig.Updates.Applies);
+            Assert.False(rig.Tray.Commands.Copy("hello world")); // nor does Copy race the paste
 
             paste.SetResult(InsertResult.Pasted);
             UiThread.PumpUntil(() => host.Coordinator.Phase == DictationPhase.Pasted);
             rig.Scheduler.Advance(TimeSpan.Zero);
             Assert.Equal(1, rig.Updates.Applies);
+            Assert.Equal(1, rig.Shutdowns);
         });
     }
 
@@ -487,7 +491,9 @@ public class AppHostTests
         UiThread.Run(() =>
         {
             using var rig = new HostRig();
+            rig.Updates.Next = () => (true, null);
             var host = rig.Start();
+            UiThread.PumpUntil(() => rig.Tray.UpdateReady);
             rig.Hook.Fire(HotkeyEvent.Pressed);
 
             rig.Tray.Commands!.RestartToUpdate();
@@ -591,6 +597,7 @@ public class AppHostTests
                     MicAccessAllowed = real.MicAccessAllowed,
                     CopyToClipboard = real.CopyToClipboard,
                     CreateTray = real.CreateTray,
+                    CreateSetup = real.CreateSetup,
                     Owned = real.Owned,
                 };
 
@@ -601,8 +608,15 @@ public class AppHostTests
                 Assert.IsType<DispatcherScheduler>(real.Scheduler);
                 UiThread.Pump(TimeSpan.FromMilliseconds(300));
 
+                Assert.True(host.SetupOpen); // first run: the real setup window
+                UiThread.Pump(TimeSpan.FromMilliseconds(300));
+
                 host.Dispose();
                 UiThread.Pump(TimeSpan.FromMilliseconds(100));
+
+                // Quitting during setup dismisses it: it is not marked done.
+                var settingsPath = Path.Combine(dir, "settings.json");
+                Assert.False(File.Exists(settingsPath) && SettingsStore.Load(settingsPath).SetupDone);
 
                 // Only the updater may complain (this copy isn't installed); nothing else may fail.
                 Assert.DoesNotContain(log.Errors, l => !l.Contains("Update check failed", StringComparison.Ordinal));
@@ -613,6 +627,67 @@ public class AppHostTests
         {
             try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
         }
+    }
+
+    [Fact]
+    public void PresenterFailures_NeverReachTheCoordinator()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Tray.ThrowOnSetPhase = true;
+            rig.Pill.ThrowOnShow = true;
+            var host = rig.Start();
+
+            Dictate(rig, host);
+
+            Assert.Equal(1, rig.Recorder.Starts);
+            Assert.Equal(1, rig.Recorder.Stops); // the transition finished: the mic is closed
+            Assert.Equal(new[] { "hello world " }, rig.Inserter.Inserted);
+            Assert.Contains(rig.Log.Errors, l => l.Contains("UI update failed (tray.SetPhase)", StringComparison.Ordinal));
+            Assert.Contains(rig.Log.Errors, l => l.Contains("UI update failed (pill Recording)", StringComparison.Ordinal));
+
+            // The hotkey still works afterwards.
+            rig.Scheduler.Advance(DictationCoordinator.PastedDisplay);
+            rig.Hook.Fire(HotkeyEvent.Pressed);
+            Assert.Equal(DictationPhase.Recording, host.Coordinator.Phase);
+        });
+    }
+
+    [Fact]
+    public void TrayThatCannotBeCreated_IsFatal_SetupIsNot()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.TrayFactory = _ => throw new InvalidOperationException("Shell_NotifyIcon failed");
+            Assert.Throws<InvalidOperationException>(() => rig.Start(waitForModel: false));
+            Assert.Contains(rig.Log.Errors, l => l.Contains("Could not create the tray", StringComparison.Ordinal));
+        });
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Settings.Stored = new AkoyaSettings();
+            rig.SetupFactory = _ => throw new InvalidOperationException("no setup window");
+            var host = rig.Start();
+            Assert.False(host.SetupOpen);
+            Assert.Contains(rig.Log.Errors, l => l.Contains("Could not create the setup", StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public void NotInstalled_UpdatesAreOff_AndSaySoOnce()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Updates.IsInstalled = false;
+            rig.Start();
+            rig.Scheduler.Advance(AppHost.UpdateInterval * 2);
+            Assert.Equal(0, rig.Updates.Checks);
+            Assert.Single(rig.Log.Lines, l => l == "INFO Not installed by Setup.exe; updates off");
+            Assert.Empty(rig.Log.Errors);
+        });
     }
 
     private static void Dictate(HostRig rig, AppHost host, DictationPhase until = DictationPhase.Pasted)

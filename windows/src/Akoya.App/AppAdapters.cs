@@ -117,7 +117,9 @@ namespace Akoya.App
 
         public Exception? LastError => updater.LastError;
 
-        public void ApplyAndRestart() => updater.ApplyAndRestart();
+        public bool IsInstalled => updater.IsInstalled;
+
+        public bool ScheduleApplyOnExit() => updater.ScheduleApplyOnExit();
     }
 
     /// <summary>The HKCU Run entry for the current launch path.</summary>

@@ -15,6 +15,7 @@ using Xunit;
 
 namespace Akoya.App.Tests;
 
+[Collection(DesktopCollection.Name)]
 public class TrayPanelWindowTests
 {
     private const int GwlExStyle = -20;

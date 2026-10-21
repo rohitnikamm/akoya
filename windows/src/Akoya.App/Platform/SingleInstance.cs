@@ -30,7 +30,10 @@ public sealed class SingleInstance : IDisposable
     /// <summary>The mutex name for this user, <c>Local\Akoya-&lt;SID&gt;</c>.</summary>
     public static string DefaultName { get; } = @"Local\Akoya-" + (WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName);
 
-    /// <summary>True (with the handle to keep for the app's lifetime) when no other Akoya runs in this session.</summary>
+    /// <summary>
+    /// True (with the handle to keep for the app's lifetime) when no other Akoya runs in this session. Throws
+    /// <see cref="UnauthorizedAccessException"/> when an elevated Akoya owns the names: another instance is running.
+    /// </summary>
     public static bool TryAcquire(out SingleInstance? handle) => TryAcquire(DefaultName, out handle);
 
     /// <summary>Tells the running Akoya to open its tray panel. False when there is none.</summary>
@@ -57,8 +60,15 @@ public sealed class SingleInstance : IDisposable
 
     internal static bool SignalFirst(string name)
     {
-        if (!EventWaitHandle.TryOpenExisting(name + "-show", out var show)) return false;
-        using (show) return show.Set();
+        try
+        {
+            if (!EventWaitHandle.TryOpenExisting(name + "-show", out var show)) return false;
+            using (show) return show.Set();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false; // the first instance runs elevated: it can't be signalled from here
+        }
     }
 
     public void Dispose()

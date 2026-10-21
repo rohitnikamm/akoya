@@ -68,7 +68,7 @@ public interface IPillPresenter : IDisposable
 
 /// <summary>What the tray panel's controls do. AppHost supplies these to the tray.</summary>
 public sealed record TrayCommands(
-    Action<string> Copy,
+    Func<string, bool> Copy,
     Action<HotkeyKey> SelectHotkey,
     Action<string?> SelectMic,
     Action<bool> SetLaunchAtStartup,
@@ -139,8 +139,14 @@ public interface IUpdates
 
     Exception? LastError { get; }
 
-    /// <summary>Exits the process and starts the new version; does nothing without a ready update.</summary>
-    void ApplyAndRestart();
+    /// <summary>False in a copy not installed by Setup.exe (a source checkout): there is nothing to update.</summary>
+    bool IsInstalled { get; }
+
+    /// <summary>
+    /// Has the update applied once this process exits, then restarted. The caller shuts down normally afterwards.
+    /// False without a ready update.
+    /// </summary>
+    bool ScheduleApplyOnExit();
 }
 
 /// <summary>The Launch at startup registration (<see cref="Platform.StartupRegistration"/>).</summary>
@@ -212,7 +218,10 @@ public sealed class AppPorts
 
     public Action OpenMicSettings { get; init; } = () => { };
 
-    /// <summary>Puts text on the clipboard (Last dictation's Copy). False when the clipboard is busy.</summary>
+    /// <summary>
+    /// Puts text on the clipboard (Last dictation's Copy) in one attempt, without blocking. False when the clipboard is
+    /// busy. Must not share the paste's clipboard instance (its restore guard).
+    /// </summary>
     public Func<string, bool> CopyToClipboard { get; init; } = _ => false;
 
     /// <summary>Disposed last, in order, when the host is disposed (the recorder, the catalog, the clipboard…).</summary>

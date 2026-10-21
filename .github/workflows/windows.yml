@@ -97,6 +97,44 @@ jobs:
           dotnet test windows/Akoya.Windows.slnx -c Release --no-build --logger trx --results-directory out/tests 2>&1 | Tee-Object -FilePath out/test.log
           exit $LASTEXITCODE
 
+      - name: Smoke run (start the built app, exit after 5 s)
+        id: smoke
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          AKOYA_SMOKE: '1'
+        run: |
+          $report = 'out/smoke.txt'
+          function Report([string]$text) { Add-Content -Path $report -Value $text; Write-Host $text }
+          $exe = 'windows/src/Akoya.App/bin/Release/net10.0-windows/win-x64/Akoya.App.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'Akoya\logs\akoya.log'
+          Remove-Item -Force -ErrorAction SilentlyContinue $log
+          $p = Start-Process -FilePath $exe -PassThru
+          $null = $p.Handle # keeps the exit code readable after exit
+          if (-not $p.WaitForExit(60000)) {
+            $p.Kill()
+            Report 'FAILED: the app did not exit within 60 s'
+            exit 1
+          }
+          $text = if (Test-Path $log) { Get-Content -Raw $log } else { '' }
+          if (Test-Path $log) { Copy-Item $log out/smoke-akoya.log }
+          Report "exit code: $($p.ExitCode)"
+          $failures = @()
+          if ($p.ExitCode -ne 0) { $failures += "exit code $($p.ExitCode)" }
+          if ($text -notmatch 'INFO Akoya \S+ starting') { $failures += 'no startup line in the log' }
+          if ($text -notmatch 'INFO Smoke run finished') { $failures += 'the smoke timer never fired' }
+          if ($text -notmatch 'INFO Akoya stopping') { $failures += 'no clean shutdown line' }
+          if ($text -match 'could not start') { $failures += 'the log says it could not start' }
+          Report '--- akoya.log ---'
+          Report $text
+          if ($failures.Count -gt 0) {
+            Report ('FAILED: ' + ($failures -join '; '))
+            Write-Host "::error title=Smoke run::$($failures -join '; ')"
+            exit 1
+          }
+          Report 'PASSED'
+
       - name: Summarize
         if: always()
         shell: pwsh
@@ -129,8 +167,8 @@ jobs:
           git push --force origin "$results"
 
       - name: Fail if build or tests failed
-        if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success' || steps.model-download.outcome == 'failure' || steps.model-point.outcome == 'failure') }}
+        if: ${{ always() && (steps.build.outcome != 'success' || steps.test.outcome != 'success' || steps.smoke.outcome != 'success' || steps.model-download.outcome == 'failure' || steps.model-point.outcome == 'failure') }}
         shell: pwsh
         run: |
-          Write-Host "build: ${{ steps.build.outcome }}, test: ${{ steps.test.outcome }}, model download: ${{ steps.model-download.outcome }}, model setup: ${{ steps.model-point.outcome }}"
+          Write-Host "build: ${{ steps.build.outcome }}, test: ${{ steps.test.outcome }}, smoke: ${{ steps.smoke.outcome }}, model download: ${{ steps.model-download.outcome }}, model setup: ${{ steps.model-point.outcome }}"
           exit 1

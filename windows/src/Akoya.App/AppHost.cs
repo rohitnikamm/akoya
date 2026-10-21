@@ -99,7 +99,7 @@ public sealed class AppHost : IDisposable
         Retry: Retry,
         OpenMicSettings: () => _p.OpenMicSettings(),
         RestartToUpdate: RestartToUpdate,
-        Quit: () => _p.Shutdown());
+        Quit: Quit);
 
     public void Start()
     {
@@ -117,7 +117,16 @@ public sealed class AppHost : IDisposable
 
         SyncLaunchAtStartup();
 
-        _tray = Create(() => _p.CreateTray?.Invoke(Commands), "tray");
+        try
+        {
+            _tray = _p.CreateTray?.Invoke(Commands);
+        }
+        catch (Exception e)
+        {
+            // Without the tray there is no way to quit: don't leave a headless process behind.
+            _p.Log.Error("Could not create the tray", e);
+            throw;
+        }
         _tray?.SetSettings(_settings);
         _tray?.SetModel(_modelState, _modelProgress);
         RefreshMicrophones();
@@ -128,10 +137,27 @@ public sealed class AppHost : IDisposable
 
         _ = PrepareModelAsync();
 
-        if (_p.Updates is not null)
+        if (_p.Updates is { } updates)
         {
-            _ = CheckForUpdatesAsync();
-            ScheduleUpdateCheck();
+            bool installed;
+            try
+            {
+                installed = updates.IsInstalled;
+            }
+            catch (Exception e)
+            {
+                _p.Log.Error("Could not tell whether this copy is installed", e);
+                installed = false;
+            }
+            if (installed)
+            {
+                _ = CheckForUpdatesAsync();
+                ScheduleUpdateCheck();
+            }
+            else
+            {
+                _p.Log.Info("Not installed by Setup.exe; updates off");
+            }
         }
     }
 
@@ -190,13 +216,29 @@ public sealed class AppHost : IDisposable
         _coordinator.Handle(e);
     }
 
+    // The coordinator raises PhaseChanged in the middle of a transition (before it stops or cancels the recorder), so
+    // nothing in these handlers may throw back into it: every presenter call is guarded and logged.
     private void OnPhaseChanged(DictationPhase phase)
     {
         if (_disposed) return;
-        _hook?.SetRecordingActive(phase == DictationPhase.Recording);
-        _tray?.SetPhase(phase);
-        _setup?.SetPhase(phase);
+        Guard(() => _hook?.SetRecordingActive(phase == DictationPhase.Recording), "hook.SetRecordingActive");
+        Guard(() => _tray?.SetPhase(phase), "tray.SetPhase");
+        Guard(() => _setup?.SetPhase(phase), "setup.SetPhase");
+        Guard(() => ReactToPhase(phase), "phase " + phase);
+        Guard(() => UpdatePill(phase), "pill " + phase);
 
+        if (!string.Equals(_coordinator.LastDictation, _shownLastDictation, StringComparison.Ordinal))
+        {
+            _shownLastDictation = _coordinator.LastDictation;
+            Guard(() => _tray?.SetLastDictation(_shownLastDictation), "tray.SetLastDictation");
+        }
+
+        if (_restartPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
+            _p.Scheduler.After(TimeSpan.Zero, RestartToUpdate); // not from inside the coordinator's call
+    }
+
+    private void ReactToPhase(DictationPhase phase)
+    {
         switch (phase)
         {
             case DictationPhase.Recording:
@@ -224,17 +266,6 @@ public sealed class AppHost : IDisposable
                 _p.Log.Info("Paste failed: the clipboard was busy");
                 break;
         }
-
-        UpdatePill(phase);
-
-        if (!string.Equals(_coordinator.LastDictation, _shownLastDictation, StringComparison.Ordinal))
-        {
-            _shownLastDictation = _coordinator.LastDictation;
-            _tray?.SetLastDictation(_shownLastDictation);
-        }
-
-        if (_restartPending && phase is not (DictationPhase.Recording or DictationPhase.Transcribing))
-            _p.Scheduler.After(TimeSpan.Zero, RestartToUpdate); // not from inside the coordinator's call
     }
 
     private void UpdatePill(DictationPhase phase)
@@ -260,7 +291,7 @@ public sealed class AppHost : IDisposable
     private void OnLevel(float rms)
     {
         if (_disposed) return;
-        _setup?.SetLevel(rms);
+        Guard(() => _setup?.SetLevel(rms), "setup.SetLevel");
         if (_coordinator.Phase != DictationPhase.Recording)
         {
             _voiceTarget = 0;
@@ -268,8 +299,8 @@ public sealed class AppHost : IDisposable
         }
 
         _meter.Push(rms);
-        _pill.SetLevels(_meter.Columns.ToArray()); // a copy: the meter keeps changing
         _voiceTarget = (LevelMeter.Step(rms) - 1) / 7.0;
+        Guard(() => _pill.SetLevels(_meter.Columns.ToArray()), "pill.SetLevels"); // a copy: the meter keeps changing
     }
 
     private void OnFaulted(Exception e) => _p.Log.Error("Dictation fault", e);
@@ -290,21 +321,25 @@ public sealed class AppHost : IDisposable
         _lastFrame = now;
 
         var phase = _coordinator.Phase;
-        if (phase == DictationPhase.Recording && _coordinator.RecordingStartedAt is { } start)
-            _pill.SetElapsed(now - start);
-        else if (phase == DictationPhase.Transcribing)
-            _pill.Tick((now - _transcribingSince).TotalSeconds);
+        var startedAt = _coordinator.RecordingStartedAt;
+        Guard(() =>
+        {
+            if (phase == DictationPhase.Recording && startedAt is { } start)
+                _pill.SetElapsed(now - start);
+            else if (phase == DictationPhase.Transcribing)
+                _pill.Tick((now - _transcribingSince).TotalSeconds);
+        }, "pill frame");
 
         var level = _glow.Step(phase == DictationPhase.Recording ? _voiceTarget : 0, dt);
         var active = phase is DictationPhase.Recording or DictationPhase.Transcribing;
         if (!active && level < 0.002)
         {
             _glow.Step(0, 60); // settle at rest
-            _tray?.SetVoiceLevel(0);
+            Guard(() => _tray?.SetVoiceLevel(0), "tray.SetVoiceLevel");
             return;
         }
 
-        _tray?.SetVoiceLevel(level);
+        Guard(() => _tray?.SetVoiceLevel(level), "tray.SetVoiceLevel");
         _frameTimer = _p.Scheduler.After(FrameInterval, OnFrame);
     }
 
@@ -415,8 +450,8 @@ public sealed class AppHost : IDisposable
     {
         _modelState = state;
         _modelProgress = progress;
-        _tray?.SetModel(state, progress);
-        _setup?.SetModel(state, progress);
+        Guard(() => _tray?.SetModel(state, progress), "tray.SetModel");
+        Guard(() => _setup?.SetModel(state, progress), "setup.SetModel");
     }
 
     // ---- Microphones ----
@@ -477,10 +512,13 @@ public sealed class AppHost : IDisposable
         setup.MicChosen += OnSetupMicChosen;
         setup.Finished += OnSetupFinished;
         setup.RetryModelRequested += Retry;
-        setup.SetHotkey(_settings.Hotkey);
-        setup.SetModel(_modelState, _modelProgress);
-        setup.SetPhase(_coordinator.Phase);
-        setup.Show();
+        Try(() =>
+        {
+            setup.SetHotkey(_settings.Hotkey);
+            setup.SetModel(_modelState, _modelProgress);
+            setup.SetPhase(_coordinator.Phase);
+            setup.Show();
+        }, "show setup");
     }
 
     private void OnSetupMicChosen(string id)
@@ -562,9 +600,16 @@ public sealed class AppHost : IDisposable
         if (_modelState == ModelState.Failed) _ = PrepareModelAsync();
     }
 
-    private void CopyLastDictation(string text)
+    /// <summary>Last dictation's Copy. False while a paste is borrowing the clipboard, or when another app holds it.</summary>
+    private bool CopyLastDictation(string text)
     {
-        if (_disposed) return;
+        if (_disposed) return false;
+        // The paste (and its clipboard restore) runs while the phase is Transcribing: don't race it.
+        if (_coordinator.Phase == DictationPhase.Transcribing)
+        {
+            _p.Log.Info("Copy ignored: a paste is in progress");
+            return false;
+        }
         bool copied;
         try
         {
@@ -573,9 +618,17 @@ public sealed class AppHost : IDisposable
         catch (Exception e)
         {
             _p.Log.Error("Copy failed", e);
-            return;
+            return false;
         }
         if (!copied) _p.Log.Info("Copy failed: the clipboard was busy");
+        return copied;
+    }
+
+    private void Quit()
+    {
+        if (_disposed) return;
+        _p.Log.Info("Quit");
+        _p.Shutdown();
     }
 
     // ---- Updates ----
@@ -634,12 +687,25 @@ public sealed class AppHost : IDisposable
                 return;
         }
 
+        bool scheduled;
+        try
+        {
+            scheduled = updates.ScheduleApplyOnExit();
+        }
+        catch (Exception e)
+        {
+            _p.Log.Error("Could not start the update", e);
+            return;
+        }
+        if (!scheduled)
+        {
+            _p.Log.Info("Restart to update: no update is ready");
+            return;
+        }
+
+        // A normal exit (Dispose releases the hook, the tray icon and the clipboard); Velopack installs once we're gone.
         _p.Log.Info("Restarting to update");
-        Try(() => _hook?.Dispose(), "release the keyboard hook");
-        _hook = null;
-        Try(updates.ApplyAndRestart, "apply the update");
-        // Still running: there was no update after all, or applying it failed.
-        InstallHook();
+        _p.Shutdown();
     }
 
     // ---- Plumbing ----
@@ -668,6 +734,24 @@ public sealed class AppHost : IDisposable
         {
             _p.Log.Error("Could not create the " + what, e);
             return null;
+        }
+    }
+
+    private string? _lastGuardFailure;
+
+    /// <summary>Runs a presenter call; a failure is logged (once per distinct failure in a row), never rethrown.</summary>
+    private void Guard(Action action, string what)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception e)
+        {
+            var failure = what + ": " + FileLog.Describe(e);
+            if (failure == _lastGuardFailure) return; // a frame loop must not flood the log
+            _lastGuardFailure = failure;
+            _p.Log.Error("UI update failed (" + what + ")", e);
         }
     }
 

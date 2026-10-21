@@ -127,6 +127,16 @@ elseif ($trxFiles.Count -eq 0) {
     $lines.Add('No test.log found either.')
 }
 
+# The smoke run (the built app started for a few seconds and exited); smoke.txt is written by that step.
+$smoke = Join-Path $OutDir 'smoke.txt'
+if (Test-Path -LiteralPath $smoke) {
+    $lines.Add('')
+    $lines.Add('## Smoke')
+    $lines.Add('```')
+    Get-Content -LiteralPath $smoke | ForEach-Object { $lines.Add($_) }
+    $lines.Add('```')
+}
+
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 Set-Content -Path (Join-Path $OutDir 'summary.md') -Value $lines -Encoding utf8
 Write-Host ($lines -join "`n")

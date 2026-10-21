@@ -71,6 +71,21 @@ public sealed class Updater
         }
     }
 
+    /// <summary>True when this copy was installed by Velopack's Setup.exe (only then are there updates to check).</summary>
+    public bool IsInstalled => TryGetInstalledManager() is not null;
+
+    /// <summary>
+    /// Starts Velopack's updater, which waits for this process to exit, installs the downloaded update and starts the new
+    /// version. The caller then shuts down normally (so the tray icon and hook are released). False without a ready update.
+    /// </summary>
+    public bool ScheduleApplyOnExit()
+    {
+        var ready = Volatile.Read(ref _ready);
+        if (ready is null || _manager is null) return false;
+        _manager.WaitExitThenApplyUpdates(ready, silent: false, restart: true, Array.Empty<string>());
+        return true;
+    }
+
     /// <summary>
     /// Exits this process, installs the downloaded update and starts the new version. The caller must have
     /// released the keyboard hook and restored the clipboard first. Does nothing without a ready update.

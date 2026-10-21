@@ -14,7 +14,7 @@ public sealed class TrayPresenter : ITrayPresenter
         ArgumentNullException.ThrowIfNull(commands);
         Model = new TrayPanelViewModel(new TrayPanelActions
         {
-            Copy = commands.Copy,
+            Copy = text => commands.Copy(text), // fits Action<string> and the coming Func<string, bool>
             SelectHotkey = commands.SelectHotkey,
             SelectMic = commands.SelectMic,
             SetLaunchAtStartup = commands.SetLaunchAtStartup,
