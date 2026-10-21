@@ -46,7 +46,7 @@ public class AppHostFinalFixTests
     }
 
     [Fact]
-    public void I2_M8_LoadFailure_DiscardsTheModel_SaysSpeechModelFailed_AndRetryDownloadsAgain()
+    public void I2_M8_LoadFailure_KeepsTheModelOnce_DiscardsItOnASecondFailure_AndRetryDownloadsAgain()
     {
         UiThread.Run(() =>
         {
@@ -55,14 +55,20 @@ public class AppHostFinalFixTests
             var host = rig.Start(waitForModel: false);
             UiThread.PumpUntil(() => rig.Tray.Model == ModelState.Failed);
 
-            Assert.Equal(1, rig.Model.Discards);
+            // Once could be out of memory or an antivirus scan: don't throw away 482 MB for that.
+            Assert.Equal(0, rig.Model.Discards);
+            Assert.True(rig.Model.IsInstalled);
             Assert.True(rig.Tray.ModelLoadFailed); // "Speech model failed", not "Model download failed"
+
+            rig.Tray.Commands!.Retry();
+            UiThread.PumpUntil(() => rig.Model.Loads == 2 && rig.Tray.Model == ModelState.Failed);
+            Assert.Equal(1, rig.Model.Discards); // the same files failed twice: corrupt, so Retry downloads them
 
             rig.Model.LoadError = null;
             rig.Tray.Commands!.Retry();
             UiThread.PumpUntil(() => host.ModelState == ModelState.Ready);
-            Assert.Equal(2, rig.Model.Ensures);
-            Assert.Equal(2, rig.Model.Loads);
+            Assert.Equal(3, rig.Model.Ensures);
+            Assert.Equal(3, rig.Model.Loads);
             Assert.False(rig.Tray.ModelLoadFailed);
         });
     }

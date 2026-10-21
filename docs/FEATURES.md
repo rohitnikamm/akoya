@@ -174,7 +174,7 @@ Every user-visible string not already quoted above, with when it appears.
 | "Turn on your mic in Settings" | None | Red pill, privacy switch off, 1.6 s | Different on purpose (see Microphone) |
 | "Getting the speech model ready…" | Onboarding footer (with %) | Blue pill on a press while loading (1.6 s); tray status (with %); Try it card (with %) | Different on purpose (see Dictation) |
 | "Speech model failed" | None | Red pill on a press after the model failed, 1.6 s | Different on purpose (see Dictation) |
-| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" (download) or "Speech model failed" (load; the model folder is deleted so Retry downloads it again) with "Retry" | Different on purpose (wording, unclear why) |
+| Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" (download) or "Speech model failed" (load; Retry loads the same files again, and when they fail a second time the model folder is deleted so Retry downloads it again) with "Retry" | Different on purpose (wording, unclear why) |
 | "Setup needed" | Chip, a permission is missing, with "Finish setup" | Not applicable | Different on purpose (no permissions on Windows) |
 | "Hotkey unavailable" | Not applicable (the Mac retries silently) | Tray status with "Retry" when the keyboard hook cannot install | Different on purpose (see Hotkey) |
 | "Microphone blocked" | Not applicable | Tray status with "Open Settings" while the privacy switch is off | Different on purpose (see Microphone) |

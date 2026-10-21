@@ -51,6 +51,7 @@ public sealed class AppHost : IDisposable
     private double? _modelProgress;
     private bool _modelLoadFailed;
     private bool _preparingModel;
+    private int _loadFailures; // load failures in a row on the same files
     private bool _micBlocked;
     private string? _savedMicName;
     private string? _shownLastDictation;
@@ -496,12 +497,24 @@ public sealed class AppHost : IDisposable
             }
             catch (Exception e) when (!_disposed)
             {
-                // Present but unloadable (a corrupt encoder of the right size): delete it, so Retry downloads it again.
-                _p.Log.Error("Speech model failed to load; discarding it", e);
-                Try(model.Discard, "discard the speech model");
+                // Present but unloadable. Once may be out of memory or an antivirus scan, so Retry loads the same files
+                // again; the same files failing twice are corrupt (an encoder of the right size): delete them, so the
+                // next Retry downloads them again.
+                _loadFailures++;
+                if (_loadFailures >= 2)
+                {
+                    _p.Log.Error("Speech model failed to load again; discarding it", e);
+                    Try(model.Discard, "discard the speech model");
+                    _loadFailures = 0;
+                }
+                else
+                {
+                    _p.Log.Error("Speech model failed to load; Retry loads it again", e);
+                }
                 SetModelState(ModelState.Failed, null, loadFailed: true);
                 return;
             }
+            _loadFailures = 0;
             if (_disposed)
             {
                 TranscriberSlot.DisposeInBackground(transcriber, TimeSpan.Zero);
