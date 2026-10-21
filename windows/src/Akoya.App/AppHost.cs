@@ -99,7 +99,9 @@ public sealed class AppHost : IDisposable
         Retry: Retry,
         OpenMicSettings: () => _p.OpenMicSettings(),
         RestartToUpdate: RestartToUpdate,
-        Quit: Quit);
+        Quit: Quit,
+        SelectLook: SelectLook,
+        SetRedTint: SetRedTint);
 
     public void Start()
     {
@@ -127,6 +129,7 @@ public sealed class AppHost : IDisposable
             _p.Log.Error("Could not create the tray", e);
             throw;
         }
+        _pill.SetOptions(_settings.Look, _settings.RedTint);
         _tray?.SetSettings(_settings);
         _tray?.SetModel(_modelState, _modelProgress);
         RefreshMicrophones();
@@ -561,6 +564,22 @@ public sealed class AppHost : IDisposable
         if (!string.Equals(id, _settings.MicrophoneId, StringComparison.OrdinalIgnoreCase))
             UpdateSettings(s => s with { MicrophoneId = id });
         RefreshMicrophones();
+    }
+
+    /// <summary>The Pill row's Waveform choice: saved, and shown by the pill at once (a pill on screen redraws).</summary>
+    private void SelectLook(WaveLook look)
+    {
+        if (_disposed || look == _settings.Look) return;
+        UpdateSettings(s => s with { Look = look });
+        Guard(() => _pill.SetOptions(_settings.Look, _settings.RedTint), "pill.SetOptions");
+    }
+
+    /// <summary>The Pill row's Red while recording switch: saved, and shown by the pill at once.</summary>
+    private void SetRedTint(bool on)
+    {
+        if (_disposed || on == _settings.RedTint) return;
+        UpdateSettings(s => s with { RedTint = on });
+        Guard(() => _pill.SetOptions(_settings.Look, _settings.RedTint), "pill.SetOptions");
     }
 
     /// <summary>The Launch at startup switch. False (the switch springs back) when the Run entry can't be written.</summary>

@@ -64,6 +64,12 @@ public class TrayPanelSnapshots
     });
 
     [Fact]
+    public void PillRow() => Render("tray-pill-row", _ => { });
+
+    [Fact]
+    public void PillRowOpen() => Render("tray-pill-row-open", vm => vm.TogglePillOptions.Execute(null));
+
+    [Fact]
     public void Downloading() => Render("tray-downloading", vm => vm.SetModel(ModelState.Loading, 0.62));
 
     [Fact]

@@ -22,6 +22,8 @@ public sealed class TrayPresenter : ITrayPresenter
             OpenMicSettings = commands.OpenMicSettings,
             RestartToUpdate = commands.RestartToUpdate,
             Quit = commands.Quit,
+            SelectLook = commands.SelectLook ?? (_ => { }),
+            SetRedTint = commands.SetRedTint ?? (_ => { }),
         }, scheduler);
         _host = new TrayIconHost(Model);
     }

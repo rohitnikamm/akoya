@@ -49,6 +49,8 @@
         <GradientStop Offset="1" Color="#F0090D1E" />
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Akoya.PillDot" Color="#DBE6FF" />
+    <!-- Red while recording (docs/design/windows-pill-height-and-options-mockup.html .red .grid b) -->
+    <SolidColorBrush x:Key="Akoya.PillDotRed" Color="#FF6B6B" />
     <SolidColorBrush x:Key="Akoya.PillTimer" Color="#80FFFFFF" />
     <SolidColorBrush x:Key="Akoya.PillLabel" Color="#D9FFFFFF" />
 </ResourceDictionary>

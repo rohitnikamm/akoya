@@ -24,9 +24,52 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void RoundTripsEveryField()
     {
-        var settings = new AkoyaSettings(HotkeyKey.Copilot, "{0.0.1.00000000}.{abc}", true, true, InferenceProvider.Cpu);
+        var settings = new AkoyaSettings(HotkeyKey.Copilot, "{0.0.1.00000000}.{abc}", true, true, InferenceProvider.Cpu,
+            WaveLook.Solid, RedTint: true);
         SettingsStore.Save(FilePath, settings);
         Assert.Equal(settings, SettingsStore.Load(FilePath));
+    }
+
+    [Fact]
+    public void PillOptions_DefaultToPixelWithoutRedTint()
+    {
+        var settings = new AkoyaSettings();
+        Assert.Equal(WaveLook.Pixel, settings.Look);
+        Assert.False(settings.RedTint);
+    }
+
+    [Fact]
+    public void PillOptions_WrittenAsLookAndRedTint()
+    {
+        SettingsStore.Save(FilePath, new AkoyaSettings(Look: WaveLook.Solid, RedTint: true));
+        var json = File.ReadAllText(FilePath);
+        Assert.Contains("\"look\": \"Solid\"", json);
+        Assert.Contains("\"redTint\": true", json);
+    }
+
+    [Fact]
+    public void FileFromBeforeThePillOptions_LoadsWithTheirDefaults()
+    {
+        WriteRaw("{\"hotkey\":\"RightCtrl\",\"microphoneId\":null,\"launchAtStartup\":true,\"setupDone\":true,\"provider\":\"Auto\"}");
+        Assert.Equal(new AkoyaSettings(HotkeyKey.RightCtrl, null, true, true, InferenceProvider.Auto, WaveLook.Pixel, false),
+            SettingsStore.Load(FilePath));
+    }
+
+    [Theory]
+    [InlineData("{\"look\":\"Wavy\",\"redTint\":\"yes\",\"setupDone\":true}")]
+    [InlineData("{\"look\":1,\"redTint\":1,\"setupDone\":true}")]
+    [InlineData("{\"look\":\"1\",\"redTint\":null,\"setupDone\":true}")]
+    public void BadPillOptions_FallBackIndependently(string json)
+    {
+        WriteRaw(json);
+        Assert.Equal(new AkoyaSettings(SetupDone: true), SettingsStore.Load(FilePath));
+    }
+
+    [Fact]
+    public void PillOptions_ReadCaseInsensitively()
+    {
+        WriteRaw("{\"look\":\"solid\",\"redTint\":true}");
+        Assert.Equal(new AkoyaSettings(Look: WaveLook.Solid, RedTint: true), SettingsStore.Load(FilePath));
     }
 
     [Fact]

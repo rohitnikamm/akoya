@@ -70,7 +70,8 @@ public partial class PillView : UserControl
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PillViewModel.Mode) or nameof(PillViewModel.IsRed) or nameof(PillViewModel.AlertText)) Refresh();
+        if (e.PropertyName is nameof(PillViewModel.Mode) or nameof(PillViewModel.IsRed) or nameof(PillViewModel.AlertText)
+            or nameof(PillViewModel.Tint)) Refresh();
     }
 
     private void Refresh()
@@ -94,6 +95,20 @@ public partial class PillView : UserControl
         // Red alert: white text; everything else uses the pill's label colour.
         Label.SetResourceReference(TextBlock.ForegroundProperty, red ? "Akoya.TextPrimary" : "Akoya.PillLabel");
         Pill.SetResourceReference(RimGlowBorder.GlowColorProperty, red ? "Akoya.RedColor" : "Akoya.AccentColor");
+
+        // Red while recording: a red waveform while listening, an amber sweep while transcribing; the glow stays blue.
+        var tint = _model?.Tint ?? PillTint.Normal;
+        Dots.SetResourceReference(DotGrid.DotBrushProperty, tint == PillTint.Red ? "Akoya.PillDotRed" : "Akoya.PillDot");
+        if (tint == PillTint.Amber)
+        {
+            Dots.SetResourceReference(DotGrid.HighlightBrushProperty, "Akoya.Amber");
+            Dots.HighlightAbove = PillDots.ScannerRest;
+        }
+        else
+        {
+            Dots.ClearValue(DotGrid.HighlightBrushProperty);
+            Dots.ClearValue(DotGrid.HighlightAboveProperty);
+        }
     }
 
     private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

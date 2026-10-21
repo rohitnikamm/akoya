@@ -26,6 +26,7 @@
                               Columns="23" Rows="4" DotSize="3" Gap="2"
                               VerticalAlignment="Center"
                               Opacities="{Binding Opacities}"
+                              Bars="{Binding Bars}"
                               DotBrush="{DynamicResource Akoya.PillDot}" />
             <TextBlock x:Name="Timer"
                        Margin="10,0,0,0"

@@ -40,6 +40,12 @@ public sealed class TrayPanelActions
     public Action OpenMicSettings { get; init; } = () => { };
     public Action RestartToUpdate { get; init; } = () => { };
     public Action Quit { get; init; } = () => { };
+
+    /// <summary>The Pill row's Waveform choice.</summary>
+    public Action<WaveLook> SelectLook { get; init; } = _ => { };
+
+    /// <summary>The Pill row's Red while recording switch.</summary>
+    public Action<bool> SetRedTint { get; init; } = _ => { };
 }
 
 /// <summary>
@@ -93,6 +99,9 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     private IReadOnlyList<MicOption> _micOptions = [new MicOption(null, "System default", true)];
     private bool _isMicMenuOpen;
     private bool _launchAtStartup;
+    private bool _isPillOpen;
+    private WaveLook _pillLook = WaveLook.Pixel;
+    private bool _redTint;
     private bool _updateReady;
     private double _glowStrength;
 
@@ -125,6 +134,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
             IsHotkeyMenuOpen = false;
             IsMicMenuOpen = !IsMicMenuOpen;
         });
+        TogglePillOptions = new RelayCommand(() => IsPillOpen = !IsPillOpen);
         CloseMenus = new RelayCommand(() =>
         {
             IsHotkeyMenuOpen = false;
@@ -327,6 +337,62 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
         }
     }
 
+    // ---- Pill row (the Mac's Menu bar icon row) ----
+
+    /// <summary>The Pill row is expanded, showing Waveform and Red while recording. Collapsed when the panel opens.</summary>
+    public bool IsPillOpen
+    {
+        get => _isPillOpen;
+        set
+        {
+            if (Set(ref _isPillOpen, value)) OnPropertyChanged(nameof(PillValue));
+        }
+    }
+
+    /// <summary>The row's value: the look while collapsed ("Pixel", "Solid"), none (just the turned ›) while open.</summary>
+    public string? PillValue => IsPillOpen ? null : LookName(PillLook);
+
+    /// <summary>The Waveform choice; setting it calls <see cref="TrayPanelActions.SelectLook"/>.</summary>
+    public WaveLook PillLook
+    {
+        get => _pillLook;
+        set
+        {
+            if (!ApplyLook(value)) return;
+            _actions.SelectLook(value);
+        }
+    }
+
+    /// <summary>The Pixel segment (a radio button): checking it chooses Pixel; unchecking is ignored.</summary>
+    public bool IsPixel
+    {
+        get => PillLook == WaveLook.Pixel;
+        set
+        {
+            if (value) PillLook = WaveLook.Pixel;
+        }
+    }
+
+    /// <summary>The Solid segment (a radio button): checking it chooses Solid; unchecking is ignored.</summary>
+    public bool IsSolid
+    {
+        get => PillLook == WaveLook.Solid;
+        set
+        {
+            if (value) PillLook = WaveLook.Solid;
+        }
+    }
+
+    /// <summary>The Red while recording switch; setting it calls <see cref="TrayPanelActions.SetRedTint"/>.</summary>
+    public bool RedTint
+    {
+        get => _redTint;
+        set
+        {
+            if (Set(ref _redTint, value)) _actions.SetRedTint(value);
+        }
+    }
+
     /// <summary>An update is downloaded: the "Update ready · Restart" row shows.</summary>
     public bool UpdateReady
     {
@@ -349,6 +415,9 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
     public ICommand Quit { get; }
     public ICommand ToggleHotkeyMenu { get; }
     public ICommand ToggleMicMenu { get; }
+
+    /// <summary>Expands or collapses the Pill row.</summary>
+    public ICommand TogglePillOptions { get; }
     public ICommand CloseMenus { get; }
 
     // ---- Inputs ----
@@ -414,13 +483,15 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
         RecomputeStatus();
     }
 
-    /// <summary>Shows saved settings (hotkey, Launch at startup) without calling the actions back.</summary>
+    /// <summary>Shows saved settings (hotkey, Launch at startup, the Pill options) without calling the actions back.</summary>
     public void SetSettings(AkoyaSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         if (PostToOwner(() => SetSettings(settings))) return;
         ApplyHotkey(settings.Hotkey);
         Set(ref _launchAtStartup, settings.LaunchAtStartup, nameof(LaunchAtStartup));
+        ApplyLook(settings.Look);
+        Set(ref _redTint, settings.RedTint, nameof(RedTint));
         if (!string.Equals(settings.MicrophoneId, _savedMicId, StringComparison.OrdinalIgnoreCase))
         {
             _savedMicId = settings.MicrophoneId;
@@ -463,6 +534,18 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
 
     private static IReadOnlyList<HotkeyOption> HotkeyOptionsFor(HotkeyKey current) =>
         HotkeyOrder.Select(k => new HotkeyOption(k, Label(k), k == current)).ToArray();
+
+    /// <summary>Shows <paramref name="look"/>; false if it was already shown.</summary>
+    private bool ApplyLook(WaveLook look)
+    {
+        if (!Set(ref _pillLook, look, nameof(PillLook))) return false;
+        OnPropertyChanged(nameof(IsPixel));
+        OnPropertyChanged(nameof(IsSolid));
+        OnPropertyChanged(nameof(PillValue));
+        return true;
+    }
+
+    private static string LookName(WaveLook look) => look == WaveLook.Solid ? "Solid" : "Pixel";
 
     private void ApplyHotkey(HotkeyKey key)
     {

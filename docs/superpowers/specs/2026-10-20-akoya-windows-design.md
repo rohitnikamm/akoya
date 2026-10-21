@@ -5,8 +5,10 @@ Visual targets (all in `docs/design/`):
 - Pill: `windows-pill-mockup.html` (loops through the states) and `docs/assets/windows-preview.gif`.
 - Setup: `windows-onboarding-mockup.html` (Welcome, Microphone in every state, Try it, the red
   "Microphone not detected" pill and the yellow tray row).
-- Tray panel: the Mac all-in-one dropdown, `all-in-one-dropdown-target.html` / `.png`, minus the
-  "Menu bar icon" row (see `windows-tray-panel-placeholder.png` for the Mac render).
+- Tray panel: the Mac all-in-one dropdown, `all-in-one-dropdown-target.html` / `.png`, with its
+  "Menu bar icon" row as the "Pill" row of `windows-pill-height-and-options-mockup.html` (see
+  `windows-tray-panel-placeholder.png` for the Mac render).
+- Pill height, pop-in, Solid and red waveforms: `windows-pill-height-and-options-mockup.html`.
 
 ## Intent
 
@@ -30,7 +32,8 @@ think hard about.
 - **Look:** Akoya's dark glass with the bottom-weighted electric-blue rim glow (`#2F6BFF` →
   `#1D4ED8`), Outfit font, as on the Mac.
 - **Settings in the tray.** The dot logo sits in the tray overflow (behind ⌃); the user can drag
-  it onto the taskbar. Clicking it opens the Mac's all-in-one panel minus the Menu bar icon row.
+  it onto the taskbar. Clicking it opens the Mac's all-in-one panel, its Menu bar icon row
+  becoming a Pill row (the pill is Windows' waveform).
 - **Default hotkey: Right Alt**, swallowed so apps never see a lone Alt tap. Alternatives: Right
   Ctrl and the Copilot key. Left Alt is untouched.
 - **Install and updates: Velopack.** Unsigned per-user `Setup.exe` on the GitHub release (one
@@ -97,7 +100,8 @@ windows/
 - `SingleInstance`, `StartupRegistration`, `Updater` (Velopack), `App` composition root.
 
 Data on disk:
-- Settings: `%AppData%\Akoya\settings.json`.
+- Settings: `%AppData%\Akoya\settings.json` (hotkey, microphoneId, launchAtStartup, setupDone,
+  provider, look `Pixel`/`Solid`, redTint; a missing or bad field loads as its default).
 - Model: `%LocalAppData%\Akoya\models\` (outside Velopack's `current\` folder, so updates don't
   re-download it; uninstall removes it).
 - Log: `%LocalAppData%\Akoya\logs\akoya.log` (rolling, 1 MB × 3), never contains transcripts.
@@ -179,8 +183,16 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
   2. **Last dictation** card with Copy (hidden until the first dictation).
   3. **Options:** Microphone (value = current plain name ▾; menu: "System default (<name>)", then
      every input by plain name, ✓ on selected; highlighted yellow with "Not detected" when the
-     saved one is missing), Launch at startup (switch). When an update is ready: an "Update ready ·
-     Restart" row with a blue button.
+     saved one is missing), **Pill** (the Mac's Menu bar icon disclosure row: waveform glyph,
+     value "Pixel"/"Solid" and a › that turns when open, collapsed whenever the panel opens; inside,
+     "Waveform" Pixel | Solid as a neutral segmented control and "Red while recording" as a neutral
+     switch, off by default; no note line, since Hide when idle is left out), Launch at startup
+     (switch). When an update is ready: an "Update ready · Restart" row with a blue button.
+     Pill options apply at once, also to a pill on screen. Solid: per column one 3 DIP bar with
+     round ends, centred on the dot rows, one dot tall at the quietest step rising linearly to the
+     four rows' 18 DIP at the loudest (the transcribing sweep: full-height bars). Red while
+     recording: the listening waveform is `#FF6B6B` and the transcribing sweep's lit columns
+     (head and tail) are amber `#FBBF24`; the rim glow stays blue. Setup's Try it is unchanged.
   4. **Quit Akoya** (quiet text row).
 - Neutral control styles as on the Mac (no solid-blue selected states).
 

@@ -438,4 +438,84 @@ public class TrayPanelViewModelTests
             public void Dispose() => Disposed = true;
         }
     }
+
+    // ---- Pill row ----
+
+    [Fact]
+    public void PillRow_CollapsedByDefault_ShowsTheLook()
+    {
+        var vm = Ready();
+
+        Assert.False(vm.IsPillOpen);
+        Assert.Equal(WaveLook.Pixel, vm.PillLook);
+        Assert.True(vm.IsPixel);
+        Assert.False(vm.IsSolid);
+        Assert.False(vm.RedTint);
+        Assert.Equal("Pixel", vm.PillValue);
+    }
+
+    [Fact]
+    public void TogglePillOptions_OpensAndCloses_ValueHiddenWhileOpen()
+    {
+        var vm = Ready();
+        var changed = new List<string?>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        vm.TogglePillOptions.Execute(null);
+        Assert.True(vm.IsPillOpen);
+        Assert.Null(vm.PillValue);
+        Assert.Contains(nameof(TrayPanelViewModel.PillValue), changed);
+
+        vm.TogglePillOptions.Execute(null);
+        Assert.False(vm.IsPillOpen);
+        Assert.Equal("Pixel", vm.PillValue);
+    }
+
+    [Fact]
+    public void ChoosingSolid_CallsTheAction_UpdatesTheValue()
+    {
+        var chosen = new List<WaveLook>();
+        var vm = Ready(new TrayPanelActions { SelectLook = chosen.Add });
+
+        vm.IsSolid = true;
+
+        Assert.Equal([WaveLook.Solid], chosen);
+        Assert.Equal(WaveLook.Solid, vm.PillLook);
+        Assert.False(vm.IsPixel);
+        Assert.Equal("Solid", vm.PillValue);
+
+        vm.IsPixel = true;
+        vm.IsPixel = true; // a radio button re-checked: no second call
+        vm.IsSolid = false; // the radio that was unchecked: ignored
+        Assert.Equal([WaveLook.Solid, WaveLook.Pixel], chosen);
+        Assert.Equal(WaveLook.Pixel, vm.PillLook);
+    }
+
+    [Fact]
+    public void RedTintSwitch_CallsTheAction()
+    {
+        var calls = new List<bool>();
+        var vm = Ready(new TrayPanelActions { SetRedTint = calls.Add });
+
+        vm.RedTint = true;
+        vm.RedTint = true;
+        vm.RedTint = false;
+
+        Assert.Equal([true, false], calls);
+    }
+
+    [Fact]
+    public void SetSettings_ShowsThePillOptions_WithoutCallingBack()
+    {
+        var calls = 0;
+        var vm = Ready(new TrayPanelActions { SelectLook = _ => calls++, SetRedTint = _ => calls++ });
+
+        vm.SetSettings(new AkoyaSettings(Look: WaveLook.Solid, RedTint: true));
+
+        Assert.Equal(0, calls);
+        Assert.Equal(WaveLook.Solid, vm.PillLook);
+        Assert.True(vm.IsSolid);
+        Assert.True(vm.RedTint);
+        Assert.Equal("Solid", vm.PillValue);
+    }
 }
