@@ -7,7 +7,8 @@ namespace Akoya.App.Tests.Setup;
 
 public class SetupViewModelTests
 {
-    private static SetupRig Laptop3() => new(Devices.Laptop(), Devices.Buds(), Devices.Webcam());
+    private static SetupRig Laptop3(bool reduceMotion = false) =>
+        new(reduceMotion, Devices.Laptop(), Devices.Buds(), Devices.Webcam());
 
     private static SetupRig AtMicrophone(SetupRig rig)
     {
@@ -412,6 +413,69 @@ public class SetupViewModelTests
         rig.Practice.Phase(DictationPhase.Idle); // Esc: no final follows
 
         Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
+    }
+
+    /// <summary>Speaks at <paramref name="rms"/> for <paramref name="seconds"/>, one level every 40 ms.</summary>
+    private static void Speak(SetupRig rig, float rms, double seconds)
+    {
+        for (var i = 0; i < (int)Math.Round(seconds / 0.04); i++)
+        {
+            rig.Practice.Rms(rms);
+            rig.Clock.Advance(0.04);
+        }
+    }
+
+    [Fact]
+    public void TryIt_Glow_RisesWithTheVoice_AndFadesAfterTheTake()
+    {
+        var rig = AtTryIt(Laptop3());
+        Assert.Equal(0, rig.Model.GlowStrength); // none at rest
+
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Clock.Advance(0.5);
+        var quiet = rig.Model.GlowStrength;
+        Assert.InRange(quiet, 0.2, 0.3); // the listening floor (0.2 of 0.8)
+
+        Speak(rig, 1.0f, 0.5);
+        var peak = rig.Model.GlowStrength;
+        Assert.InRange(peak, 0.95, 1.0);
+
+        Speak(rig, 0.02f, 1.5); // a softer voice: the glow comes down, slower than it rose
+        Assert.InRange(rig.Model.GlowStrength, quiet, peak - 0.2);
+
+        rig.Practice.Phase(DictationPhase.Transcribing);
+        rig.Clock.Advance(0.2);
+        Assert.InRange(rig.Model.GlowStrength, 0.01, peak); // fading, not cut
+        rig.Clock.Advance(3);
+        Assert.Equal(0, rig.Model.GlowStrength);
+        Assert.Equal(0, rig.Clock.Pending); // the frame timer stopped
+    }
+
+    [Fact]
+    public void TryIt_Glow_WithAnimationsOff_HoldsSteadyWhileRecording()
+    {
+        var rig = AtTryIt(Laptop3(reduceMotion: true));
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Clock.Advance(0.04);
+        Assert.Equal(0.625, rig.Model.GlowStrength, 3); // a fixed 0.5 opacity
+
+        Speak(rig, 1.0f, 0.4);
+        Assert.Equal(0.625, rig.Model.GlowStrength, 3);
+
+        rig.Practice.Phase(DictationPhase.Idle);
+        rig.Clock.Advance(0.04);
+        Assert.Equal(0, rig.Model.GlowStrength); // switched off, not faded
+    }
+
+    [Fact]
+    public void Glow_OutsidePractice_StaysOff()
+    {
+        var rig = Laptop3();
+        rig.Practice.Phase(DictationPhase.Recording); // a paste-mode dictation before Try it
+        rig.Practice.Rms(1.0f);
+        rig.Clock.Advance(0.5);
+
+        Assert.Equal(0, rig.Model.GlowStrength);
     }
 
     [Fact]

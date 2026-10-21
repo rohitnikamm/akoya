@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using Akoya.Core.Audio;
 using Akoya.Core.Dictation;
@@ -179,6 +180,9 @@ public sealed class SetupViewModel : Observable, IDisposable
     /// </summary>
     public static readonly TimeSpan MicChangeSettle = TimeSpan.FromMilliseconds(200);
 
+    /// <summary>How often the Try it voice glow steps while it is lit (about 30 Hz).</summary>
+    public static readonly TimeSpan GlowFrame = TimeSpan.FromMilliseconds(33);
+
     private const int WaveColumns = 23;
 
     private readonly IMicCatalog _catalog;
@@ -202,6 +206,13 @@ public sealed class SetupViewModel : Observable, IDisposable
     private IDisposable? _poll;
     private IDisposable? _micChange;
 
+    private readonly Func<bool> _reduceMotion;
+    private readonly GlowEnvelope _glow = new();
+    private double _voiceLevel;
+    private double _glowStrength;
+    private IDisposable? _glowTimer;
+    private DateTimeOffset _glowLast;
+
     private ModelState _modelState = ModelState.Ready;
     private double? _modelProgress;
 
@@ -219,8 +230,14 @@ public sealed class SetupViewModel : Observable, IDisposable
     private bool _finished;
     private bool _disposed;
 
-    public SetupViewModel(IMicCatalog catalog, IMicLevels levels, IMicPrivacy privacy, IPracticeDictation practice, IScheduler scheduler)
+    /// <param name="reduceMotion">
+    /// Whether Windows' "Animation effects" is off: the Try it glow then holds steady while recording, like the Mac with
+    /// Reduce Motion. Defaults to <see cref="SystemParameters.ClientAreaAnimation"/>.
+    /// </param>
+    public SetupViewModel(IMicCatalog catalog, IMicLevels levels, IMicPrivacy privacy, IPracticeDictation practice, IScheduler scheduler,
+        Func<bool>? reduceMotion = null)
     {
+        _reduceMotion = reduceMotion ?? (() => !SystemParameters.ClientAreaAnimation);
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _levels = levels ?? throw new ArgumentNullException(nameof(levels));
         _privacy = privacy ?? throw new ArgumentNullException(nameof(privacy));
@@ -413,6 +430,17 @@ public sealed class SetupViewModel : Observable, IDisposable
         _ => "Your words will appear here.",
     };
 
+    /// <summary>
+    /// The Try it voice glow, 0..1: the card's rim glow (<see cref="RimGlowRecipes.SetupCardListening"/>) and the grid's
+    /// extra brightness rise with the voice while recording and fade after, as on the Mac (the listening floor 0.2,
+    /// <see cref="GlowEnvelope"/> attack 0.10 s, release 0.45 s; a fixed glow with animations off). 0 at rest.
+    /// </summary>
+    public double GlowStrength
+    {
+        get => _glowStrength;
+        private set => Set(ref _glowStrength, value);
+    }
+
     /// <summary>The Try it waveform's dot opacities (<see cref="TryItWave"/>, 23 columns × 9 rows).</summary>
     public double[] WaveOpacities
     {
@@ -542,6 +570,9 @@ public sealed class SetupViewModel : Observable, IDisposable
     private void TearDown()
     {
         _finished = true;
+        _glowTimer?.Dispose();
+        _glowTimer = null;
+        GlowStrength = 0;
         _micChange?.Dispose();
         _micChange = null;
         StopMicrophone();
@@ -734,6 +765,8 @@ public sealed class SetupViewModel : Observable, IDisposable
     {
         if (!_practicing) return;
         IsRecording = phase == DictationPhase.Recording;
+        if (!IsRecording) _voiceLevel = 0;
+        StartGlow();
         switch (phase)
         {
             case DictationPhase.Recording:
@@ -763,8 +796,48 @@ public sealed class SetupViewModel : Observable, IDisposable
     private void OnLevel(float rms)
     {
         if (!_practicing || !IsRecording) return;
+        _voiceLevel = (LevelMeter.Step(rms) - 1) / 7.0;
         _wave.Push(rms);
         WaveOpacities = TryItWave.Opacities(_wave.Columns, live: true);
+    }
+
+    // Voice glow
+
+    private void StartGlow()
+    {
+        if (_glowTimer is not null || (!IsRecording && _glow.Value <= 0)) return;
+        _glowLast = _scheduler.Now;
+        _glowTimer = _scheduler.After(GlowFrame, GlowTick);
+    }
+
+    private void GlowTick()
+    {
+        _glowTimer = null;
+        if (_finished) return;
+        var now = _scheduler.Now;
+        var dt = Math.Max(0, (now - _glowLast).TotalSeconds);
+        _glowLast = now;
+
+        bool reduce;
+        try
+        {
+            reduce = _reduceMotion();
+        }
+        catch (InvalidOperationException)
+        {
+            reduce = false;
+        }
+        var target = GlowEnvelope.Opacity(_voiceLevel, IsRecording, reduce);
+        // With animations off the glow switches between fixed and off instead of breathing.
+        var value = _glow.Step(target, reduce ? 60 : dt);
+        if (target == 0 && value < 0.002)
+        {
+            _glow.Step(0, 60); // settle at rest
+            GlowStrength = 0;
+            return;
+        }
+        GlowStrength = GlowEnvelope.LayerOpacity(value);
+        _glowTimer = _scheduler.After(GlowFrame, GlowTick);
     }
 
     private void CardChanged()

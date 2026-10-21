@@ -152,7 +152,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Live words | Text card fills in while speaking (pass every 0.6 s once 0.5 s of audio is above the silence gate), then the final text; nothing is pasted | Same | Same |
 | Text card | "Your words will appear here."; up to 6 lines, older words cut at the top | Same placeholder; scrolls to keep the newest words in view | Same |
 | Missed take | Silence, empty or failed take: text cleared, "Didn’t catch that [em dash] try again" (the Mac string has an em dash) | Silent, empty or failed take: previous good take kept, or "Didn't catch that. Try again." if none; Esc changes nothing | Same (period instead of the em dash) |
-| Voice glow on Try it | Rim glow rises from the bottom edge with the voice and the grid brightens (fixed glow with Reduce Motion) | Waveform only; the card glow does not follow the voice | Missing on Windows |
+| Voice glow on Try it | Rim glow rises from the bottom edge with the voice and the grid brightens (fixed glow with Reduce Motion) | The Mac's rim glow recipe rises over the card's fixed glow with the voice (same envelope, fades after the take) and the line grid brightens up to twice its rest strength; fixed glow with Animation effects off | Same |
 | Done | Quiet and inert until the first final transcript, then light; Return presses it | Same, Enter presses it | Same |
 | Skip | On Try it only | On Microphone and Try it | Different on purpose (no permissions to finish on Windows) |
 | ✕ | Counts as Skip on Try it or with every permission on; otherwise setup is not marked done | Always ends setup and marks it done; other closes (Alt+F4, sign-out) do not | Different on purpose (Mac must come back for permissions) |
@@ -221,6 +221,5 @@ Every user-visible string not already quoted above, with when it appears.
 - Hotkey: recovery from a hook Windows removed silently (Missing on Windows)
 - Speech model: warm-up before "Ready" (Missing on Mac)
 - Tray / menu bar panel: update row (Missing on Mac)
-- Setup / onboarding: voice glow on Try it (Missing on Windows)
 - Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)
 - Install and updates: in-app update check (Missing on Mac)

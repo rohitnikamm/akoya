@@ -23,6 +23,15 @@ public class GlowEnvelopeTests
         Assert.Equal(0.2, GlowEnvelope.Opacity(-1, true, false));
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(0.2, 0.25)]
+    [InlineData(0.8, 1)]
+    [InlineData(0.95, 1)]
+    [InlineData(-0.1, 0)]
+    public void LayerOpacity_PeakVoiceIsFullStrength(double opacity, double expected) =>
+        Assert.Equal(expected, GlowEnvelope.LayerOpacity(opacity), 6);
+
     [Fact]
     public void ReduceMotion_IsConstant() =>
         Assert.Equal(0.5, GlowEnvelope.Opacity(0.1, true, true));

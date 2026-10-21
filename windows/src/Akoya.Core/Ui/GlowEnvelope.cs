@@ -37,4 +37,10 @@ public sealed class GlowEnvelope
         if (reduceMotion) return 0.5;
         return 0.2 + 0.6 * Math.Min(Math.Max(level, 0), 1);
     }
+
+    /// <summary>
+    /// The glow layer's opacity for an <see cref="Opacity"/> value: peak voice (0.8) draws the approved peak render at
+    /// full strength; anything above is capped (the Mac's RimGlowScale.layerOpacity).
+    /// </summary>
+    public static double LayerOpacity(double opacity) => Math.Min(Math.Max(opacity / 0.8, 0), 1);
 }

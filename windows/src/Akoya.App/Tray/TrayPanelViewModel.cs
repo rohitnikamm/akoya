@@ -599,7 +599,7 @@ public sealed class TrayPanelViewModel : INotifyPropertyChanged
         // The Mac's mapping: GlowEnvelope opacity (0.2 floor, 0.8 at peak voice; a fixed 0.5 with animations off)
         // scaled so peak voice is full strength.
         var opacity = GlowEnvelope.Opacity(_voiceLevel, IsListening, ReduceMotion());
-        GlowStrength = Math.Min(1, opacity / 0.8);
+        GlowStrength = GlowEnvelope.LayerOpacity(opacity);
     }
 
     private bool ReduceMotion()

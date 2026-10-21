@@ -148,9 +148,15 @@ internal static class Devices
 internal sealed class SetupRig
 {
     public SetupRig(params EndpointFacts[] endpoints)
+        : this(false, endpoints)
+    {
+    }
+
+    /// <param name="reduceMotion">Windows' Animation effects off (a CI runner's own setting never leaks in).</param>
+    public SetupRig(bool reduceMotion, params EndpointFacts[] endpoints)
     {
         Catalog = new FakeCatalog(endpoints);
-        Model = new SetupViewModel(Catalog, Levels, Privacy, Practice, Clock);
+        Model = new SetupViewModel(Catalog, Levels, Privacy, Practice, Clock, () => reduceMotion);
     }
 
     public FakeCatalog Catalog { get; }
