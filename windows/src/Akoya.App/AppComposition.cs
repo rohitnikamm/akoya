@@ -30,7 +30,8 @@ public static class AppComposition
         {
             Recorder = recorder,
             Microphones = catalog,
-            Inserter = new ClipboardPasteInserter(pasteClipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV, scheduler),
+            Inserter = new ClipboardPasteInserter(
+                pasteClipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV, KeyInjector.SendText, scheduler),
             Scheduler = scheduler,
             CreateHotkeyHook = (key, onEvent) => new KeyboardHookPort(key, onEvent),
             Model = new SpeechModel(new ModelStore(modelsRoot ?? SpeechModel.DefaultRoot, http)),

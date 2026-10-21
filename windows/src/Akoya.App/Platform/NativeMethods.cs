@@ -72,6 +72,7 @@ internal static class NativeMethods
     internal const uint InputKeyboard = 1;
     internal const uint KeyEventFExtendedKey = 0x0001;
     internal const uint KeyEventFKeyUp = 0x0002;
+    internal const uint KeyEventFUnicode = 0x0004;
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct MouseInput
@@ -163,6 +164,12 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetClipboardData(uint format, IntPtr hMem);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr GetClipboardData(uint format);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern uint EnumClipboardFormats(uint format);
+
     [DllImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern uint RegisterClipboardFormat(string name);
 
@@ -185,4 +192,17 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern IntPtr GlobalFree(IntPtr hMem);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern UIntPtr GlobalSize(IntPtr hMem);
+
+    [DllImport("gdi32.dll")]
+    internal static extern uint GetEnhMetaFileBits(IntPtr hemf, uint size, byte[]? data);
+
+    [DllImport("gdi32.dll")]
+    internal static extern IntPtr SetEnhMetaFileBits(uint size, byte[] data);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteEnhMetaFile(IntPtr hemf);
 }

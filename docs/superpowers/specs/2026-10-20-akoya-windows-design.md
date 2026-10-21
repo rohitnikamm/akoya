@@ -141,8 +141,18 @@ WS_EX_TRANSPARENT` (never takes focus, click-through, no taskbar button, not in 
 
 ## Pasting
 
-- Clipboard snapshot keeps all formats Akoya can read back (text, Unicode text, RTF, HTML, files,
-  images via `IDataObject` copy); restore after 300 ms, as on the Mac.
+- Clipboard snapshot is a raw Win32 copy (`EnumClipboardFormats`, each HGLOBAL format byte for
+  byte, `CF_ENHMETAFILE` as its bits), so every format survives: registered private formats
+  (Photoshop, Figma, CAD), Excel's cell formats, Explorer's `Preferred DropEffect` (a cut stays a
+  cut), PNG/DIBV5 images and password managers' `CanIncludeInClipboardHistory` /
+  `ExcludeClipboardContentFromMonitorProcessing` markers. Formats Windows synthesises from others
+  (`CF_BITMAP`, `CF_PALETTE`, `CF_METAFILEPICT`) or that only work inside their owner
+  (`CF_OWNERDISPLAY`, `CF_DSP*`, `CF_PRIVATEFIRST`..`CF_GDIOBJLAST`) are skipped. Restore after
+  300 ms, as on the Mac, also marked `ExcludeClipboardContentFromMonitorProcessing` so it isn't a
+  new Win+V entry. If any other format can't be copied, or the clipboard holds more than 64 MB,
+  Akoya doesn't borrow the clipboard: it types the text with `SendInput` `KEYEVENTF_UNICODE`
+  (held modifiers released first, as for Ctrl+V). If writing Akoya's text fails after the
+  clipboard was emptied, the snapshot is put back at once.
 - Akoya's temporary clipboard content is marked with `ExcludeClipboardContentFromMonitorProcessing`
   and `CanIncludeInClipboardHistory = 0`, so Windows clipboard history (Win+V) and cloud clipboard
   skip it.
