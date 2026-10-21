@@ -23,7 +23,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Transcription error | Red error cue | Pill fades (logged) | Different on purpose (Windows spec) |
 | Press while model not ready | Ignored with the red error cue | Pill shows "Getting the speech model ready…" (blue, 1.6 s), or red "Speech model failed" if it failed; nothing recorded | Different on purpose (the pill has room for words) |
 | Press while transcribing | Ignored | Ignored | Same |
-| Press during a result or alert | Ignored during the 0.6 s error cue | Starts a new dictation during "Pasted", "Copied" and "Couldn't paste"; ignored during the 1.6 s alerts | Different on purpose (results are cosmetic on Windows) |
+| Press during a result or alert | Ignored during the 0.6 s error cue | Starts a new dictation during "Pasted", "Copied" and "Couldn't paste", and a new attempt during the 1.6 s alerts (the mic may just have been plugged in) | Different on purpose (results and alerts are cosmetic on Windows) |
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |

@@ -976,18 +976,78 @@ public class DictationCoordinatorTests
         Assert.Empty(rig.Transcriber.Received);
     }
 
+    public static TheoryData<string> AlertCauses => ["missing", "blocked", "loading", "failed"];
+
+    [Theory]
+    [MemberData(nameof(AlertCauses))]
+    public void PressDuringAlert_StartsANewAttempt(string cause)
+    {
+        using var rig = new Rig();
+        switch (cause)
+        {
+            case "missing": rig.Audio.StartError = new MicrophoneMissingException(); break;
+            case "blocked": rig.Audio.StartError = new MicrophoneBlockedException(); break;
+            case "loading": rig.Model = ModelState.Loading; break;
+            case "failed": rig.Model = ModelState.Failed; break;
+        }
+        rig.Press();
+        Assert.NotEqual(Recording, rig.Phase);
+        rig.Advance(500);
+
+        // The user plugged the mic in, switched access on, or the model got ready: the next press records.
+        rig.Audio.StartError = null;
+        rig.Model = ModelState.Ready;
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
+
+        rig.Advance(DictationCoordinator.AlertDisplay); // the first alert's timer must not end the recording
+        Assert.Equal(Recording, rig.Phase);
+    }
+
     [Fact]
-    public void PressDuringAlert_IsIgnored()
+    public void PressDuringAlert_ThatStillCannotRecord_ShowsTheAlertAgainForItsFullTime()
     {
         using var rig = new Rig();
         rig.Audio.StartError = new MicrophoneMissingException();
         rig.Press();
         rig.Advance(500);
         rig.Press();
-        Assert.Equal(1, rig.Audio.StartCount);
+        Assert.Equal(2, rig.Audio.StartCount);
         Assert.Equal(MicMissing, rig.Phase);
-        rig.Advance(1100); // still 1.6 s from the first press
+        rig.Advance(1100); // 1.6 s from the first press, 1.1 s from the second
+        Assert.Equal(MicMissing, rig.Phase);
+        rig.Advance(500);
         Assert.Equal(Idle, rig.Phase);
+    }
+
+    [Fact]
+    public void ThrowingPhaseSubscriber_DoesNotStrandTheDictation()
+    {
+        using var rig = new Rig();
+        var boom = new InvalidOperationException("presenter is gone");
+        rig.Coordinator.PhaseChanged += _ => throw boom;
+        var after = new List<DictationPhase>();
+        rig.Coordinator.PhaseChanged += after.Add; // later subscribers still hear every phase
+
+        rig.Dictate();
+
+        Assert.Equal(1, rig.Audio.StopCount); // the mic was closed
+        Assert.Equal(Pasted, rig.Phase);
+        Assert.Equal(new[] { Recording, Transcribing, Pasted }, after);
+        Assert.Contains(boom, rig.Faults);
+        Assert.Single(rig.Inserter.Inserted);
+    }
+
+    [Fact]
+    public void ThrowingFaultSubscriber_DoesNotEscape()
+    {
+        using var rig = new Rig();
+        rig.Coordinator.PhaseChanged += _ => throw new InvalidOperationException("presenter is gone");
+        rig.Coordinator.Faulted += _ => throw new InvalidOperationException("logger is gone");
+
+        rig.Dictate();
+
+        Assert.Equal(Pasted, rig.Phase);
     }
 
     [Fact]
