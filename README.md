@@ -54,7 +54,7 @@ The same dictation on Windows 11, with a slim pill above the taskbar in place of
 
 - **Hold or tap.** Hold Right Alt to talk, or tap once to start and again to stop. Esc cancels.
 - **Private.** Transcription runs on your PC with the same Parakeet model. No audio leaves the device.
-- **Works everywhere.** Text is pasted into whatever app has focus, and your clipboard is put back afterwards.
+- **Works everywhere.** Text is pasted into whatever app has focus and stays on your clipboard, so Ctrl+V pastes it again anywhere.
 - **Lives in the tray.** A pill while you speak, and every setting in one panel: hotkey, microphone, pill style, launch at startup.
 
 ### Install

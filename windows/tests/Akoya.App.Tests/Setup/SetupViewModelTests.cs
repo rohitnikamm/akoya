@@ -1,6 +1,7 @@
 using Akoya.App.Setup;
 using Akoya.Core.Dictation;
 using Akoya.Core.Mics;
+using Akoya.Core.Ui;
 using Xunit;
 
 namespace Akoya.App.Tests.Setup;
@@ -479,33 +480,50 @@ public class SetupViewModelTests
     }
 
     [Fact]
-    public void TryIt_ModelStillDownloading_CardShowsProgress()
+    public void TryIt_ModelStillDownloading_TheDotsFill_AndTheTextCardKeepsItsPlaceholder()
     {
         var rig = AtTryIt(Laptop3());
 
         rig.Model.SetModel(ModelState.Loading, 0.624);
 
         Assert.Equal(0.624, rig.Model.ModelProgress);
-        Assert.Equal(PracticeCardKind.ModelLoading, rig.Model.CardKind);
-        Assert.Equal("Getting the speech model ready… 62%", rig.Model.CardText);
+        // The status sits under the dots, not in the card where the user's words go.
+        Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
+        Assert.Equal("Your words will appear here.", rig.Model.CardText);
+        Assert.True(rig.Model.ShowsModelStatus);
+        Assert.False(rig.Model.IsModelFailed);
+        Assert.Equal("Getting the speech model ready", rig.Model.ModelStatusText);
+        Assert.Equal("62%", rig.Model.ModelStatusPercent);
+        Assert.Equal(TryItWave.Loading(23, 0.624), rig.Model.WaveOpacities);
         Assert.True(rig.Model.IsHintDimmed);
+
+        rig.Model.SetModel(ModelState.Loading, null); // downloaded, now loading: no percentage
+        Assert.Equal("Getting the speech model ready…", rig.Model.ModelStatusText);
+        Assert.Equal("", rig.Model.ModelStatusPercent);
 
         rig.Model.SetModel(ModelState.Ready);
         Assert.Null(rig.Model.ModelProgress);
-        Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
+        Assert.False(rig.Model.ShowsModelStatus);
+        Assert.Equal(TryItWave.Opacities(new int[23].Select(_ => 1).ToArray(), live: false), rig.Model.WaveOpacities);
         Assert.False(rig.Model.IsHintDimmed);
     }
 
     [Fact]
-    public void TryIt_ModelFailed_OffersRetry()
+    public void TryIt_ModelFailed_SaysSoUnderTheDots_WhichStopWhereTheDownloadStopped_AndOffersRetry()
     {
         var rig = AtTryIt(Laptop3());
         var retries = 0;
         rig.Model.RetryModelRequested += () => retries++;
+        rig.Model.SetModel(ModelState.Loading, 0.4);
 
         rig.Model.SetModel(ModelState.Failed);
-        Assert.Equal(PracticeCardKind.ModelFailed, rig.Model.CardKind);
-        Assert.Equal("Model download failed", rig.Model.CardText);
+
+        Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
+        Assert.True(rig.Model.ShowsModelStatus);
+        Assert.True(rig.Model.IsModelFailed);
+        Assert.Equal("Model download failed", rig.Model.ModelStatusText);
+        Assert.Equal("", rig.Model.ModelStatusPercent);
+        Assert.Equal(TryItWave.Loading(23, 0.4), rig.Model.WaveOpacities);
 
         rig.Model.RetryModelCommand.Execute(null);
         Assert.Equal(1, retries);

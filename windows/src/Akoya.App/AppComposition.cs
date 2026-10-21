@@ -21,18 +21,14 @@ public static class AppComposition
         var scheduler = new DispatcherScheduler(dispatcher);
         var catalog = new MicrophoneCatalog();
         var recorder = new WasapiRecorder();
-        var pasteClipboard = new SystemClipboard();
-        // Copy from the panel uses its own instance, so a paste's restore never mistakes it for its own text.
-        var copyClipboard = new SystemClipboard();
+        var clipboard = new SystemClipboard();
         var http = new HttpClient();
 
         return new AppPorts
         {
             Recorder = recorder,
             Microphones = catalog,
-            Inserter = new ClipboardPasteInserter(
-                pasteClipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV, KeyInjector.SendText, scheduler,
-                log: log.Info),
+            Inserter = new ClipboardPasteInserter(clipboard, ElevationCheck.ForegroundIsElevated, KeyInjector.SendCtrlV),
             Scheduler = scheduler,
             CreateHotkeyHook = (key, onEvent) => new KeyboardHookPort(key, onEvent),
             Model = new SpeechModel(new ModelStore(modelsRoot ?? SpeechModel.DefaultRoot, http)),
@@ -46,11 +42,11 @@ public static class AppComposition
             MicAccessAllowed = MicPrivacy.IsDesktopAccessAllowed,
             OpenMicSettings = MicPrivacy.OpenSettings,
             InputIdle = InputIdle.Time,
-            // One attempt, no waiting on the UI thread; a user's copy may go to clipboard history like any copy.
-            CopyToClipboard = text => copyClipboard.TrySetText(text, excludeFromHistory: false),
+            // One attempt, no waiting on the UI thread.
+            CopyToClipboard = clipboard.TrySetText,
             CreateTray = commands => new TrayPresenter(commands, scheduler),
             CreateSetup = context => new SetupPresenter(context, catalog),
-            Owned = [recorder, catalog, pasteClipboard, copyClipboard, http],
+            Owned = [recorder, catalog, clipboard, http],
         };
     }
 }

@@ -88,7 +88,7 @@ public sealed class Updater
 
     /// <summary>
     /// Exits this process, installs the downloaded update and starts the new version. The caller must have
-    /// released the keyboard hook and restored the clipboard first. Does nothing without a ready update.
+    /// released the keyboard hook and let a paste finish first. Does nothing without a ready update.
     /// </summary>
     public void ApplyAndRestart()
     {

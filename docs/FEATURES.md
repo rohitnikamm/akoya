@@ -27,9 +27,9 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |
-| Clipboard restore | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | Byte-for-byte Win32 snapshot of every format (private app formats, Excel cells, an Explorer cut, PNG, password managers' history markers), restored after 300 ms (tried again for about 1 s while another app holds the clipboard) unless something changed it meanwhile; the restore is marked excluded from Win+V history. Formats Windows converts from another (a screenshot's second bitmap copy, the older text formats) are not copied, so a 4K screenshot still pastes. A format that can't be copied, or over 64 MB: the clipboard is left alone and the text is typed instead (a line break as Shift+Enter, a tab as a space) | Same |
-| Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | Marks it excluded from monitoring, Win+V history and cloud clipboard | Same |
-| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V", no restore | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
+| Clipboard after a dictation | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | The dictated text stays on the clipboard as the latest copy, so Ctrl+V pastes it again anywhere (for example after switching windows mid-sentence); what was copied before is not put back but stays in Win+V history | Missing on Mac (Rohit's choice on Windows, 2026-10-20; the Mac still restores) |
+| Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | An ordinary copy: it shows in Win+V history and cloud clipboard like any other | Different on purpose (the dictation is meant to stay as a copy on Windows) |
+| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V" | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
 | Screen lock mid-dictation | Nothing special | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
@@ -147,7 +147,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Mic titles | Not applicable | "Which mic do you talk into?" / "Say something. Pick the one that moves."; one mic: "Is this the mic you want?" / "Say something. The dots should move."; none: "No mic found" / "Plug one in. It will show up here." | Different on purpose (Windows only step) |
 | Mic blocked screen | Not applicable | "Turn on your mic" / "Windows is blocking it. Open Settings and switch on microphone access for desktop apps.", "Open Settings", "Waiting for the switch…" | Different on purpose (Windows only step) |
 | Continue | Not applicable | "Continue" saves the highlighted device (dimmed and inert with no mic) | Different on purpose (Windows only step) |
-| Model status in setup | Footer on steps 2 and 3: "Getting the speech model ready…" (with %), "The speech model couldn’t load." with a small "Retry" | In the Try it card only: "Getting the speech model ready… 62%" (or without %), "Model download failed" with "Retry" | Different on purpose (no permissions step to carry it on Windows) |
+| Model status in setup | Footer on steps 2 and 3: "Getting the speech model ready…" (with %), "The speech model couldn’t load." with a small "Retry" | On Try it, under the waveform, whose dots fill left to right with the download: "Getting the speech model ready 62%" (or "…" without %); failed: "Model download failed · Retry", the dots stopped where it stopped. The text card keeps "Your words will appear here." | Different on purpose (no permissions step to carry it on Windows; the progress sits on the waveform the user is waiting to use) |
 | Try it hint | "TRY IT", "Hold [keycap] and say anything", "or tap it once to start, again to stop"; dimmed to 40% while the model is not ready | Same | Same |
 | Try it waveform | 22 columns of 5 pt dots, 1 to 9 per column (odd), dim at rest, bright while recording | 23 columns by 9 rows of 5 px dots, same counts and dimming | Same |
 | Live words | Text card fills in while speaking (pass every 0.6 s once 0.5 s of audio is above the silence gate), then the final text; nothing is pasted | Same | Same |
@@ -213,10 +213,11 @@ Every user-visible string not already quoted above, with when it appears.
 | Settings storage | UserDefaults `com.rohitnikamm.akoya` | `%AppData%\Akoya\settings.json`, atomic save; corrupt file or bad values fall back to defaults; an unreadable file is never overwritten | Different on purpose (platform conventions) |
 | No settings window | Everything is in the dropdown | Everything is in the tray panel | Same |
 | Look | Dark only, Outfit font, electric-blue accents (`#2F6BFF` to `#1D4ED8`) | Same | Same |
-| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it and its clipboard restore to finish, for up to 10 s | Same |
+| Shutdown | A recording in progress is dropped, never pasted; practice mode ends | Same; also on sign-out and Windows shutdown. Quit during a paste waits for it to finish, for up to 10 s | Same |
 
 ## Open differences
 
+- Dictation: the dictated text stays on the clipboard (Missing on Mac)
 - Dictation: paste blocked fallback (Missing on Mac)
 - Dictation: screen lock mid-dictation (Missing on Mac)
 - Speech model: warm-up before "Ready" (Missing on Mac)

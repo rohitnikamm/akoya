@@ -3,8 +3,8 @@ using System.Runtime.InteropServices;
 
 namespace Akoya.App.Platform;
 
-/// <summary>One injected key transition. A non-zero <paramref name="Unicode"/> is a UTF-16 unit sent as KEYEVENTF_UNICODE (Vk 0).</summary>
-public readonly record struct KeyStroke(ushort Vk, bool KeyUp, bool Extended, char Unicode = '\0');
+/// <summary>One injected key transition.</summary>
+public readonly record struct KeyStroke(ushort Vk, bool KeyUp, bool Extended);
 
 /// <summary>Synthesises keyboard input with <c>SendInput</c>.</summary>
 public static class KeyInjector
@@ -14,8 +14,6 @@ public static class KeyInjector
 
     private const ushort VkControl = 0x11;
     private const ushort VkV = 0x56;
-    private const ushort VkShift = 0x10;
-    private const ushort VkReturn = 0x0D;
 
     private static readonly (ushort Vk, bool Extended, bool OpensMenuOrStart)[] Modifiers =
     {
@@ -46,48 +44,6 @@ public static class KeyInjector
         strokes.Add(new KeyStroke(VkControl, true, false));
         return strokes;
     }
-
-    /// <summary>
-    /// The injected sequence that types <paramref name="text"/> without the clipboard: held modifiers are released
-    /// first, as for Ctrl+V, then each UTF-16 unit goes down and up as KEYEVENTF_UNICODE input (a surrogate pair is
-    /// two units, which Windows recombines). A line break is Shift+Enter, a new line in chat boxes and Claude Code where
-    /// plain Enter would send the message or run the line; a tab is a space, since the Tab key would move focus out of
-    /// the field and a tab sent as Unicode input is dropped by some apps (WPF). Speech never produces tabs anyway.
-    /// </summary>
-    public static IReadOnlyList<KeyStroke> BuildTypingSequence(string text, Func<ushort, bool> isPhysicallyDown)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        ArgumentNullException.ThrowIfNull(isPhysicallyDown);
-
-        var strokes = ReleaseHeldModifiers(isPhysicallyDown);
-        for (var i = 0; i < text.Length; i++)
-        {
-            var unit = text[i];
-            if (unit == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-            {
-                continue; // CRLF is one Enter
-            }
-
-            if (unit is '\r' or '\n')
-            {
-                strokes.Add(new KeyStroke(VkShift, false, false));
-                strokes.Add(new KeyStroke(VkReturn, false, false));
-                strokes.Add(new KeyStroke(VkReturn, true, false));
-                strokes.Add(new KeyStroke(VkShift, true, false));
-                continue;
-            }
-
-            var typed = unit == '\t' ? ' ' : unit;
-            strokes.Add(new KeyStroke(0, false, false, typed));
-            strokes.Add(new KeyStroke(0, true, false, typed));
-        }
-
-        return strokes;
-    }
-
-    /// <summary>Types text into the foreground window. Throws <see cref="Win32Exception"/> if the input was blocked.</summary>
-    public static void SendText(string text) =>
-        Send(BuildTypingSequence(text, vk => (NativeMethods.GetAsyncKeyState(vk) & 0x8000) != 0));
 
     /// <summary>Sends Ctrl+V to the foreground window. Throws <see cref="Win32Exception"/> if the input was blocked.</summary>
     public static void SendCtrlV() =>
@@ -127,10 +83,8 @@ public static class KeyInjector
         for (var i = 0; i < inputs.Length; i++)
         {
             var stroke = strokes[i];
-            var unicode = stroke.Unicode != '\0';
             var flags = (stroke.KeyUp ? NativeMethods.KeyEventFKeyUp : 0u)
-                        | (stroke.Extended ? NativeMethods.KeyEventFExtendedKey : 0u)
-                        | (unicode ? NativeMethods.KeyEventFUnicode : 0u);
+                        | (stroke.Extended ? NativeMethods.KeyEventFExtendedKey : 0u);
             inputs[i] = new NativeMethods.Input
             {
                 Type = NativeMethods.InputKeyboard,
@@ -138,8 +92,8 @@ public static class KeyInjector
                 {
                     Keyboard = new NativeMethods.KeybdInput
                     {
-                        Vk = unicode ? (ushort)0 : stroke.Vk,
-                        Scan = unicode ? stroke.Unicode : (ushort)NativeMethods.MapVirtualKey(stroke.Vk, 0),
+                        Vk = stroke.Vk,
+                        Scan = (ushort)NativeMethods.MapVirtualKey(stroke.Vk, 0),
                         Flags = flags,
                     },
                 },

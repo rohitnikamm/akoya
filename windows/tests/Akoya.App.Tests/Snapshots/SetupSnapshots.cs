@@ -101,6 +101,15 @@ public class SetupSnapshots
     }
 
     [Fact]
+    public void TryItModelFailed()
+    {
+        var rig = TryItRig();
+        rig.Model.SetModel(ModelState.Loading, 0.4);
+        rig.Model.SetModel(ModelState.Failed);
+        Render("setup-tryit-model-failed", rig);
+    }
+
+    [Fact]
     public void TryItDone()
     {
         var rig = TryItRig();

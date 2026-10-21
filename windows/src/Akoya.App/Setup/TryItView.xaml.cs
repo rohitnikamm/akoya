@@ -27,7 +27,9 @@ public partial class TryItView : UserControl
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(SetupViewModel.CardKind) or nameof(SetupViewModel.CardText)
-            or nameof(SetupViewModel.DoneReady) or nameof(SetupViewModel.IsHintDimmed))
+            or nameof(SetupViewModel.DoneReady) or nameof(SetupViewModel.IsHintDimmed)
+            or nameof(SetupViewModel.ShowsModelStatus) or nameof(SetupViewModel.IsModelFailed)
+            or nameof(SetupViewModel.ModelStatusPercent))
         {
             Refresh();
         }
@@ -39,10 +41,15 @@ public partial class TryItView : UserControl
         CardText.SetResourceReference(TextBlock.ForegroundProperty, kind switch
         {
             PracticeCardKind.Text => "Akoya.TextPrimary",
-            PracticeCardKind.RetryHint or PracticeCardKind.ModelFailed => "Setup.BodyText",
+            PracticeCardKind.RetryHint => "Setup.BodyText",
             _ => "Setup.Placeholder",
         });
-        RetryButton.Visibility = kind == PracticeCardKind.ModelFailed ? Visibility.Visible : Visibility.Collapsed;
+        var failed = _model?.IsModelFailed == true;
+        ModelStatus.Visibility = _model?.ShowsModelStatus == true ? Visibility.Visible : Visibility.Collapsed;
+        ModelStatusText.SetResourceReference(TextBlock.ForegroundProperty, failed ? "Setup.ModelStatusError" : "Setup.ModelStatus");
+        ModelStatusPercent.Visibility = string.IsNullOrEmpty(_model?.ModelStatusPercent) ? Visibility.Collapsed : Visibility.Visible;
+        RetrySeparator.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
+        RetryButton.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
         // Quiet and inert until the first transcript, then the light primary button (as on the Mac).
         DoneButton.SetResourceReference(StyleProperty, _model?.DoneReady == true ? "Setup.ButtonLight" : "Setup.ButtonQuiet");
         Hint.Opacity = _model?.IsHintDimmed == true ? 0.4 : 1;

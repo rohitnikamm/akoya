@@ -42,21 +42,31 @@
                                   DotBrush="{DynamicResource Setup.WaveDot}" />
             </Grid>
 
+            <!-- Model status under the dots, which fill with the download: "Getting the speech model ready 62%", or
+                 "Model download failed · Retry". Gone once the model is ready. -->
+            <StackPanel x:Name="ModelStatus" Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center"
+                        TextElement.FontSize="13">
+                <TextBlock x:Name="ModelStatusText" VerticalAlignment="Center" Text="{Binding ModelStatusText}" />
+                <TextBlock x:Name="ModelStatusPercent" Margin="6,0,0,0" VerticalAlignment="Center" FontWeight="Medium"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource Akoya.TextPrimary}" Text="{Binding ModelStatusPercent}" />
+                <TextBlock x:Name="RetrySeparator" Margin="6,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Setup.ModelStatusError}" Text="·" />
+                <Button x:Name="RetryButton" VerticalAlignment="Center"
+                        Style="{DynamicResource Setup.Bare}" Command="{Binding RetryModelCommand}">
+                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Akoya.AccentLightSoft}"
+                               Text="Retry" />
+                </Button>
+            </StackPanel>
+
             <!-- .txt: min 86 tall, padding 13 15, rounded 20, 15.5px at 1.45; newest words stay in view. -->
             <Border Margin="0,14,0,0" MinHeight="86" CornerRadius="20" Padding="15,13"
                     Background="{DynamicResource Setup.TextCard}">
                 <ScrollViewer x:Name="CardScroll" MaxHeight="129" VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                    <StackPanel>
-                        <TextBlock x:Name="CardText" TextWrapping="Wrap"
-                                   FontSize="15.5" LineStackingStrategy="BlockLineHeight" LineHeight="22.475"
-                                   Text="{Binding CardText}" />
-                        <Button x:Name="RetryButton" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                Style="{DynamicResource Setup.Bare}" Command="{Binding RetryModelCommand}">
-                            <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Akoya.AccentLightSoft}"
-                                       Text="Retry" />
-                        </Button>
-                    </StackPanel>
+                    <TextBlock x:Name="CardText" TextWrapping="Wrap"
+                               FontSize="15.5" LineStackingStrategy="BlockLineHeight" LineHeight="22.475"
+                               Text="{Binding CardText}" />
                 </ScrollViewer>
             </Border>
         </StackPanel>

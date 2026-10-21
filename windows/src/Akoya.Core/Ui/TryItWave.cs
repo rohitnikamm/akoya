@@ -14,6 +14,9 @@ public static class TryItWave
 
     public const double RestOpacity = 0.45;
 
+    /// <summary>A centre-line dot the model download hasn't reached yet.</summary>
+    public const double LoadingOpacity = 0.22;
+
     /// <summary>Dots for a level step (1 to 8): 1, 3, 5, 7 or 9.</summary>
     public static int DotCount(int step)
     {
@@ -35,6 +38,22 @@ public static class TryItWave
             var count = DotCount(steps[column]);
             var first = (MaxDots - count) / 2;
             for (var row = first; row < first + count; row++) result[column * MaxDots + row] = lit;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// While the speech model loads: one dot per column on the centre line, lit from the left as far as
+    /// <paramref name="fraction"/> (0..1; null when the progress isn't known: none lit), the rest at
+    /// <see cref="LoadingOpacity"/>.
+    /// </summary>
+    public static double[] Loading(int columns, double? fraction)
+    {
+        var result = new double[columns * MaxDots];
+        var lit = fraction is { } f ? (int)Math.Round(Math.Clamp(f, 0, 1) * columns, MidpointRounding.AwayFromZero) : 0;
+        for (var column = 0; column < columns; column++)
+        {
+            result[column * MaxDots + MaxDots / 2] = column < lit ? LiveOpacity : LoadingOpacity;
         }
         return result;
     }

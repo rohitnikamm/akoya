@@ -732,7 +732,7 @@ public sealed class AppHost : IDisposable
     private bool CopyLastDictation(string text)
     {
         if (_disposed) return false;
-        // The paste (and its clipboard restore) runs while the phase is Transcribing: don't race it.
+        // The paste runs while the phase is Transcribing: don't race it.
         if (_coordinator.Phase == DictationPhase.Transcribing)
         {
             _p.Log.Info("Copy ignored: a paste is in progress");
@@ -762,7 +762,7 @@ public sealed class AppHost : IDisposable
                 _coordinator.Handle(HotkeyEvent.Cancel); // dropped, never pasted on the way out
                 break;
             case DictationPhase.Transcribing:
-                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here. A
+                // Let the paste finish first; OnPhaseChanged comes back here. A
                 // transcription that hangs must not keep Akoya from quitting, though.
                 _quitPending = true;
                 _quitTimer ??= _p.Scheduler.After(QuitWaitLimit, () =>
@@ -832,7 +832,7 @@ public sealed class AppHost : IDisposable
                 _coordinator.Handle(HotkeyEvent.Cancel);
                 break;
             case DictationPhase.Transcribing:
-                // Let the paste (and the clipboard restore) finish first; OnPhaseChanged comes back here.
+                // Let the paste finish first; OnPhaseChanged comes back here.
                 _restartPending = true;
                 return;
         }

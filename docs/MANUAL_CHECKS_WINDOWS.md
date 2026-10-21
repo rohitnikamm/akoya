@@ -57,15 +57,11 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Tray panel, Pill row: Solid turns the dots into bars and the sweep into short bars on the centre rows; Red while recording turns the listening waveform red and the sweep amber. Both change a pill already on screen. With Windows' animation effects off, the pill fades in instead of popping.
 
 ## Pasting and the clipboard
-- [ ] Copy some text, dictate, then paste: the text you copied before is back on the clipboard (restored after about 0.3 s).
-- [ ] Copy an image (or files in Explorer) first, dictate, then paste somewhere that accepts it: the image or files are back.
-- [ ] Take a full-screen screenshot on a 4K monitor (Win+Shift+S or Print Screen), then dictate: it pastes as usual (not typed letter by letter), and the screenshot pastes afterwards.
-- [ ] Copy cells in Excel, dictate, then paste into Excel: the cells (with formatting) come back. Cut a file in Explorer, dictate, then paste in another folder: it moves (still a cut).
+- [ ] Dictate into one app, switch to another window and press Ctrl+V: the same text pastes again (it stays on the clipboard as the latest copy).
+- [ ] Copy something, dictate, then press Win+V: the dictated text is at the top of the clipboard history and what you copied before is right under it.
 - [ ] Open the tray panel while typing in an app, then press Esc (or click the tray icon again): the cursor is back in that app and you can keep typing. Open it again and click another window: focus stays in the window you clicked.
-- [ ] Win+V clipboard history: after several dictations none of the dictated text is in the history, and cloud clipboard sync does not carry it.
 - [ ] Hold Shift or Ctrl while releasing the hotkey: the paste still works, and no modifier key is left stuck afterwards.
 - [ ] Another app holding the clipboard open (some remote desktop or clipboard managers): the pill goes red with "Couldn't paste" and the text is kept as Last dictation with Copy.
-- [ ] Clipboard sync tools (Remote Desktop clipboard redirection, Parsec, clipboard managers) may briefly keep the dictated text instead of your previous clipboard. This is expected: those tools read the clipboard during the 0.3 s window. Check that your previous clipboard is back a moment later when no sync tool is running.
 - [ ] Close the panel, then dictate right away: the text lands in the previous app, not in Akoya.
 
 ## Windows limits (expected behaviour)
