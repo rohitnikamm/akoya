@@ -1,0 +1,26 @@
+<!--
+  The tray panel's window: borderless, transparent, topmost, no taskbar button, activated like the Windows flyouts so
+  Esc and keyboard navigation work. The panel sits inside ShadowPadding so its drop shadow (0 30px 70px) has room.
+-->
+<Window x:Class="Akoya.App.Tray.TrayPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:tray="clr-namespace:Akoya.App.Tray"
+        Title="Akoya"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        Topmost="True">
+    <Window.Resources>
+        <ResourceDictionary Source="pack://application:,,,/Akoya.App;component/Theme/Theme.xaml" />
+    </Window.Resources>
+    <Grid x:Name="Root" Margin="{x:Static tray:TrayPanelWindow.ShadowPadding}">
+        <!-- Top-left at its desired size, so the window's pixel-rounded size never stretches it (and the prewarmed
+             rim-glow rasters, keyed by that size, are the ones drawn). -->
+        <tray:TrayPanelView x:Name="View" HorizontalAlignment="Left" VerticalAlignment="Top" />
+    </Grid>
+</Window>

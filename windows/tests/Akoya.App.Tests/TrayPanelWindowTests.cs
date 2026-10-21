@@ -1,0 +1,223 @@
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using Akoya.App.Controls;
+using Akoya.App.Tests.Snapshots;
+using Akoya.App.Tray;
+using Akoya.Core.Ui;
+using Xunit;
+
+namespace Akoya.App.Tests;
+
+public class TrayPanelWindowTests
+{
+    private const int GwlExStyle = -20;
+    private const long WsExToolWindow = 0x80;
+
+    [Fact]
+    public void ShowNearTray_TopmostToolWindow_InTheTrayCornerOfTheWorkArea()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var window = new TrayPanelWindow(TrayPanelSnapshots.Model(_ => { }));
+            window.ShowNearTray();
+            Pump(TimeSpan.FromMilliseconds(200));
+
+            Assert.True(window.IsVisible);
+            Assert.True(window.Topmost);
+            Assert.False(window.ShowInTaskbar);
+            var hwnd = new WindowInteropHelper(window).Handle;
+            Assert.Equal(WsExToolWindow, GetWindowLongPtr(hwnd, GwlExStyle).ToInt64() & WsExToolWindow);
+
+            var panel = window.PanelScreenRectPx();
+            var scale = VisualTreeHelper.GetDpi(window).DpiScaleX;
+            Assert.Equal(TrayPanelView.PanelWidth * scale, panel.Width, 0.5);
+
+            // The runner's taskbar is at the bottom: the panel sits 12 DIP inside the bottom-right of the work area.
+            var work = SystemParameters.WorkArea;
+            var gap = TrayPanelPlacement.GapDip * scale;
+            Assert.InRange(panel.Right, work.Right * scale - gap - 1.5, work.Right * scale - gap + 1.5);
+            Assert.InRange(panel.Bottom, work.Bottom * scale - gap - 1.5, work.Bottom * scale - gap + 1.5);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void Esc_ClosesAnOpenMenuFirst_ThenHidesThePanel()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var vm = TrayPanelSnapshots.Model(_ => { });
+            var window = new TrayPanelWindow(vm);
+            window.ShowNearTray();
+            vm.ToggleHotkeyMenu.Execute(null);
+            Pump(TimeSpan.FromMilliseconds(100));
+
+            PressEscape(window);
+            Assert.False(vm.IsHotkeyMenuOpen);
+            Assert.True(window.IsVisible);
+
+            PressEscape(window);
+            Assert.False(window.IsVisible);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void Deactivated_Hides_AndTheTrayClickThatCausedItDoesNotReopen()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var vm = TrayPanelSnapshots.Model(_ => { });
+            var window = new TrayPanelWindow(vm);
+            window.ShowNearTray();
+            vm.ToggleMicMenu.Execute(null);
+
+            window.HandleDeactivated();
+            Assert.False(window.IsVisible);
+            Assert.False(vm.IsMicMenuOpen);
+
+            window.Toggle(); // the same click arriving at the tray icon
+            Assert.False(window.IsVisible);
+
+            Pump(TrayPanelWindow.ReopenGuard + TimeSpan.FromMilliseconds(100));
+            window.Toggle();
+            Assert.True(window.IsVisible);
+            window.Toggle();
+            Assert.False(window.IsVisible);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void Constructor_PrewarmsThePanelsGlows()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var window = new TrayPanelWindow(TrayPanelSnapshots.Model(vm => vm.SetLastDictation("Hello there.")));
+            Assert.True(window.PrewarmTask.Wait(TimeSpan.FromSeconds(10)), "prewarm did not finish");
+
+            var size = window.PanelSizeDip;
+            var scale = RimGlowCache.ScaleFor(window);
+            Assert.True(RimGlowCache.Contains(size.Width, size.Height, 30, scale, RimGlowRecipes.TrayPanel));
+            Assert.True(RimGlowCache.Contains(5, 5, 2.5, scale, RimGlowRecipes.LogoDot));
+            Assert.True(RimGlowCache.Contains(7, 7, 3.5, scale, RimGlowRecipes.StatusDotBlue));
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void Menus_HotkeyUnderTheKeycap_MicAboveItsRow_BothInsideThePanel()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var vm = TrayPanelSnapshots.Model(_ => { });
+            var view = Laid(new TrayPanelView { DataContext = vm });
+
+            vm.ToggleHotkeyMenu.Execute(null);
+            view.UpdateLayout();
+            var keycap = (Button)view.FindName("Keycap");
+            var keycapBottomLeft = keycap.TranslatePoint(new Point(0, keycap.ActualHeight), view);
+            var hotkeyMenu = (FrameworkElement)view.FindName("HotkeyMenu");
+            var expectedLeft = Math.Min(keycapBottomLeft.X, TrayPanelView.PanelWidth - TrayPanelView.MenuInset - hotkeyMenu.ActualWidth);
+            Assert.Equal(expectedLeft, view.HotkeyMenuOffset.X, 0.5);
+            Assert.True(view.HotkeyMenuOffset.X + hotkeyMenu.ActualWidth <= TrayPanelView.PanelWidth - TrayPanelView.MenuInset + 0.5);
+            Assert.Equal(keycapBottomLeft.Y + TrayPanelView.HotkeyMenuGap, view.HotkeyMenuOffset.Y, 0.5);
+
+            vm.ToggleMicMenu.Execute(null);
+            view.UpdateLayout();
+            var menu = (FrameworkElement)view.FindName("MicMenu");
+            var row = (FrameworkElement)view.FindName("MicRow");
+            var rowTop = row.TranslatePoint(default, view).Y;
+            Assert.Equal(rowTop - TrayPanelView.MicMenuGap, view.MicMenuOffset.Y + menu.ActualHeight, 0.5);
+            Assert.InRange(view.MicMenuOffset.X, 0, TrayPanelView.PanelWidth - menu.ActualWidth);
+            Assert.True(view.MicMenuOffset.Y >= 0);
+            Assert.Equal(4, vm.MicOptions.Count);
+        });
+    }
+
+    [Fact]
+    public void Icon_HasTheFourTraySizes_AndLoadsAtTheSmallIconSize()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var info = Application.GetResourceStream(new Uri("pack://application:,,,/Akoya.App;component/Assets/akoya.ico"));
+            Assert.NotNull(info);
+            using (var stream = info.Stream)
+            {
+                var decoder = new IconBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                Assert.Equal([16, 20, 24, 32], decoder.Frames.Select(f => f.PixelWidth).Order());
+            }
+
+            using var icon = TrayIconHost.LoadIcon();
+            Assert.InRange(icon.Width, 16, 32);
+        });
+    }
+
+    [Fact]
+    public void TrayIconHost_CreatesTheIcon_AndOpensThePanel()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var host = new TrayIconHost(TrayPanelSnapshots.Model(_ => { }));
+            Assert.Equal("Akoya", TrayIconHost.ToolTip);
+            host.ShowPanel();
+            Assert.True(host.Panel.IsVisible);
+        });
+    }
+
+    [Fact]
+    public void NeutralSwitch_ThumbFollowsIsChecked()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            var toggle = Laid(new NeutralSwitch());
+            Assert.Equal(0, toggle.ThumbOffset);
+            Assert.Equal(new Size(34, 20), toggle.RenderSize);
+
+            var on = Laid(new NeutralSwitch { IsChecked = true });
+            Assert.Equal(NeutralSwitch.Travel, on.ThumbOffset);
+        });
+    }
+
+    private static T Laid<T>(T element) where T : FrameworkElement
+    {
+        element.Resources.MergedDictionaries.Add(PillSnapshots.Theme());
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        element.Arrange(new Rect(element.DesiredSize));
+        element.UpdateLayout();
+        return element;
+    }
+
+    private static void PressEscape(Window window)
+    {
+        var source = PresentationSource.FromVisual(window)!;
+        window.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+    }
+
+    private static void Pump(TimeSpan duration)
+    {
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer { Interval = duration };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            frame.Continue = false;
+        };
+        timer.Start();
+        Dispatcher.PushFrame(frame);
+    }
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+}
