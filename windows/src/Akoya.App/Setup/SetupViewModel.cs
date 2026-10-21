@@ -743,8 +743,8 @@ public sealed class SetupViewModel : Observable, IDisposable
                 _wave.Reset();
                 break;
             case DictationPhase.Idle when _awaitingResult:
-                // Back to Idle with no final text (the recorder's Stop failed, or the transcription did): drop a
-                // partial so it doesn't look final. A silent take showed nothing, so nothing changes.
+                // Back to Idle with no final text yet: drop a partial so it doesn't look final (the recorder's Stop
+                // failed). A silent take is followed by an empty final (OnText shows the hint); Esc by nothing.
                 _awaitingResult = false;
                 if (_partialThisTake) LoseTake();
                 break;

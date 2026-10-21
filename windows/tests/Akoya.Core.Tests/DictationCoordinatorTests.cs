@@ -799,8 +799,9 @@ public class DictationCoordinatorTests
     }
 
     [Fact]
-    public void Practice_SilentRecording_GoesIdle_WithoutText()
+    public void Practice_SilentRecording_GoesIdle_WithAnEmptyFinal_NotTranscribed()
     {
+        // Try it says "Didn't catch that. Try again." after a silent take (the onboarding mockup).
         using var rig = new Rig();
         rig.UsePractice();
         rig.Press();
@@ -808,7 +809,36 @@ public class DictationCoordinatorTests
         rig.Release();
         Assert.Equal(Idle, rig.Phase);
         Assert.Empty(rig.Transcriber.Received);
+        Assert.Equal(new[] { ("", true) }, rig.Practice);
+        Assert.Equal(new[] { Recording, Idle }, rig.Phases);
+    }
+
+    [Fact]
+    public void Practice_Cancelled_DeliversNothing()
+    {
+        using var rig = new Rig();
+        rig.UsePractice();
+        rig.Press();
+        rig.Advance(1000);
+        rig.Cancel();
+        Assert.Equal(Idle, rig.Phase);
         Assert.Empty(rig.Practice);
+    }
+
+    [Fact]
+    public void Practice_SilentFinalCallbackThrows_IsAFault_AndTheNextPressRecords()
+    {
+        using var rig = new Rig();
+        var boom = new InvalidOperationException("card is gone");
+        rig.Audio.Samples = new float[16_000];
+        rig.Coordinator.Destination = new Destination.Practice((_, _) => throw boom);
+        rig.Press();
+        rig.Advance(1000);
+        rig.Release();
+        Assert.Equal(Idle, rig.Phase);
+        Assert.Contains(boom, rig.Faults);
+        rig.Press();
+        Assert.Equal(Recording, rig.Phase);
     }
 
     [Fact]

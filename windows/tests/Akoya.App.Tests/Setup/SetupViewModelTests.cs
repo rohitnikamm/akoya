@@ -371,11 +371,45 @@ public class SetupViewModelTests
     }
 
     [Fact]
-    public void TryIt_SilentTake_ChangesNothing()
+    public void TryIt_SilentTake_WithoutAGoodTake_SaysTryAgain()
     {
         var rig = AtTryIt(Laptop3());
         rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Phase(DictationPhase.Idle); // the coordinator goes Idle first, then reports the empty final
+        rig.Practice.Text("", true);
+
+        Assert.Equal(PracticeCardKind.RetryHint, rig.Model.CardKind);
+        Assert.Equal("Didn't catch that. Try again.", rig.Model.CardText);
+        Assert.False(rig.Model.DoneReady);
+
+        rig.Practice.Phase(DictationPhase.Recording); // the next take clears the hint
+        Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
+    }
+
+    [Fact]
+    public void TryIt_SilentTake_AfterAGoodTake_KeepsIt()
+    {
+        var rig = AtTryIt(Laptop3());
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Phase(DictationPhase.Transcribing);
+        rig.Practice.Text("First take.", true);
         rig.Practice.Phase(DictationPhase.Idle);
+
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Phase(DictationPhase.Idle);
+        rig.Practice.Text("", true);
+
+        Assert.Equal(PracticeCardKind.Text, rig.Model.CardKind);
+        Assert.Equal("First take.", rig.Model.CardText);
+        Assert.True(rig.Model.DoneReady);
+    }
+
+    [Fact]
+    public void TryIt_CancelledTake_ChangesNothing()
+    {
+        var rig = AtTryIt(Laptop3());
+        rig.Practice.Phase(DictationPhase.Recording);
+        rig.Practice.Phase(DictationPhase.Idle); // Esc: no final follows
 
         Assert.Equal(PracticeCardKind.Placeholder, rig.Model.CardKind);
     }

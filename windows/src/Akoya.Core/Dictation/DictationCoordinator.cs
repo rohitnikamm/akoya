@@ -27,7 +27,8 @@ public abstract record Destination
 
     /// <summary>
     /// Setup's Try it card: <c>OnText(text, isFinal)</c> receives live partials while speaking
-    /// (<c>isFinal = false</c>) and the final transcript, possibly empty, on stop.
+    /// (<c>isFinal = false</c>) and the final transcript, possibly empty, on stop (empty for a
+    /// silent take, which is not transcribed). A cancelled take reports nothing.
     /// </summary>
     public sealed record Practice(Action<string, bool> OnText) : Destination;
 }
@@ -302,7 +303,21 @@ public sealed class DictationCoordinator
         }
         Level?.Invoke(0);
         if (!silent)
+        {
             _ = FinishAsync(samples, destination);
+        }
+        else if (destination is Destination.Practice practice)
+        {
+            // Try it says "Didn't catch that. Try again." for a silent take, so it hears the (empty) final too.
+            try
+            {
+                practice.OnText("", true);
+            }
+            catch (Exception e)
+            {
+                Fault(e);
+            }
+        }
     }
 
     private async Task FinishAsync(float[] samples, Destination destination)

@@ -151,7 +151,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Try it waveform | 22 columns of 5 pt dots, 1 to 9 per column (odd), dim at rest, bright while recording | 23 columns by 9 rows of 5 px dots, same counts and dimming | Same |
 | Live words | Text card fills in while speaking (pass every 0.6 s once 0.5 s of audio is above the silence gate), then the final text; nothing is pasted | Same | Same |
 | Text card | "Your words will appear here."; up to 6 lines, older words cut at the top | Same placeholder; scrolls to keep the newest words in view | Same |
-| Missed take | Silence, empty or failed take: text cleared, "Didn’t catch that [em dash] try again" (the Mac string has an em dash) | Empty final or failed take after a partial: previous good take kept, or "Didn't catch that. Try again." if none; a silent take changes nothing | Missing on Windows (the hint after a silent take; the mockup says it should show) |
+| Missed take | Silence, empty or failed take: text cleared, "Didn’t catch that [em dash] try again" (the Mac string has an em dash) | Silent, empty or failed take: previous good take kept, or "Didn't catch that. Try again." if none; Esc changes nothing | Same (period instead of the em dash) |
 | Voice glow on Try it | Rim glow rises from the bottom edge with the voice and the grid brightens (fixed glow with Reduce Motion) | Waveform only; the card glow does not follow the voice | Missing on Windows |
 | Done | Quiet and inert until the first final transcript, then light; Return presses it | Same, Enter presses it | Same |
 | Skip | On Try it only | On Microphone and Try it | Different on purpose (no permissions to finish on Windows) |
@@ -222,7 +222,6 @@ Every user-visible string not already quoted above, with when it appears.
 - Speech model: warm-up before "Ready" (Missing on Mac)
 - Tray / menu bar panel: glow with reduced motion (Missing on Windows)
 - Tray / menu bar panel: update row (Missing on Mac)
-- Setup / onboarding: hint after a silent Try it take (Missing on Windows)
 - Setup / onboarding: voice glow on Try it (Missing on Windows)
 - Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)
 - Install and updates: in-app update check (Missing on Mac)
