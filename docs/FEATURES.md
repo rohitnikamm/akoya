@@ -123,7 +123,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Menu bar icon row | "Menu bar icon" with the Waveform value and ›, collapsed by default, expands inline (spring 0.32 s, chevron rotates): "Waveform" Pixel / Solid, "Red while recording", "Hide when idle", note "Hidden? Open Akoya from Spotlight to get back here." | "Pill" row between Microphone and Launch at startup, waveform glyph, the Waveform value and ›, collapsed each time the panel opens, expands inline (0.22 s, › turns, options fade down): "Waveform" Pixel / Solid, "Red while recording"; no note | Different on purpose (on Windows the waveform is the pill; Hide when idle and its note are left out) |
 | Hide when idle | Switch: the menu bar item shrinks to nothing at rest | Left out: the tray icon already sits behind the ^ overflow and the pill only shows while talking | Different on purpose (nothing shows at rest on Windows anyway) |
 | Launch at login / startup row | "Launch at login" switch with a power glyph | "Launch at startup" switch with a power glyph | Same |
-| Update row | None | "Update ready" with a blue "Restart" button, shown once an update is downloaded | Missing on Mac (see Install and updates) |
+| Update row | None | "Update ready" with a light-blue "Restart" text link (styled like Copy), shown once an update is downloaded | Missing on Mac (see Install and updates) |
 | Quit | Quiet "Quit Akoya" text row, no shortcut label | Same | Same |
 | Neutral controls | Grey and white switches and segments, no solid-blue selected states | Same | Same |
 

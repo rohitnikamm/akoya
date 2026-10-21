@@ -154,7 +154,7 @@
             </Setter>
         </Style>
 
-        <!-- Call-to-action buttons (Retry, Open Settings, Restart): the accent gradient capsule, the Mac's PrimaryButton. -->
+        <!-- Call-to-action buttons (Retry, Open Settings): the accent gradient capsule, the Mac's PrimaryButton. -->
         <Style x:Key="Tray.PrimaryButton" TargetType="Button">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -549,14 +549,15 @@
 
                         <StackPanel x:Name="UpdateRow" Visibility="{Binding UpdateReady, Converter={StaticResource Visible}}">
                             <Rectangle Height="1" Margin="14,0" Fill="{StaticResource Tray.Hairline}" />
-                            <Grid Margin="14,8">
+                            <Grid Margin="14,10">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Style="{StaticResource Tray.RowIcon}"
                                           Data="M7,1.5 V8.5 M4,5.6 L7,8.6 L10,5.6 M2,12 H12" />
                                     <TextBlock Margin="9,0,0,0" Text="Update ready" VerticalAlignment="Center" />
                                 </StackPanel>
-                                <Button x:Name="RestartButton" Style="{StaticResource Tray.PrimaryButton}"
-                                        HorizontalAlignment="Right" Padding="14,4" FontSize="12" Content="Restart"
+                                <!-- A blue text link like Copy: the panel's call to action without a filled capsule. -->
+                                <Button x:Name="RestartButton" Style="{StaticResource Tray.Link}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="13" Content="Restart"
                                         Command="{Binding RestartToUpdate}"
                                         AutomationProperties.Name="Restart to update" />
                             </Grid>
