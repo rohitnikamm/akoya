@@ -53,6 +53,27 @@ internal static class RawClipboard
         }
     }
 
+    /// <summary>
+    /// Replaces the clipboard with a promise of <paramref name="format"/> (delayed rendering) owned by a window that
+    /// never renders it. Keep the returned owner alive while the promise should stand.
+    /// </summary>
+    public static IDisposable SetDelayed(uint format)
+    {
+        var owner = new HwndSource(new HwndSourceParameters("Akoya test promising owner") { ParentWindow = new IntPtr(-3) });
+        Open(owner.Handle);
+        try
+        {
+            if (!NativeMethods.EmptyClipboard()) throw new InvalidOperationException("EmptyClipboard failed");
+            NativeMethods.SetClipboardData(format, IntPtr.Zero); // returns NULL for a promise; that is not a failure
+        }
+        finally
+        {
+            NativeMethods.CloseClipboard();
+        }
+
+        return owner;
+    }
+
     /// <summary>The bytes of an HGLOBAL format, or null when it is not on the clipboard.</summary>
     public static byte[]? Get(uint format)
     {

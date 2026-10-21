@@ -53,6 +53,21 @@ Read this, then CLAUDE.md, the spec (`docs/superpowers/specs/2026-10-20-akoya-wi
   update the pill-transcribing snapshots, `docs/FEATURES.md` (pill sweep row; the Mac's menu bar sweep is a
   different shape, so note it as Different on purpose or ask him) and the spec.
 
+## Update (PC session, 2026-10-20): done
+- Item 0: the centre-two-rows sweep. Rohit approved the real before/after renders; built for Pixel and Solid (Solid
+  sweep bars are the centre two rows tall, 8 DIP), both colours. Spec and FEATURES.md updated; the Mac scanner is two
+  cells tall, so the row stays Same. Solid transcribing snapshots added.
+- Every item under "Update 9:35 PM" is fixed with tests (each its own commit): the 4K screenshot (synthesised siblings
+  skipped), tray focus given back before the panel hides, the model deleted only after a second load failure, a
+  deactivation to another window forgets the focus target, Quit capped at 10 s, the hook watchdog (rechecked on the
+  hook thread, logged once per silence), the restore retried for about 1 s, the incomplete-snapshot format logged,
+  and the three missing tests. Typing fallback: '\n' is Shift+Enter; a tab is typed as a space, because the real
+  TextBox test showed WPF drops a Unicode tab and the Tab key moves focus.
+- Two PillWindowTests assumed a shown taskbar (CI); they now also hold with Rohit's auto-hidden one.
+- App tests run locally on this PC: 399 passed, 5 skipped (they need the real model in the test fixture folder).
+- Still to check by hand on this PC (unchanged): Excel cells, Explorer cut and Word content surviving a dictation, a
+  Japanese IME, the Try it glow.
+
 ## Open items, in order
 0. The centre-two-rows sweep above.
 1. Rohit's second hands-on test of b3e1bd7 (he may be doing it now): jelly pop and height with his auto-hidden

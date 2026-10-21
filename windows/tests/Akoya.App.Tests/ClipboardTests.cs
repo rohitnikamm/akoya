@@ -483,6 +483,48 @@ public class ClipboardTests
     }
 
     [Fact]
+    public void RealClipboard_CfTextReadBetweenSetAndRestore_StillRestores()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            RawClipboard.Set(new[] { (RawClipboard.CfUnicodeText, RawClipboard.Utf16("original")) });
+            var snapshot = clipboard.Snapshot();
+            Assert.True(clipboard.TrySetText("temporary dictation", excludeFromHistory: true));
+
+            // The target app reads the ANSI text, which Windows synthesises on the spot.
+            Assert.True(RawClipboard.StartsWith(RawClipboard.Get(RawClipboard.CfText), RawClipboard.Ascii("temporary dictation")));
+
+            Assert.True(clipboard.TryRestore(snapshot));
+            Assert.Equal("original", System.Windows.Clipboard.GetText());
+        });
+    }
+
+    [Fact]
+    public void RealClipboard_DelayedRenderedFormatThatNeverRenders_TypesInstead()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            using var clipboard = new SystemClipboard();
+            var promised = RawClipboard.Format("Akoya Test Promised");
+            // An owner that promises a format (delayed rendering) and then never renders it.
+            using var owner = RawClipboard.SetDelayed(promised);
+
+            var typed = new List<string>();
+            var inserter = new ClipboardPasteInserter(
+                clipboard, () => false, () => throw new InvalidOperationException("should type, not paste"), typed.Add,
+                new ManualScheduler(), _ => Task.CompletedTask);
+            var result = inserter.InsertAsync("dictated ").GetAwaiter().GetResult();
+
+            Assert.Equal(InsertResult.Pasted, result);
+            Assert.Equal(new[] { "dictated " }, typed);
+            Assert.True(RawClipboard.Has(promised)); // the clipboard was left alone
+            Assert.False(RawClipboard.Has(RawClipboard.CfUnicodeText));
+            Assert.Contains("\"Akoya Test Promised\"", clipboard.Snapshot().IncompleteReason);
+        });
+    }
+
+    [Fact]
     public void RealClipboard_SnapshotIsDetachedFromLiveClipboard()
     {
         SnapshotHarness.RunSta(() =>
