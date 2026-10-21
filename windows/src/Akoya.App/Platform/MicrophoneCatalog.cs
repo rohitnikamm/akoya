@@ -7,18 +7,18 @@ namespace Akoya.App.Platform;
 /// <summary>
 /// The active capture endpoints, as the facts <see cref="MicrophoneNaming"/> needs.
 /// <para>
-/// <see cref="Changed"/> is raised on a Windows audio worker thread (not the UI thread) when a
-/// capture endpoint is added, removed, changes state, or the default capture device changes. The
-/// handler must return quickly and only re-queue work (the App layer posts to the UI thread and
-/// calls <see cref="Snapshot"/> there).
+/// <see cref="Changed"/> is raised when a capture endpoint is added, removed, changes state, or the
+/// default capture device changes. It is posted to the <see cref="SynchronizationContext"/> that was
+/// current when the catalog was constructed (the UI thread), or run on the thread pool when there is
+/// none; it is never raised on the Windows audio worker thread that reported the change, so a handler
+/// may call <see cref="Snapshot"/> or subscribe and unsubscribe freely.
 /// </para>
 /// </summary>
 public sealed partial class MicrophoneCatalog : IDisposable
 {
     private readonly object _gate = new();
+    private readonly EventPoster _poster = new(SynchronizationContext.Current);
     private Action? _changed;
-    private MMDeviceEnumerator? _watchEnumerator;
-    private MMDeviceNotificationClient? _client;
     private bool _disposed;
 
     public event Action? Changed
@@ -27,17 +27,21 @@ public sealed partial class MicrophoneCatalog : IDisposable
         {
             lock (_gate)
             {
-                _changed += value;
+                if (_disposed) return;
+                Volatile.Write(ref _changed, _changed + value);
                 EnsureWatching();
             }
         }
         remove
         {
+            Watch? stale = null;
             lock (_gate)
             {
-                _changed -= value;
-                if (_changed is null) StopWatching();
+                Volatile.Write(ref _changed, _changed - value);
+                if (_changed is null) stale = DetachWatch();
             }
+            // Unregistering waits for any notification being dispatched, so it must not hold _gate.
+            stale?.Dispose();
         }
     }
 
@@ -76,12 +80,14 @@ public sealed partial class MicrophoneCatalog : IDisposable
 
     public void Dispose()
     {
+        Watch? stale;
         lock (_gate)
         {
             _disposed = true;
-            _changed = null;
-            StopWatching();
+            Volatile.Write(ref _changed, null);
+            stale = DetachWatch();
         }
+        stale?.Dispose();
     }
 
     // --- Facts -----------------------------------------------------------------------------
@@ -120,7 +126,7 @@ public sealed partial class MicrophoneCatalog : IDisposable
             formFactor,
             ResolveEnumerator(instanceId, parentHint),
             HasPhysicalParent(enumerator, instanceId, parentHint),
-            string.Equals(id, defaultId, StringComparison.Ordinal));
+            string.Equals(id, defaultId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string SafeFriendlyName(MMDevice device)
@@ -168,11 +174,35 @@ public sealed partial class MicrophoneCatalog : IDisposable
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PhysicalBusPattern();
 
+    [GeneratedRegex(@"^\{\d+\}\.")]
+    private static partial Regex BraceIndexPrefix();
+
+    /// <summary>Fallback: a known physical bus name anywhere in the text.</summary>
     private static string? PhysicalBus(string? text)
     {
         if (string.IsNullOrEmpty(text)) return null;
         var match = PhysicalBusPattern().Match(text);
         return match.Success ? match.Value.ToUpperInvariant() : null;
+    }
+
+    /// <summary>
+    /// The bus enumerator of the parent device named by <c>PKEY_Device_ControllerDeviceId</c>, upper case:
+    /// a leading <c>{n}.</c> is dropped, then either the segment between <c>\\?\</c> and the first <c>#</c>
+    /// (an interface path such as <c>\\?\bthhfenum#...</c>) or the text before the first backslash
+    /// (an instance id such as <c>PCI\VEN_1102...</c>). Empty when there is nothing to parse.
+    /// </summary>
+    public static string ParentEnumerator(string? parentHint)
+    {
+        if (string.IsNullOrWhiteSpace(parentHint)) return "";
+        var text = BraceIndexPrefix().Replace(parentHint.Trim(), "");
+        if (text.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            text = text[4..];
+            var hash = text.IndexOf('#');
+            return (hash < 0 ? text : text[..hash]).Trim().ToUpperInvariant();
+        }
+        var slash = text.IndexOf('\\');
+        return (slash < 0 ? text : text[..slash]).Trim().ToUpperInvariant();
     }
 
     private static bool IsSoftwareBus(string enumerator) =>
@@ -182,26 +212,30 @@ public sealed partial class MicrophoneCatalog : IDisposable
 
     /// <summary>
     /// The bus enumerator to hand to naming. A capture endpoint's own instance ID is normally
-    /// <c>SWD\MMDEVAPI\...</c>, which says nothing about the hardware, so when the instance ID is
-    /// a software bus (SWD, ROOT or empty) and the parent hint (<c>PKEY_Device_ControllerDeviceId</c>)
-    /// or the instance ID names a USB, BTH*, HDAUDIO or INTELAUDIO parent, that bus is used instead.
+    /// <c>SWD\MMDEVAPI\...</c>, which says nothing about the hardware, so when it is a software bus
+    /// (SWD, ROOT or empty) the parent's enumerator (see <see cref="ParentEnumerator"/>) is used if it
+    /// is a real bus (PCI, ACPI, USB, HDAUDIO, BTHENUM...). If the parent is unreadable or also
+    /// virtual, a USB, BTH*, HDAUDIO or INTELAUDIO token in either string is used as a fallback.
     /// </summary>
     public static string ResolveEnumerator(string? instanceId, string? parentHint)
     {
         var own = ParseEnumerator(instanceId);
         if (!IsSoftwareBus(own)) return own;
+        var parent = ParentEnumerator(parentHint);
+        if (!IsSoftwareBus(parent)) return parent;
         return PhysicalBus(instanceId) ?? PhysicalBus(parentHint) ?? own;
     }
 
     /// <summary>
     /// False for software-only endpoints. Rule: any enumerator other than SWD/ROOT/empty is a real
-    /// bus; SWD and ROOT are virtual unless the instance ID or the parent hint references a USB,
-    /// BTH*, HDAUDIO or INTELAUDIO device.
+    /// bus; SWD and ROOT count as physical only when the parent's enumerator is a real bus or a
+    /// USB / BTH* / HDAUDIO / INTELAUDIO token appears in the instance id or parent hint.
     /// </summary>
     public static bool HasPhysicalParent(string enumerator, string? instanceId, string? parentHint)
     {
         if (string.IsNullOrWhiteSpace(enumerator)) return false;
         if (!IsSoftwareBus(enumerator)) return true;
+        if (!IsSoftwareBus(ParentEnumerator(parentHint))) return true;
         return PhysicalBus(instanceId) is not null || PhysicalBus(parentHint) is not null;
     }
 
@@ -224,34 +258,60 @@ public sealed partial class MicrophoneCatalog : IDisposable
 
     // --- Notifications ---------------------------------------------------------------------
 
+    /// <summary>The registered notification client and the enumerator that owns it.</summary>
+    private sealed class Watch : IDisposable
+    {
+        public MMDeviceEnumerator Enumerator { get; }
+
+        public MMDeviceNotificationClient Client { get; }
+
+        public Watch(MMDeviceEnumerator enumerator, MMDeviceNotificationClient client)
+        {
+            Enumerator = enumerator;
+            Client = client;
+        }
+
+        public void Dispose()
+        {
+            Client.Dispose();
+            Enumerator.Dispose();
+        }
+    }
+
+    private Watch? _watch;
+
     private void EnsureWatching()
     {
-        if (_disposed || _client is not null) return;
+        if (_disposed || _watch is not null) return;
+        MMDeviceEnumerator? enumerator = null;
         try
         {
-            _watchEnumerator = new MMDeviceEnumerator();
-            _client = _watchEnumerator.CreateNotificationClient(useSynchronizationContext: false);
-            _client.DeviceAdded += OnDeviceEvent;
-            _client.DeviceRemoved += OnDeviceEvent;
-            _client.DeviceStateChanged += OnDeviceEvent;
-            _client.DefaultDeviceChanged += OnDefaultChanged;
+            enumerator = new MMDeviceEnumerator();
+            var client = enumerator.CreateNotificationClient(useSynchronizationContext: false);
+            client.DeviceAdded += OnDeviceEvent;
+            client.DeviceRemoved += OnDeviceEvent;
+            client.DeviceStateChanged += OnDeviceEvent;
+            client.DefaultDeviceChanged += OnDefaultChanged;
+            _watch = new Watch(enumerator, client);
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException
                                        or DllNotFoundException)
         {
             // Without the audio service there is nothing to watch; Snapshot() reports empty.
-            StopWatching();
+            enumerator?.Dispose();
         }
     }
 
-    private void StopWatching()
+    /// <summary>Takes the watch out of service under the lock; the caller disposes it after releasing the lock.</summary>
+    private Watch? DetachWatch()
     {
-        _client?.Dispose();
-        _client = null;
-        _watchEnumerator?.Dispose();
-        _watchEnumerator = null;
+        var watch = _watch;
+        _watch = null;
+        return watch;
     }
 
+    // These run on a Windows audio worker thread while it holds an internal lock: take none of ours,
+    // and hand the real work to the poster.
     private void OnDeviceEvent(object? sender, EventArgs e) => Raise();
 
     private void OnDefaultChanged(object? sender, DefaultDeviceChangedEventArgs e)
@@ -261,8 +321,7 @@ public sealed partial class MicrophoneCatalog : IDisposable
 
     private void Raise()
     {
-        Action? handler;
-        lock (_gate) handler = _changed;
-        handler?.Invoke();
+        if (Volatile.Read(ref _changed) is null) return;
+        _poster.Post(() => Volatile.Read(ref _changed)?.Invoke());
     }
 }

@@ -19,20 +19,20 @@ namespace Akoya.App.Platform;
 /// few milliseconds are not lost.
 /// </para>
 /// </summary>
-internal sealed class MicCaptureStream : IDisposable
+internal sealed class MicCaptureStream : IMicStream, IDisposable
 {
     private readonly MMDeviceEnumerator _enumerator;
     private readonly MMDevice _device;
     private readonly NAudioRecorder _capture;
     private readonly MMDeviceNotificationClient _notifications;
-    private StreamingResampler? _resampler;
+    private StreamingResampler _resampler;
     private readonly RmsWindower _windower = new();
     private readonly Action<float[]>? _onSamples;
     private readonly Action<float>? _onLevel;
     private readonly Action<Exception?> _onStopped;
     private readonly string _deviceId;
-    private int _bits;
-    private bool _isFloat;
+    private CaptureFormat _format;
+    private bool _formatChecked;
     private volatile bool _closing;
     private int _stoppedRaised;
     private bool _closed;
@@ -42,6 +42,7 @@ internal sealed class MicCaptureStream : IDisposable
         MMDevice device,
         NAudioRecorder capture,
         MMDeviceNotificationClient notifications,
+        CaptureFormat format,
         Action<float[]>? onSamples,
         Action<float>? onLevel,
         Action<Exception?> onStopped)
@@ -54,6 +55,8 @@ internal sealed class MicCaptureStream : IDisposable
         _onLevel = onLevel;
         _onStopped = onStopped;
         _deviceId = device.ID;
+        _format = format;
+        _resampler = new StreamingResampler(format.Channels, format.SampleRate);
 
         _capture.DataAvailable += OnData;
         _capture.RecordingStopped += OnRecordingStopped;
@@ -61,7 +64,6 @@ internal sealed class MicCaptureStream : IDisposable
         _notifications.DeviceStateChanged += OnDeviceStateChanged;
     }
 
-    private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
 
     /// <summary>
     /// Opens (but does not start) a capture. <paramref name="deviceId"/> null means the default
@@ -85,6 +87,13 @@ internal sealed class MicCaptureStream : IDisposable
         try
         {
             device = Resolve(enumerator, deviceId);
+            // Shared mode captures in the engine's mix format; checking it here makes an unsupported
+            // format fail from Start, not later on the capture thread.
+            CaptureFormat format;
+            using (var probe = device.CreateAudioClient())
+            {
+                format = CaptureFormat.From(probe.MixFormat);
+            }
             capture = new WasapiRecorderBuilder()
                 .WithDevice(device)
                 .WithSharedMode()
@@ -92,7 +101,7 @@ internal sealed class MicCaptureStream : IDisposable
                 .WithBufferLength(100)
                 .Build();
             notifications = enumerator.CreateNotificationClient(useSynchronizationContext: false);
-            return new MicCaptureStream(enumerator, device, capture, notifications, onSamples, onLevel, onStopped);
+            return new MicCaptureStream(enumerator, device, capture, notifications, format, onSamples, onLevel, onStopped);
         }
         catch (Exception ex)
         {
@@ -195,13 +204,25 @@ internal sealed class MicCaptureStream : IDisposable
     {
         try
         {
-            // The capture format is read on the first packet: the audio client is initialised by
-            // StartRecording, and the format is final by the time data arrives.
-            if (_resampler is null) ConfigureFormat(_capture.WaveFormat);
+            if (!_formatChecked)
+            {
+                // The recorder reports its final format once data flows; trust it over the mix format.
+                _formatChecked = true;
+                var actual = _capture.WaveFormat;
+                if (actual is not null)
+                {
+                    var format = CaptureFormat.From(actual);
+                    if (format != _format)
+                    {
+                        _format = format;
+                        _resampler = new StreamingResampler(format.Channels, format.SampleRate);
+                    }
+                }
+            }
 
-            var samples = PcmDecoder.ToFloat(data, _bits, _isFloat);
+            var samples = PcmDecoder.ToFloat(data, _format.Bits, _format.IsFloat);
             if (flags.HasFlag(AudioClientBufferFlags.Silent)) Array.Clear(samples);
-            var mono = _resampler!.Process(samples);
+            var mono = _resampler.Process(samples);
             if (mono.Length == 0) return;
 
             _onSamples?.Invoke(mono);
@@ -219,27 +240,17 @@ internal sealed class MicCaptureStream : IDisposable
         }
     }
 
-    private void ConfigureFormat(WaveFormat format)
-    {
-        _isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
-            || (format is WaveFormatExtensible ext && ext.SubFormat == IeeeFloatSubFormat);
-        _bits = format.BitsPerSample;
-        if (!PcmDecoder.IsSupported(_bits, _isFloat))
-            throw new InvalidOperationException($"Unsupported capture format: {format}.");
-        _resampler = new StreamingResampler(format.Channels, format.SampleRate);
-    }
-
     private void OnRecordingStopped(object? sender, StoppedEventArgs e) => RaiseStopped(e.Exception);
 
     private void OnDeviceRemoved(object? sender, DeviceNotificationEventArgs e)
     {
-        if (string.Equals(e.DeviceId, _deviceId, StringComparison.Ordinal))
+        if (string.Equals(e.DeviceId, _deviceId, StringComparison.OrdinalIgnoreCase))
             RaiseStopped(new InvalidOperationException("The microphone was removed."));
     }
 
     private void OnDeviceStateChanged(object? sender, DeviceStateChangedEventArgs e)
     {
-        if (e.NewState != DeviceState.Active && string.Equals(e.DeviceId, _deviceId, StringComparison.Ordinal))
+        if (e.NewState != DeviceState.Active && string.Equals(e.DeviceId, _deviceId, StringComparison.OrdinalIgnoreCase))
             RaiseStopped(new InvalidOperationException("The microphone is no longer available."));
     }
 
@@ -248,5 +259,21 @@ internal sealed class MicCaptureStream : IDisposable
         if (_closing) return;
         if (Interlocked.Exchange(ref _stoppedRaised, 1) != 0) return;
         _onStopped(error);
+    }
+}
+
+/// <summary>The sample layout of a capture buffer.</summary>
+internal readonly record struct CaptureFormat(int Channels, int SampleRate, int Bits, bool IsFloat)
+{
+    private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
+    /// <summary>Throws <see cref="InvalidOperationException"/> when the sample type is not supported.</summary>
+    public static CaptureFormat From(WaveFormat format)
+    {
+        var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
+            || (format is WaveFormatExtensible ext && ext.SubFormat == IeeeFloatSubFormat);
+        if (!PcmDecoder.IsSupported(format.BitsPerSample, isFloat))
+            throw new InvalidOperationException($"Unsupported capture format: {format}.");
+        return new CaptureFormat(format.Channels, format.SampleRate, format.BitsPerSample, isFloat);
     }
 }

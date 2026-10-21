@@ -45,6 +45,16 @@ public class ResamplerTests
     }
 
     [Fact]
+    public void FortyFourOneMono_SineKeepsRms()
+    {
+        var input = Sine(1000, 44_100, 1.0, 1);
+        var output = Resampler.ToMono16k(input, 1, 44_100);
+
+        var expected = 0.5 / Math.Sqrt(2);
+        Assert.InRange(Rms(output), expected * 0.98, expected * 1.02);
+    }
+
+    [Fact]
     public void ChannelsAreAveraged()
     {
         // Left 1.0, right -1.0 cancels to silence; left 1.0, right 0.0 averages to 0.5.
@@ -144,5 +154,40 @@ public class PcmDecoderTests
     {
         Assert.False(PcmDecoder.IsSupported(8, false));
         Assert.Throws<NotSupportedException>(() => PcmDecoder.ToFloat(new byte[8], 64, true));
+    }
+}
+
+public class SampleBufferTests
+{
+    [Fact]
+    public void AppendsAcrossChunkBoundaries()
+    {
+        var buffer = new SampleBuffer();
+        var expected = Enumerable.Range(0, SampleBuffer.ChunkSize * 2 + 123).Select(i => (float)i).ToArray();
+
+        var offset = 0;
+        foreach (var size in new[] { 1, 5000, SampleBuffer.ChunkSize, 99, int.MaxValue })
+        {
+            var take = Math.Min(size, expected.Length - offset);
+            buffer.Append(expected.AsSpan(offset, take));
+            offset += take;
+        }
+
+        Assert.Equal(expected.Length, buffer.Count);
+        Assert.Equal(expected, buffer.ToArray());
+    }
+
+    [Fact]
+    public void Empty_GivesEmptyArray()
+    {
+        Assert.Empty(new SampleBuffer().ToArray());
+    }
+
+    [Fact]
+    public void ExactChunkMultiple_IsNotTruncated()
+    {
+        var buffer = new SampleBuffer();
+        buffer.Append(new float[SampleBuffer.ChunkSize * 2]);
+        Assert.Equal(SampleBuffer.ChunkSize * 2, buffer.ToArray().Length);
     }
 }

@@ -53,6 +53,10 @@ public class MicrophoneCatalogTests
     [InlineData("SWD", @"SWD\MMDEVAPI\x", @"HDAUDIO\FUNC_01&VEN_10EC&DEV_0256\4&2&0&0001", true)]
     [InlineData("ROOT", @"ROOT\VBAUDIO\0000", null, false)]
     [InlineData("ROOT", @"ROOT\VBAUDIO\0000", @"ROOT\MEDIA\0000", false)]
+    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{1}.PCI\VEN_1102&DEV_0011\4&2&0&0008", true)]
+    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"ACPI\PNP0A08\0", true)]
+    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{2}.\\?\bthhfenum#{0000111e}", true)]
+    [InlineData("SWD", @"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"SWD\MMDEVAPI\x", false)]
     [InlineData("", "", null, false)]
     public void HasPhysicalParent_FollowsTheDocumentedRule(
         string enumerator, string? instanceId, string? parentHint, bool expected)
@@ -67,6 +71,13 @@ public class MicrophoneCatalogTests
     [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", null, "SWD")]
     [InlineData(@"ROOT\VBAUDIO\0000", @"ROOT\MEDIA\0000", "ROOT")]
     [InlineData(@"USB\VID_046D&PID_0825\5&1&0&2", @"HDAUDIO\FUNC_01", "USB")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{1}.PCI\VEN_1102&DEV_0011\4&2&0&0008", "PCI")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"ACPI\PNP0A08\0", "ACPI")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{2}.\\?\bthhfenum#{0000111e-0000-1000-8000-00805f9b34fb}", "BTHHFENUM")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"{2}.\\?\usb#vid_046d&pid_0825#5&1&0&2", "USB")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"SWD\MMDEVAPI\x", "SWD")]
+    [InlineData(@"SWD\MMDEVAPI\{0.0.1.00000000}.{ABCD}", @"ROOT\VBAUDIO\0000", "SWD")]
+    [InlineData(@"ROOT\VBAUDIO\0000", @"{1}.PCI\VEN_8086", "PCI")]
     [InlineData(null, null, "")]
     public void ResolveEnumerator_PrefersTheRealBusOverTheSoftwareEndpoint(
         string? instanceId, string? parentHint, string expected)
@@ -88,6 +99,23 @@ public class MicrophoneCatalogTests
     public void MapFormFactor_MatchesTheWindowsEnum(uint raw, EndpointFormFactor expected)
     {
         Assert.Equal(expected, MicrophoneCatalog.MapFormFactor(raw));
+    }
+
+    [Theory]
+    [InlineData(@"{1}.PCI\VEN_1102&DEV_0011\4&2&0&0008", "PCI")]
+    [InlineData(@"PCI\VEN_1102", "PCI")]
+    [InlineData(@"ACPI\PNP0A08\0", "ACPI")]
+    [InlineData(@"USB\VID_046D&PID_0825\5&1&0&2", "USB")]
+    [InlineData(@"{2}.\\?\bthhfenum#{0000111e}", "BTHHFENUM")]
+    [InlineData(@"\\?\usb#vid_046d", "USB")]
+    [InlineData(@"HDAUDIO\FUNC_01&VEN_10EC", "HDAUDIO")]
+    [InlineData(@"SWD\MMDEVAPI\x", "SWD")]
+    [InlineData(@"ROOT\MEDIA\0000", "ROOT")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    public void ParentEnumerator_ParsesInstanceIdsAndInterfacePaths(string? hint, string expected)
+    {
+        Assert.Equal(expected, MicrophoneCatalog.ParentEnumerator(hint));
     }
 
     [Fact]
