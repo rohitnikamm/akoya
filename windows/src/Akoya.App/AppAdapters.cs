@@ -20,7 +20,9 @@ namespace Akoya.App
 
         public void Install() => _hook.Install();
 
-        public void Reinstall() => _hook.Reinstall();
+        public bool Reinstall(TimeSpan? onlyIfSilentFor = null) => _hook.Reinstall(onlyIfSilentFor);
+
+        public long KeysSeen => _hook.KeysSeen;
 
         public void SetKey(HotkeyKey key) => _hook.SetKey(key);
 

@@ -234,11 +234,18 @@ internal sealed class FakeHook : IHotkeyHook
         if (InstallError() is { } e) throw e;
     }
 
-    public void Reinstall()
+    /// <summary>Each re-install's <c>onlyIfSilentFor</c> (null for an unconditional one).</summary>
+    public List<TimeSpan?> ReinstallConditions { get; } = [];
+
+    public bool Reinstall(TimeSpan? onlyIfSilentFor = null)
     {
         Reinstalls++;
+        ReinstallConditions.Add(onlyIfSilentFor);
         if (InstallError() is { } e) throw e;
+        return true;
     }
+
+    public long KeysSeen { get; set; }
 
     public void SetKey(HotkeyKey key) => Keys.Add(key);
 

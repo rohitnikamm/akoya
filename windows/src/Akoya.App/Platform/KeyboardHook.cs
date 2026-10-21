@@ -41,6 +41,7 @@ public sealed class KeyboardHook : IDisposable
     private HookThread? _abandoned;  // a thread that timed out starting; told to unhook and exit
     private volatile bool _disposed;
     private long _lastKeyTick = Environment.TickCount64; // any key the callback saw, or the last (re-)install
+    private long _keysSeen;
 
     /// <param name="decoder">Handed over: do not use it again after this call.</param>
     /// <param name="onEvent">Called on the creating thread's synchronization context with the event and when it happened.</param>
@@ -61,6 +62,9 @@ public sealed class KeyboardHook : IDisposable
     /// once exceeds LowLevelHooksTimeout).
     /// </summary>
     public TimeSpan SinceLastKey => TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64 - Interlocked.Read(ref _lastKeyTick)));
+
+    /// <summary>How many keys the callback has seen (any key, passed on or not).</summary>
+    public long KeysSeen => Interlocked.Read(ref _keysSeen);
 
     /// <summary>True while the hook thread is alive.</summary>
     internal bool IsRunning => _current?.Thread.IsAlive == true;
@@ -131,8 +135,11 @@ public sealed class KeyboardHook : IDisposable
     /// <summary>
     /// Installs a fresh hook and drops the old one (Windows silently removes a hook that times out, e.g.
     /// across a lock screen) and forgets held-key state. Starts a new hook thread if there is none or it died.
+    /// With <paramref name="onlyIfSilentFor"/> the silence is checked again on the hook thread, between key callbacks:
+    /// a key that arrived after the caller looked means the hook is alive, so it is left alone (false) and a held
+    /// key is not forgotten.
     /// </summary>
-    public void Reinstall()
+    public bool Reinstall(TimeSpan? onlyIfSilentFor = null)
     {
         lock (_gate)
         {
@@ -142,12 +149,20 @@ public sealed class KeyboardHook : IDisposable
             {
                 _current = null;
                 Install();
-                return;
+                return true;
             }
 
+            var skipped = false;
             var done = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             Post(() =>
             {
+                if (onlyIfSilentFor is { } silence && SinceLastKey < silence)
+                {
+                    skipped = true;
+                    done.TrySetResult(0);
+                    return;
+                }
+
                 var fresh = NativeMethods.SetWindowsHookEx(NativeMethods.WhKeyboardLl, _proc, NativeMethods.GetModuleHandle(null), 0);
                 if (fresh == IntPtr.Zero)
                 {
@@ -187,6 +202,8 @@ public sealed class KeyboardHook : IDisposable
             {
                 throw new HotkeyUnavailableException("The keyboard hook could not be re-installed.", new Win32Exception(error));
             }
+
+            return !skipped;
         }
     }
 
@@ -326,6 +343,7 @@ public sealed class KeyboardHook : IDisposable
             {
                 var at = MonotonicClock.Now; // first: tap or hold is measured from here
                 Interlocked.Exchange(ref _lastKeyTick, Environment.TickCount64);
+                Interlocked.Increment(ref _keysSeen);
                 var message = (int)wParam;
                 var isDown = message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
                 var isUp = message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp;

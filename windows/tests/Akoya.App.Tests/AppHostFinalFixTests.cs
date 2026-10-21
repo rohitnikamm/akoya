@@ -251,6 +251,28 @@ public class AppHostFinalFixTests
         });
     }
 
+    [Fact]
+    public void P4_Watchdog_RechecksSilenceOnTheHookThread_AndLogsOncePerSilence()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Start();
+            rig.Hook.SinceLastKey = TimeSpan.FromSeconds(90);
+            rig.InputIdle = TimeSpan.FromSeconds(1); // mouse-only use looks like this every minute
+
+            for (var i = 0; i < 3; i++) rig.Scheduler.Advance(AppHost.HookCheckInterval);
+
+            Assert.Equal(3, rig.Hook.Reinstalls);
+            Assert.All(rig.Hook.ReinstallConditions, c => Assert.Equal(AppHost.HookSilenceLimit, c));
+            Assert.Single(rig.Log.Infos, l => l.Contains("re-installing", StringComparison.Ordinal));
+
+            rig.Hook.KeysSeen++; // the hook heard a key: that silence is over, the next one is logged again
+            rig.Scheduler.Advance(AppHost.HookCheckInterval);
+            Assert.Equal(2, rig.Log.Infos.Count(l => l.Contains("re-installing", StringComparison.Ordinal)));
+        });
+    }
+
     private static void Dictate(HostRig rig, AppHost host, DictationPhase until = DictationPhase.Pasted)
     {
         rig.Hook.Fire(HotkeyEvent.Pressed);

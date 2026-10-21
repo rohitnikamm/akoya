@@ -24,8 +24,14 @@ public interface IHotkeyHook : IDisposable
     /// <summary>Throws <see cref="Platform.HotkeyUnavailableException"/>.</summary>
     void Install();
 
-    /// <summary>Throws <see cref="Platform.HotkeyUnavailableException"/>.</summary>
-    void Reinstall();
+    /// <summary>
+    /// Throws <see cref="Platform.HotkeyUnavailableException"/>. With <paramref name="onlyIfSilentFor"/>, the hook thread
+    /// re-checks the silence first and leaves the hook (and any held key) alone if a key arrived meanwhile: false.
+    /// </summary>
+    bool Reinstall(TimeSpan? onlyIfSilentFor = null);
+
+    /// <summary>How many keys the hook has seen (any key). Read on the UI thread.</summary>
+    long KeysSeen { get; }
 
     void SetKey(HotkeyKey key);
 

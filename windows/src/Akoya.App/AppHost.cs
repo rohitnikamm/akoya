@@ -62,6 +62,7 @@ public sealed class AppHost : IDisposable
     private bool _restartPending;
     private bool _quitPending;
     private IDisposable? _quitTimer; // gives up waiting for a transcription on Quit
+    private long _hookSilenceLoggedAt = -1; // the hook's KeysSeen when its silence was last logged
     private IDisposable? _frameTimer;
     private IDisposable? _updateTimer;
     private IDisposable? _hookCheckTimer;
@@ -375,8 +376,11 @@ public sealed class AppHost : IDisposable
 
     // ---- Keyboard hook ----
 
-    /// <summary>Installs (or re-installs) the hook once. A failure shows "Hotkey unavailable" with Retry; no retry loop.</summary>
-    private void InstallHook()
+    /// <summary>
+    /// Installs (or re-installs) the hook once. A failure shows "Hotkey unavailable" with Retry; no retry loop.
+    /// <paramref name="onlyIfSilentFor"/>: see <see cref="IHotkeyHook.Reinstall"/>.
+    /// </summary>
+    private void InstallHook(TimeSpan? onlyIfSilentFor = null)
     {
         try
         {
@@ -385,9 +389,9 @@ public sealed class AppHost : IDisposable
                 _hook = _p.CreateHotkeyHook(_settings.Hotkey, OnHotkey);
                 _hook.Install();
             }
-            else
+            else if (!_hook.Reinstall(onlyIfSilentFor))
             {
-                _hook.Reinstall();
+                return; // a key arrived: the hook is alive and untouched
             }
             _hook.SetKey(_settings.Hotkey);
             _hook.SetRecordingActive(_coordinator.Phase == DictationPhase.Recording);
@@ -415,7 +419,9 @@ public sealed class AppHost : IDisposable
     /// Windows removes a low-level hook without telling when its callback once runs past LowLevelHooksTimeout. Input
     /// (GetLastInputInfo; keyboard or mouse) that came more than <see cref="HookSilenceLimit"/> after the hook's last
     /// key means it is gone: re-install it. Mouse-only use looks the same, so that re-installs at most once a minute,
-    /// which is harmless. Never during a recording (a re-install forgets the held key).
+    /// which is harmless (and logged once per silence, not every minute). Never during a recording (a re-install
+    /// forgets the held key), and the hook thread checks the silence again first, so a key that arrives meanwhile is
+    /// not lost.
     /// </summary>
     private void CheckHook()
     {
@@ -423,8 +429,13 @@ public sealed class AppHost : IDisposable
         if (_p.InputIdle() is not { } idle) return;
         var silence = hook.SinceLastKey;
         if (silence - idle <= HookSilenceLimit) return;
-        _p.Log.Info($"The keyboard hook heard nothing for {silence.TotalSeconds:0} s while there was input; re-installing it");
-        InstallHook();
+        var keys = hook.KeysSeen;
+        if (keys != _hookSilenceLoggedAt)
+        {
+            _hookSilenceLoggedAt = keys;
+            _p.Log.Info($"The keyboard hook heard nothing for {silence.TotalSeconds:0} s while there was input; re-installing it");
+        }
+        InstallHook(onlyIfSilentFor: HookSilenceLimit);
     }
 
     private void SetHotkeyUnavailable(bool unavailable)

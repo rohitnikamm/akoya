@@ -70,6 +70,27 @@ public class KeyboardHookTests
     }
 
     [Fact]
+    public void Reinstall_OnlyIfSilent_IsRecheckedOnTheHookThread()
+    {
+        SnapshotHarness.RunSta(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+            using var hook = new KeyboardHook(new HotkeyDecoder(HotkeyKey.RightAlt), (_, _) => { });
+            hook.Install();
+            Thread.Sleep(300);
+
+            // Not silent that long (as when a key arrived after the watchdog looked): left alone, held keys kept.
+            var keysBefore = hook.KeysSeen;
+            Assert.False(hook.Reinstall(onlyIfSilentFor: TimeSpan.FromSeconds(10)));
+            Assert.True(hook.SinceLastKey >= TimeSpan.FromMilliseconds(250), "the silence count was not restarted");
+
+            Assert.True(hook.Reinstall(onlyIfSilentFor: TimeSpan.FromMilliseconds(200)));
+            Assert.True(hook.SinceLastKey < TimeSpan.FromMilliseconds(250));
+            Assert.Equal(keysBefore, hook.KeysSeen);
+        });
+    }
+
+    [Fact]
     public void InputIdle_ReadsGetLastInputInfo()
     {
         Assert.Equal(8, Marshal.SizeOf<NativeMethods.LastInputInfo>());
