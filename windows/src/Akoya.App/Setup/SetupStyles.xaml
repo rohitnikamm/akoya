@@ -67,6 +67,9 @@
     <SolidColorBrush x:Key="Setup.Hint" Color="#CCFFFFFF" />
     <SolidColorBrush x:Key="Setup.HintSecondary" Color="#8CFFFFFF" />
     <SolidColorBrush x:Key="Setup.Placeholder" Color="#66FFFFFF" />
+    <!-- The model status under Try it's dots: muted while downloading, a soft red when it failed. -->
+    <SolidColorBrush x:Key="Setup.ModelStatus" Color="#A6FFFFFF" />
+    <SolidColorBrush x:Key="Setup.ModelStatusError" Color="#FCA5A5" />
 
     <!-- Chrome -->
     <SolidColorBrush x:Key="Setup.CloseFill" Color="#12FFFFFF" />

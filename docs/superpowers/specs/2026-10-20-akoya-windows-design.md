@@ -237,8 +237,11 @@ centred on the primary monitor. Exact look: `windows-onboarding-mockup.html`.
    (`ms-settings:privacy-microphone`) and "Waiting for the switch…"; moves on by itself once it's
    on. Continue saves the highlighted device's ID.
 3. **Try it:** "Hold [Right Alt] and say anything", "or tap it once to start, again to stop", live
-   waveform, the text card filling in live (practice destination, nothing is pasted), Done. If the
-   model is still downloading, the card shows "Getting the speech model ready… 62%".
+   waveform, the text card filling in live (practice destination, nothing is pasted), Done. While the
+   model downloads, the waveform is one line of dots that fills left to right with the progress, and
+   a line under it says "Getting the speech model ready 62%"; if the download fails it says "Model
+   download failed · Retry" there, the dots stopped where it stopped. The text card keeps its
+   placeholder (it is where the user's words go).
 
 Skip or ✕ on any step ends setup (marked done); everything stays reachable from the tray panel.
 Setup runs on first launch and when the model is missing.

@@ -29,12 +29,6 @@ public enum PracticeCardKind
 
     /// <summary>The last take was lost (a partial showed but no final arrived, or the final was empty).</summary>
     RetryHint,
-
-    /// <summary>"Getting the speech model ready… 62%".</summary>
-    ModelLoading,
-
-    /// <summary>"Model download failed" with Retry.</summary>
-    ModelFailed,
 }
 
 /// <summary>Raises <see cref="PropertyChanged"/>.</summary>
@@ -215,6 +209,7 @@ public sealed class SetupViewModel : Observable, IDisposable
 
     private ModelState _modelState = ModelState.Ready;
     private double? _modelProgress;
+    private double? _lastModelProgress; // where the download got to, for the dots of a failed one
 
     private bool _practicing;
     private bool _isRecording;
@@ -391,6 +386,29 @@ public sealed class SetupViewModel : Observable, IDisposable
     /// <summary>The hotkey hint dims while the model isn't ready (presses can't record yet).</summary>
     public bool IsHintDimmed => _modelState != ModelState.Ready;
 
+    /// <summary>
+    /// The model's status line under the waveform (while the waveform's dots fill with the download): shown until the
+    /// model is ready. It never goes in the text card, which is where the user's words appear.
+    /// </summary>
+    public bool ShowsModelStatus => _modelState != ModelState.Ready;
+
+    /// <summary>The download failed: the status line is the error, with Retry.</summary>
+    public bool IsModelFailed => _modelState == ModelState.Failed;
+
+    /// <summary>"Getting the speech model ready" (with "…" when the percentage isn't known) or "Model download failed".</summary>
+    public string ModelStatusText => _modelState switch
+    {
+        ModelState.Failed => "Model download failed",
+        ModelState.Loading when ModelProgress is { } p && p < 1 => "Getting the speech model ready",
+        ModelState.Loading => "Getting the speech model ready…",
+        _ => "",
+    };
+
+    /// <summary>"62%" next to the status while downloading; empty otherwise.</summary>
+    public string ModelStatusPercent => _modelState == ModelState.Loading && ModelProgress is { } p && p < 1
+        ? string.Create(CultureInfo.InvariantCulture, $"{(int)Math.Floor(p * 100)}%")
+        : "";
+
     /// <summary>The latest practice transcript (live partial or final).</summary>
     public string PracticeText
     {
@@ -413,8 +431,6 @@ public sealed class SetupViewModel : Observable, IDisposable
         get
         {
             if (PracticeText.Length > 0) return PracticeCardKind.Text;
-            if (_modelState == ModelState.Failed) return PracticeCardKind.ModelFailed;
-            if (_modelState == ModelState.Loading) return PracticeCardKind.ModelLoading;
             return _retryHint ? PracticeCardKind.RetryHint : PracticeCardKind.Placeholder;
         }
     }
@@ -422,10 +438,6 @@ public sealed class SetupViewModel : Observable, IDisposable
     public string CardText => CardKind switch
     {
         PracticeCardKind.Text => PracticeText,
-        PracticeCardKind.ModelFailed => "Model download failed",
-        PracticeCardKind.ModelLoading => ModelProgress is { } p and < 1
-            ? string.Create(CultureInfo.InvariantCulture, $"Getting the speech model ready… {(int)Math.Floor(p * 100)}%")
-            : "Getting the speech model ready…",
         PracticeCardKind.RetryHint => "Didn't catch that. Try again.",
         _ => "Your words will appear here.",
     };
@@ -543,8 +555,15 @@ public sealed class SetupViewModel : Observable, IDisposable
     public void SetModel(ModelState state, double? progress = null)
     {
         _modelState = state;
+        if (state == ModelState.Loading && progress is { } p) _lastModelProgress = p;
         ModelProgress = state == ModelState.Loading ? progress : null;
+        WaveOpacities = Wave();
+        if (state == ModelState.Ready) _lastModelProgress = null;
         OnPropertyChanged(nameof(IsHintDimmed));
+        OnPropertyChanged(nameof(ShowsModelStatus));
+        OnPropertyChanged(nameof(IsModelFailed));
+        OnPropertyChanged(nameof(ModelStatusText));
+        OnPropertyChanged(nameof(ModelStatusPercent));
         CardChanged();
     }
 
@@ -782,9 +801,17 @@ public sealed class SetupViewModel : Observable, IDisposable
                 if (_partialThisTake) LoseTake();
                 break;
         }
-        WaveOpacities = TryItWave.Opacities(_wave.Columns, IsRecording);
+        WaveOpacities = Wave();
         CardChanged();
     }
+
+    /// <summary>
+    /// The waveform outside live input: until the model is ready its dots fill with the download (and stop where a
+    /// failed one stopped); then the usual waveform, bright while recording, dim at rest.
+    /// </summary>
+    private double[] Wave() => _modelState == ModelState.Ready
+        ? TryItWave.Opacities(_wave.Columns, IsRecording)
+        : TryItWave.Loading(WaveColumns, _modelState == ModelState.Loading ? ModelProgress : _lastModelProgress);
 
     /// <summary>A take produced nothing: keep the last good transcript, or say so if there is none yet.</summary>
     private void LoseTake()
