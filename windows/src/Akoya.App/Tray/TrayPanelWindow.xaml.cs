@@ -29,7 +29,7 @@ public partial class TrayPanelWindow : Window
     public static readonly TimeSpan ReopenGuard = TimeSpan.FromMilliseconds(400);
 
     private readonly TrayPanelViewModel _model;
-    private long _deactivatedAt = long.MinValue;
+    private long? _deactivatedAt; // Environment.TickCount64 of the last hide on deactivation
     private bool _prewarmQueued;
 
     public TrayPanelWindow(TrayPanelViewModel model)
@@ -98,7 +98,7 @@ public partial class TrayPanelWindow : Window
             HidePanel();
             return;
         }
-        if (Environment.TickCount64 - _deactivatedAt < ReopenGuard.TotalMilliseconds) return;
+        if (_deactivatedAt is { } at && Environment.TickCount64 - at < ReopenGuard.TotalMilliseconds) return;
         ShowNearTray();
     }
 

@@ -332,7 +332,8 @@ public class TrayPanelViewModelTests
 
         vm.LaunchAtStartup = true;
         Assert.False(vm.LaunchAtStartup);
-        Assert.Equal(2, changed.Count(n => n == nameof(TrayPanelViewModel.LaunchAtStartup))); // on, then back off
+        // On, then back off (and once more posted to the thread's context, when it has one, as xUnit's does).
+        Assert.True(changed.Count(n => n == nameof(TrayPanelViewModel.LaunchAtStartup)) >= 2);
 
         var throws = Ready(new TrayPanelActions { SetLaunchAtStartup = _ => throw new UnauthorizedAccessException() });
         throws.SetSettings(new AkoyaSettings(LaunchAtStartup: true));

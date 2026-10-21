@@ -79,7 +79,8 @@ public class TrayPanelWindowTests
         {
             var vm = TrayPanelSnapshots.Model(_ => { });
             var window = new TrayPanelWindow(vm);
-            window.ShowNearTray();
+            window.Toggle(); // the very first click opens it (no earlier deactivation to guard against)
+            Assert.True(window.IsVisible);
             vm.ToggleMicMenu.Execute(null);
 
             window.HandleDeactivated();
