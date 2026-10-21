@@ -280,6 +280,12 @@ Windows.
 - Which GPU route ships (sherpa-onnx with ONNX Runtime DirectML, Windows ML, or sherpa-onnx's CUDA
   build if it can be made install-free) is decided by a spike on Rohit's PC during the hands-on
   phase, then built as its own plan task. Users never install CUDA.
+- **Spike result (2026-10-21):** not worth building yet. On Rohit's RTX 5070 PC the CPU transcribes a 7 s
+  dictation in about 0.3 s; CUDA with the int8 model is no faster, the fp16 model crashes the process on
+  clips of 30 s or longer, and the CUDA route adds about 2.3 GB of downloads; no DirectML build of
+  sherpa-onnx is published. Details and the route to try next (Windows ML):
+  `docs/superpowers/plans/2026-10-21-akoya-windows-gpu.md`. The spike also showed that more than 8
+  threads slows a normal dictation, so the CPU uses half the logical cores, at most 8.
 
 ## Other behaviour
 

@@ -46,13 +46,19 @@ namespace Akoya.App
 
         public bool IsInstalled => _store.IsInstalled;
 
+        /// <summary>
+        /// Transcription threads: half the logical cores, at most 8. More threads made a normal dictation slower (on a
+        /// 32-thread PC, 8 threads took a 7 s clip in 0.32 s, 16 in 0.42–0.65 s); only clips of minutes gain from them.
+        /// </summary>
+        internal static int ThreadsFor(int processors) => Math.Clamp(processors / 2, 1, 8);
+
         public void Discard() => _store.Discard();
 
         public Task EnsureAsync(IProgress<double> progress, CancellationToken ct) => _store.EnsureAsync(progress, ct);
 
         public ITranscriber Load(InferenceProvider provider)
         {
-            var transcriber = new SherpaTranscriber(_store.ModelDirectory, provider, Math.Max(1, Environment.ProcessorCount / 2));
+            var transcriber = new SherpaTranscriber(_store.ModelDirectory, provider, ThreadsFor(Environment.ProcessorCount));
             try
             {
                 transcriber.WarmUp(); // "Ready" only after a warm-up decode (spec, Model)
