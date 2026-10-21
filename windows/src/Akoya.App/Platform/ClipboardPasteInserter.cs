@@ -62,10 +62,11 @@ public interface IClipboard
     bool TrySetText(string text, bool excludeFromHistory, ClipboardSnapshot? restoreOnFailure = null);
 
     /// <summary>
-    /// Puts a snapshot back (an empty snapshot clears the clipboard), unless something else has changed the clipboard
-    /// since <see cref="TrySetText"/>: what the user copied meanwhile wins.
+    /// Puts a snapshot back (an empty snapshot clears the clipboard) in a single attempt, unless something else has
+    /// changed the clipboard since <see cref="TrySetText"/>: what the user copied meanwhile wins. False only when
+    /// another process holds the clipboard, so the caller can try again.
     /// </summary>
-    void Restore(ClipboardSnapshot snapshot);
+    bool TryRestore(ClipboardSnapshot snapshot);
 }
 
 /// <summary>
@@ -76,6 +77,9 @@ public interface IClipboard
 public sealed class ClipboardPasteInserter : ITextInserter
 {
     public const int MaxSetAttempts = 10;
+
+    /// <summary>About a second of tries, <see cref="RetryDelay"/> apart.</summary>
+    public const int MaxRestoreAttempts = 51;
     public static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(20);
     public static readonly TimeSpan RestoreDelay = TimeSpan.FromMilliseconds(300);
 
@@ -187,7 +191,18 @@ public sealed class ClipboardPasteInserter : ITextInserter
             await elapsed.Task;
         }
 
-        _clipboard.Restore(snapshot);
+        // Another app may hold the clipboard (a clipboard manager reading our text): keep trying for about a second.
+        for (var attempt = 1; !_clipboard.TryRestore(snapshot); attempt++)
+        {
+            if (attempt >= MaxRestoreAttempts)
+            {
+                _log("Clipboard busy: the previous contents could not be put back");
+                break;
+            }
+
+            await _delay(RetryDelay);
+        }
+
         return InsertResult.Pasted;
     }
 }

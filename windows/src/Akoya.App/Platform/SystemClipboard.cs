@@ -163,28 +163,29 @@ public sealed class SystemClipboard : IClipboard, IDisposable
         }
     }
 
-    public void Restore(ClipboardSnapshot snapshot)
+    public bool TryRestore(ClipboardSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         // Never overwrite what we could not read (or only partly read).
         if (snapshot.IsUnreadable || snapshot.IsIncomplete || !_hasSet)
         {
-            return;
+            return true;
         }
 
         // Marked so clipboard managers and Win+V don't record the restore as a new copy.
         var prepared = snapshot.IsEmpty ? new List<Allocated>() : Allocate(WithMonitorExclusion(snapshot.Items));
         if (prepared is null)
         {
-            return; // out of memory: our temporary text stays (it is excluded from history)
+            return true; // out of memory: our temporary text stays (it is excluded from history)
         }
 
         try
         {
-            if (!Open())
+            // One attempt: the caller retries without blocking the UI thread.
+            if (!NativeMethods.OpenClipboard(EnsureOwner()))
             {
-                return; // best effort: the clipboard stays busy
+                return false;
             }
 
             try
@@ -193,12 +194,13 @@ public sealed class SystemClipboard : IClipboard, IDisposable
                 // open, so nothing can change it in between.
                 if (NativeMethods.GetClipboardSequenceNumber() != _sequenceAfterSet)
                 {
-                    return;
+                    return true;
                 }
 
                 NativeMethods.EmptyClipboard();
                 Put(prepared, stopAtFailure: false);
                 _hasSet = false;
+                return true;
             }
             finally
             {

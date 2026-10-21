@@ -101,6 +101,32 @@ internal static class RawClipboard
 
     public static bool Has(uint format) => NativeMethods.IsClipboardFormatAvailable(format);
 
+    /// <summary>Opens the clipboard on another thread (as another app would) until disposed.</summary>
+    public static IDisposable HoldOpenOnAnotherThread()
+    {
+        var opened = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var thread = new Thread(() =>
+        {
+            Open(IntPtr.Zero);
+            opened.Set();
+            release.Wait();
+            NativeMethods.CloseClipboard();
+        }) { IsBackground = true };
+        thread.Start();
+        opened.Wait();
+        return new Holder(() =>
+        {
+            release.Set();
+            thread.Join();
+        });
+    }
+
+    private sealed class Holder(Action onDispose) : IDisposable
+    {
+        public void Dispose() => onDispose();
+    }
+
     /// <summary>Whether <paramref name="actual"/> starts with <paramref name="expected"/> (GlobalSize may round up).</summary>
     public static bool StartsWith(byte[]? actual, byte[] expected) =>
         actual is not null && actual.Length >= expected.Length && actual.AsSpan(0, expected.Length).SequenceEqual(expected);
