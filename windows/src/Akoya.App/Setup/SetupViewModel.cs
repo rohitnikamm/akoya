@@ -181,7 +181,7 @@ public sealed class SetupViewModel : Observable, IDisposable
     private readonly IPracticeDictation _practice;
     private readonly IScheduler _scheduler;
     private readonly MoreRow _moreRow;
-    private readonly Dictionary<string, (int step, DateTimeOffset at)> _recent = new(StringComparer.Ordinal);
+    private readonly MicStatusTracker _tracker = new();
     private readonly LevelMeter _wave = new(WaveColumns);
 
     private SetupStep _step = SetupStep.Welcome;
@@ -202,6 +202,7 @@ public sealed class SetupViewModel : Observable, IDisposable
     private bool _isRecording;
     private string _practiceText = "";
     private bool _hasFinal;
+    private string _lastGoodText = "";
     private bool _retryHint;
     private bool _awaitingResult;
     private bool _partialThisTake;
@@ -342,6 +343,9 @@ public sealed class SetupViewModel : Observable, IDisposable
         _ => "Say something. Pick the one that moves.",
     };
 
+    /// <summary>Continue works only with a highlighted mic (with no mic at all it is dimmed and inert).</summary>
+    public bool CanContinue => HighlightedId is not null;
+
     private MicRow? HighlightedRow => Mics.Concat(MoreMics).FirstOrDefault(m => m.Id == HighlightedId);
 
     // Try it
@@ -398,7 +402,7 @@ public sealed class SetupViewModel : Observable, IDisposable
         PracticeCardKind.ModelLoading => ModelProgress is { } p and < 1
             ? string.Create(CultureInfo.InvariantCulture, $"Getting the speech model ready… {(int)Math.Floor(p * 100)}%")
             : "Getting the speech model ready…",
-        PracticeCardKind.RetryHint => "Didn't catch that, try again",
+        PracticeCardKind.RetryHint => "Didn't catch that. Try again.",
         _ => "Your words will appear here.",
     };
 
@@ -462,7 +466,7 @@ public sealed class SetupViewModel : Observable, IDisposable
     /// <summary>Microphone → Try it, saving the highlighted input.</summary>
     public void Continue()
     {
-        if (_finished || Step != SetupStep.Microphone || IsBlocked) return;
+        if (_finished || Step != SetupStep.Microphone || IsBlocked || !CanContinue) return;
         StopMicrophone();
         if (HighlightedId is { } id) MicChosen?.Invoke(id);
         Step = SetupStep.TryIt;
@@ -599,18 +603,19 @@ public sealed class SetupViewModel : Observable, IDisposable
     {
         HighlightedId = id;
         foreach (var row in Mics.Concat(MoreMics)) row.IsHighlighted = row.Id == id;
+        _tracker.ClearShown();
         Status = MicStatusKind.None;
         OnPropertyChanged(nameof(StatusText));
-        // Quiet time for "isn't hearing you" counts from when this mic was highlighted.
-        if (id is not null && _metering) _recent[id] = (1, _scheduler.Now);
+        OnPropertyChanged(nameof(CanContinue));
     }
 
     private void StartMeters()
     {
         _metering = true;
-        _recent.Clear();
+        // Fresh evidence only: a status from before the restart says nothing about the new streams.
+        _tracker.Reset();
+        Status = MicStatusKind.None;
         foreach (var row in Mics.Concat(MoreMics)) row.LitDots = 0;
-        if (HighlightedId is { } id) _recent[id] = (1, _scheduler.Now);
         _levels.Start(Mics.Concat(MoreMics).Select(m => m.Id).ToList());
     }
 
@@ -635,15 +640,15 @@ public sealed class SetupViewModel : Observable, IDisposable
         var row = Mics.Concat(MoreMics).FirstOrDefault(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase));
         if (row is null) return;
         row.LitDots = MeterLevel.LitDots(step, MicRow.MeterDots);
-        if (step >= MicStatus.SpeechStep) _recent[row.Id] = (step, _scheduler.Now);
+        // Virtual and loopback inputs (More) keep their dots but never count as "another mic hears you".
+        _tracker.Record(row.Id, step, row.Mic.InMore && MoreMics.Contains(row), _scheduler.Now);
         EvaluateStatus();
     }
 
     private void EvaluateStatus()
     {
-        if (!_metering || HighlightedId is not { } id) return;
-        var kind = MicStatus.Evaluate(id, _recent, _scheduler.Now);
-        if (kind != MicStatusKind.None) Status = kind;
+        if (!_metering) return;
+        Status = _tracker.Update(HighlightedId, _scheduler.Now);
     }
 
     private void SchedulePoll()
@@ -676,6 +681,7 @@ public sealed class SetupViewModel : Observable, IDisposable
     {
         _practicing = true;
         _hasFinal = false;
+        _lastGoodText = "";
         _retryHint = false;
         _awaitingResult = false;
         PracticeText = "";
@@ -695,6 +701,7 @@ public sealed class SetupViewModel : Observable, IDisposable
         else if (text.Length > 0)
         {
             PracticeText = text;
+            _lastGoodText = text;
             _hasFinal = true;
             _retryHint = false;
             _awaitingResult = false;
@@ -702,8 +709,7 @@ public sealed class SetupViewModel : Observable, IDisposable
         else
         {
             // An empty final: the take produced nothing.
-            PracticeText = "";
-            _retryHint = true;
+            LoseTake();
             _awaitingResult = false;
         }
         CardChanged();
@@ -725,15 +731,18 @@ public sealed class SetupViewModel : Observable, IDisposable
                 // Back to Idle with no final text (the recorder's Stop failed, or the transcription did): drop a
                 // partial so it doesn't look final. A silent take showed nothing, so nothing changes.
                 _awaitingResult = false;
-                if (_partialThisTake)
-                {
-                    PracticeText = "";
-                    _retryHint = true;
-                }
+                if (_partialThisTake) LoseTake();
                 break;
         }
         WaveOpacities = TryItWave.Opacities(_wave.Columns, IsRecording);
         CardChanged();
+    }
+
+    /// <summary>A take produced nothing: keep the last good transcript, or say so if there is none yet.</summary>
+    private void LoseTake()
+    {
+        PracticeText = _lastGoodText;
+        _retryHint = _lastGoodText.Length == 0;
     }
 
     private void OnLevel(float rms)
