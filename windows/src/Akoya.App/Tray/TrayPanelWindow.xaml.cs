@@ -74,8 +74,18 @@ public partial class TrayPanelWindow : Window
             Place(); // now laid out at its real size
         }
         Activate();
-        TrayNative.SetForegroundWindow(new WindowInteropHelper(this).Handle);
+        // Windows may refuse the foreground (the tray click's grant can lapse): try once more, then accept it; the
+        // panel still shows and hides on the next outside click or tray click.
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (!IsActive && TrayNative.GetForegroundWindow() != hwnd)
+        {
+            ForegroundRetries++;
+            TrayNative.SetForegroundWindow(hwnd);
+        }
     }
+
+    /// <summary>How many times <see cref="ShowNearTray"/> had to retry taking the foreground (diagnostics, tests).</summary>
+    internal int ForegroundRetries { get; private set; }
 
     /// <summary>
     /// What a click on the tray icon does: opens the panel, or closes it when it is open. A click that just
@@ -179,9 +189,26 @@ public partial class TrayPanelWindow : Window
         base.OnClosed(e);
     }
 
+    /// <summary>The view-model properties that change the panel's layout or which glow recipes it draws.</summary>
+    private static readonly HashSet<string> LayoutProperties =
+    [
+        nameof(TrayPanelViewModel.StatusText), nameof(TrayPanelViewModel.StatusKind), nameof(TrayPanelViewModel.StatusAction),
+        nameof(TrayPanelViewModel.StatusInHeader), nameof(TrayPanelViewModel.IsDownloading),
+        nameof(TrayPanelViewModel.LastDictation), nameof(TrayPanelViewModel.HasLastDictation),
+        nameof(TrayPanelViewModel.MicMissing), nameof(TrayPanelViewModel.UpdateReady),
+    ];
+
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // Content that changes the panel's size: prewarm the new size while hidden (when showing, it's drawn anyway).
+        // Only content that changes the panel's size or recipes (not the 25 Hz glow), and only on the UI thread.
+        if (e.PropertyName is not { } name || !LayoutProperties.Contains(name)) return;
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => OnModelChanged(sender, e));
+            return;
+        }
+
+        // Prewarm the new size while hidden (when showing, it's drawn anyway).
         if (IsVisible || _prewarmQueued) return;
         _prewarmQueued = true;
         Dispatcher.BeginInvoke(DispatcherPriority.Background, () => { if (!IsVisible) _ = Prewarm(); else _prewarmQueued = false; });
@@ -199,7 +226,9 @@ public partial class TrayPanelWindow : Window
             var topLeft = TrayPanelPlacement.Compute(target.Monitor, target.WorkArea, size.Width, size.Height, target.Scale);
             var x = topLeft.X - (int)Math.Round(PanelOffsetDip.X * target.Scale, MidpointRounding.AwayFromZero);
             var y = topLeft.Y - (int)Math.Round(PanelOffsetDip.Y * target.Scale, MidpointRounding.AwayFromZero);
-            PillNative.SetWindowPos(hwnd, PillNative.HwndTopmost, x, y, 0, 0, PillNative.SwpNoSize | PillNative.SwpNoOwnerZOrder);
+            // Never activates here (a re-place while showing must not steal focus back); ShowNearTray activates.
+            PillNative.SetWindowPos(hwnd, PillNative.HwndTopmost, x, y, 0, 0,
+                PillNative.SwpNoSize | PillNative.SwpNoActivate | PillNative.SwpNoOwnerZOrder);
         }
     }
 
@@ -254,4 +283,7 @@ internal static class TrayNative
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
 }

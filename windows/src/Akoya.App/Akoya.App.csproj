@@ -22,8 +22,9 @@
   <ItemGroup>
     <!-- Outfit (OFL 1.1, Fonts/OFL.txt), the Mac's variable font; WPF picks its named weight instances. -->
     <Resource Include="Fonts\Outfit-Variable.ttf" />
-    <!-- The tray icon (windows/scripts/make-tray-icon.py). -->
+    <!-- The tray icons, for the dark and the light taskbar (windows/scripts/make-tray-icon.py). -->
     <Resource Include="Assets\akoya.ico" />
+    <Resource Include="Assets\akoya-dark.ico" />
     <None Include="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
