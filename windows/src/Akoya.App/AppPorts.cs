@@ -116,6 +116,9 @@ public interface ISetupPresenter : IDisposable
     /// <summary>Done, Skip or the close button: setup is over (and marked done).</summary>
     event Action? Finished;
 
+    /// <summary>Retry on "Model download failed".</summary>
+    event Action? RetryModelRequested;
+
     void Show();
 
     void SetModel(ModelState state, double? progress);

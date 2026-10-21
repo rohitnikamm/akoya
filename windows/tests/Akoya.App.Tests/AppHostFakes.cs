@@ -376,6 +376,8 @@ internal sealed class FakeSetup : ISetupPresenter
 
     public event Action? Finished;
 
+    public event Action? RetryModelRequested;
+
     public SetupContext? Context { get; set; }
 
     public bool Shown { get; private set; }
@@ -403,6 +405,8 @@ internal sealed class FakeSetup : ISetupPresenter
     public void ChooseMic(string id) => MicChosen?.Invoke(id);
 
     public void Finish() => Finished?.Invoke();
+
+    public void RetryModel() => RetryModelRequested?.Invoke();
 
     public void Dispose() => Disposed = true;
 }

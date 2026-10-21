@@ -476,6 +476,7 @@ public sealed class AppHost : IDisposable
         _setup = setup;
         setup.MicChosen += OnSetupMicChosen;
         setup.Finished += OnSetupFinished;
+        setup.RetryModelRequested += Retry;
         setup.SetHotkey(_settings.Hotkey);
         setup.SetModel(_modelState, _modelProgress);
         setup.SetPhase(_coordinator.Phase);
@@ -499,6 +500,7 @@ public sealed class AppHost : IDisposable
         _setup = null;
         setup.MicChosen -= OnSetupMicChosen;
         setup.Finished -= OnSetupFinished;
+        setup.RetryModelRequested -= Retry;
         Try(setup.Dispose, "close setup");
     }
 

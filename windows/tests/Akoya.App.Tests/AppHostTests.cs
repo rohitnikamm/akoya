@@ -192,6 +192,25 @@ public class AppHostTests
     }
 
     [Fact]
+    public void SetupRetry_DownloadsTheModelAgain()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Settings.Stored = new AkoyaSettings();
+            rig.Model.Ensure = _ => Task.FromException(new HttpRequestException("offline"));
+            var host = rig.Start(waitForModel: false);
+            UiThread.PumpUntil(() => rig.Setup.Model == ModelState.Failed);
+
+            rig.Model.Ensure = _ => Task.CompletedTask;
+            rig.Setup.RetryModel();
+
+            UiThread.PumpUntil(() => host.ModelState == ModelState.Ready);
+            Assert.Equal(ModelState.Ready, rig.Setup.Model);
+        });
+    }
+
+    [Fact]
     public void ModelLoading_PressSaysNotReady_ProgressReachesTheTray_FailureOffersRetry()
     {
         UiThread.Run(() =>
