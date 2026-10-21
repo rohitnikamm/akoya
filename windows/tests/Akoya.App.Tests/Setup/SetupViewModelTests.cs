@@ -261,7 +261,7 @@ public class SetupViewModelTests
         rig.Model.SelectMic("buds");
         var starts = rig.Levels.Starts;
 
-        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+        rig.ChangeMics(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
 
         Assert.Equal("buds", rig.Model.HighlightedId);
         Assert.Equal(4, rig.Model.Mics.Count);
@@ -270,12 +270,46 @@ public class SetupViewModelTests
     }
 
     [Fact]
+    public void CatalogChange_ABurstReopensTheMetersOnce_AfterItSettles()
+    {
+        var rig = AtMicrophone(Laptop3());
+        var starts = rig.Levels.Starts;
+
+        // Plugging in a headset raises several changes in a row (endpoint added, state, default switched).
+        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+        rig.Clock.Advance(0.05);
+        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+        rig.Clock.Advance(0.05);
+        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+        rig.Clock.Advance(SetupViewModel.MicChangeSettle.TotalSeconds - 0.01);
+        Assert.Equal(starts, rig.Levels.Starts); // still settling
+
+        rig.Clock.Advance(0.01);
+        Assert.Equal(starts + 1, rig.Levels.Starts);
+        Assert.Equal(4, rig.Model.Mics.Count);
+        Assert.Equal(TimeSpan.FromMilliseconds(200), SetupViewModel.MicChangeSettle);
+    }
+
+    [Fact]
+    public void CatalogChange_AfterFinish_DoesNothing()
+    {
+        var rig = AtMicrophone(Laptop3());
+        rig.Catalog.Change(Devices.Laptop());
+        rig.Model.Skip();
+        var starts = rig.Levels.Starts;
+
+        rig.Clock.Advance(1);
+
+        Assert.Equal(starts, rig.Levels.Starts);
+    }
+
+    [Fact]
     public void CatalogChange_HighlightedMicUnplugged_HighlightsTheNewDefault()
     {
         var rig = AtMicrophone(Laptop3());
         rig.Model.SelectMic("buds");
 
-        rig.Catalog.Change(Devices.Laptop(), Devices.Webcam());
+        rig.ChangeMics(Devices.Laptop(), Devices.Webcam());
 
         Assert.Equal("laptop", rig.Model.HighlightedId);
     }
@@ -507,7 +541,7 @@ public class SetupViewModelTests
         rig.Talk(0.5, ("laptop", 6));
         Assert.Equal(MicStatusKind.HearingYou, rig.Model.Status);
 
-        rig.Catalog.Change(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
+        rig.ChangeMics(Devices.Laptop(), Devices.Buds(), Devices.Webcam(), Devices.HyperX(isDefault: false));
 
         Assert.Equal(MicStatusKind.None, rig.Model.Status);
     }
@@ -527,7 +561,7 @@ public class SetupViewModelTests
         Assert.Equal(SetupStep.Microphone, rig.Model.Step);
         Assert.Equal(0, chosen);
 
-        rig.Catalog.Change(Devices.Laptop());
+        rig.ChangeMics(Devices.Laptop());
         Assert.True(rig.Model.CanContinue);
     }
 

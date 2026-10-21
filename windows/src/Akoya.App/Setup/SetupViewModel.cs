@@ -173,6 +173,12 @@ public sealed class SetupViewModel : Observable, IDisposable
     /// <summary>How often the privacy switch is re-read while the Microphone step shows (Windows sends no event).</summary>
     public static readonly TimeSpan PrivacyPoll = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>
+    /// How long the inputs must stay unchanged before the list reloads and the meters reopen: plugging in a headset
+    /// raises a burst of changes (added, state, default switched), and each reopen stalls on Bluetooth devices.
+    /// </summary>
+    public static readonly TimeSpan MicChangeSettle = TimeSpan.FromMilliseconds(200);
+
     private const int WaveColumns = 23;
 
     private readonly IMicCatalog _catalog;
@@ -194,6 +200,7 @@ public sealed class SetupViewModel : Observable, IDisposable
     private bool _isBlocked;
     private bool _metering;
     private IDisposable? _poll;
+    private IDisposable? _micChange;
 
     private ModelState _modelState = ModelState.Ready;
     private double? _modelProgress;
@@ -535,6 +542,8 @@ public sealed class SetupViewModel : Observable, IDisposable
     private void TearDown()
     {
         _finished = true;
+        _micChange?.Dispose();
+        _micChange = null;
         StopMicrophone();
         if (_practicing)
         {
@@ -548,8 +557,14 @@ public sealed class SetupViewModel : Observable, IDisposable
     private void OnCatalogChanged()
     {
         if (_finished) return;
-        ReloadMics();
-        if (_metering) StartMeters();
+        _micChange?.Dispose();
+        _micChange = _scheduler.After(MicChangeSettle, () =>
+        {
+            _micChange = null;
+            if (_finished) return;
+            ReloadMics();
+            if (_metering) StartMeters();
+        });
     }
 
     private void ReloadMics()

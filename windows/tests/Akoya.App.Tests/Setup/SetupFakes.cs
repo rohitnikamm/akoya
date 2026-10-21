@@ -165,6 +165,13 @@ internal sealed class SetupRig
 
     public SetupViewModel Model { get; }
 
+    /// <summary>The inputs change, then the change settles (<see cref="SetupViewModel.MicChangeSettle"/>).</summary>
+    public void ChangeMics(params EndpointFacts[] endpoints)
+    {
+        Catalog.Change(endpoints);
+        Clock.Advance(SetupViewModel.MicChangeSettle.TotalSeconds);
+    }
+
     /// <summary>Every mic reports a step, then time moves on by one 40 ms meter window.</summary>
     public void Levels40ms(params (string id, int step)[] steps)
     {
