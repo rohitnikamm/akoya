@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Windows.Threading;
 using Akoya.App.Pill;
 using Akoya.App.Platform;
+using Akoya.App.Tray;
 using Akoya.Core.Dictation;
 using Akoya.Core.Hotkey;
 using Akoya.Core.Settings;
@@ -112,6 +113,63 @@ public class AppHostTests
             rig.Catalog.RaiseChanged();
             Assert.False(rig.Tray.MicMissing);
             Assert.Equal("HyperX Cloud III", rig.Tray.SavedMicName);
+        });
+    }
+
+    [Fact]
+    public void RealTray_FollowsDictation_AndItsControlsChangeTheApp()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            rig.Settings.Stored = rig.Settings.Stored with { MicrophoneId = "headset-gone" };
+            rig.Updates.Next = () => (true, null);
+            TrayPresenter? tray = null;
+            rig.TrayFactory = commands => tray = new TrayPresenter(commands, rig.Scheduler);
+            var host = rig.Start();
+            var vm = tray!.Model;
+            UiThread.PumpUntil(() => vm.UpdateReady);
+
+            // The saved mic is gone: yellow row and status.
+            Assert.True(vm.MicMissing);
+            Assert.Equal("Microphone not detected", vm.StatusText);
+            Assert.Equal("System default (This PC's microphone)", vm.MicOptions[0].Label);
+
+            // Picking System default from the panel saves it and clears the row.
+            vm.SelectMic.Execute(null);
+            Assert.Null(rig.Settings.Stored.MicrophoneId);
+            Assert.False(vm.MicMissing);
+            Assert.Equal("Ready", vm.StatusText);
+
+            rig.Hook.Fire(HotkeyEvent.Pressed);
+            Assert.Equal("Listening", vm.StatusText);
+            Assert.True(vm.IsListening);
+            rig.Recorder.RaiseLevel(Speech);
+            rig.Scheduler.Advance(TimeSpan.FromSeconds(0.5));
+            Assert.True(vm.GlowStrength > 0);
+            rig.Hook.Fire(HotkeyEvent.Released);
+            UiThread.PumpUntil(() => host.Coordinator.Phase == DictationPhase.Pasted);
+            Assert.Equal("hello world", vm.LastDictation);
+            Assert.Equal("Ready", vm.StatusText);
+
+            vm.Copy.Execute(null);
+            Assert.Equal(new[] { "hello world" }, rig.Copied);
+
+            vm.SelectHotkey.Execute(HotkeyKey.RightCtrl);
+            Assert.Equal(HotkeyKey.RightCtrl, rig.Settings.Stored.Hotkey);
+            Assert.Equal(HotkeyKey.RightCtrl, rig.Hook.Keys[^1]);
+            Assert.Equal("Right Ctrl", vm.HotkeyLabel);
+
+            vm.LaunchAtStartup = true;
+            Assert.True(rig.Startup.Enabled);
+            Assert.True(rig.Settings.Stored.LaunchAtStartup);
+
+            host.ShowPanel();
+            UiThread.Pump(TimeSpan.FromMilliseconds(200));
+            Assert.True(tray.Icon.Panel.IsVisible);
+
+            vm.Quit.Execute(null);
+            Assert.Equal(1, rig.Shutdowns);
         });
     }
 
@@ -500,8 +558,8 @@ public class AppHostTests
     }
 
     /// <summary>
-    /// The real platform ports (keyboard hook, WASAPI recorder, microphone catalog, clipboard, pill window, session
-    /// events, updater) on an STA thread with a fake model and a temp settings file: the app starts and shuts down
+    /// The real platform ports (keyboard hook, WASAPI recorder, microphone catalog, clipboard, pill window, tray icon
+    /// and panel, session events, updater) on an STA thread with a fake model and a temp settings file: the app starts and shuts down
     /// cleanly. This is what <c>dotnet run</c> does, minus the model download.
     /// </summary>
     [Fact]
@@ -532,6 +590,7 @@ public class AppHostTests
                     Updates = real.Updates,
                     MicAccessAllowed = real.MicAccessAllowed,
                     CopyToClipboard = real.CopyToClipboard,
+                    CreateTray = real.CreateTray,
                     Owned = real.Owned,
                 };
 

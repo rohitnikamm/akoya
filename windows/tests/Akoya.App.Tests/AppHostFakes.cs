@@ -509,6 +509,9 @@ internal sealed class HostRig : IDisposable
     public int Shutdowns { get; private set; }
     public int SetupsCreated { get; private set; }
 
+    /// <summary>Replaces the fake tray (e.g. with the real TrayPresenter).</summary>
+    public Func<TrayCommands, ITrayPresenter>? TrayFactory { get; set; }
+
     private AppHost? _host;
 
     public AppHost Host => _host ?? throw new InvalidOperationException("Call Start first.");
@@ -534,11 +537,11 @@ internal sealed class HostRig : IDisposable
             Startup = Startup,
             Log = Log,
             Shutdown = () => Shutdowns++,
-            CreateTray = commands =>
+            CreateTray = TrayFactory ?? (commands =>
             {
                 Tray.Commands = commands;
                 return Tray;
-            },
+            }),
             CreateSetup = context =>
             {
                 SetupsCreated++;

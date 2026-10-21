@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Windows.Threading;
 using Akoya.App.Platform;
 using Akoya.App.Speech;
+using Akoya.App.Tray;
 
 namespace Akoya.App;
 
@@ -41,7 +42,8 @@ public static class AppComposition
             MicAccessAllowed = MicPrivacy.IsDesktopAccessAllowed,
             OpenMicSettings = MicPrivacy.OpenSettings,
             CopyToClipboard = text => CopyWithRetry(copyClipboard, text),
-            // TODO(Task 10/11 hookup): CreateTray and CreateSetup.
+            CreateTray = commands => new TrayPresenter(commands, scheduler),
+            // TODO(Task 11 hookup): CreateSetup. Without it a first run just downloads the model in the background.
             Owned = [recorder, catalog, pasteClipboard, copyClipboard, http],
         };
     }
