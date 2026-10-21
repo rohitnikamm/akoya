@@ -18,8 +18,11 @@ public class SetupSnapshots
     private const double Width = 460;
     private const double Height = 640;
 
-    /// <summary>The mockup's Try it waveform as level steps (each column's dots rounded to an odd count).</summary>
-    private static readonly int[] Wave = [1, 3, 3, 5, 6, 5, 3, 3, 3, 5, 6, 7, 6, 5, 3, 3, 3, 5, 6, 5, 3, 3, 1];
+    /// <summary>
+    /// The mockup's Try it waveform (dots per column 1,2,3,5,7,5,3,2,...) as level steps; columns are always odd in
+    /// the app, so the mockup's 2-dot columns become 1.
+    /// </summary>
+    private static readonly int[] Wave = [1, 2, 3, 5, 6, 5, 3, 2, 3, 5, 6, 7, 6, 5, 3, 2, 3, 5, 6, 5, 3, 2, 1];
 
     [Fact]
     public void Welcome() => Render("setup-welcome", new SetupRig(Devices.Laptop(), Devices.Buds(), Devices.Webcam()));

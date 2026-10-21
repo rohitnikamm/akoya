@@ -1,0 +1,157 @@
+<!--
+  Step 2, one layout for every case (mockup cards "Microphone", "Windows defaulted to earbuds", "Only one mic",
+  "Lots of devices"), or "Turn on your mic" while Windows blocks the microphone. Items 12 apart (blocked: 14).
+-->
+<UserControl x:Class="Akoya.App.Setup.MicrophoneView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Akoya.App.Controls"
+             xmlns:setup="clr-namespace:Akoya.App.Setup">
+    <UserControl.Resources>
+        <!-- .dev: padding 12 14, items 11 apart, 14px; the selected row's blue fills it edge to edge. -->
+        <DataTemplate DataType="{x:Type setup:MicRow}">
+            <Button Style="{DynamicResource Setup.Bare}" Command="{Binding SelectCommand}">
+                <Border x:Name="Row" Padding="14,12" BorderThickness="0" BorderBrush="{DynamicResource Setup.RowSeparator}"
+                        Background="Transparent">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="16" Height="16" VerticalAlignment="Center">
+                            <Ellipse x:Name="Ring" Stroke="{DynamicResource Setup.RadioRing}" StrokeThickness="1.5" />
+                            <controls:RimGlowBorder x:Name="RadioDot" Width="8" Height="8" CornerRadius="4"
+                                                    Visibility="Collapsed"
+                                                    Background="{DynamicResource Akoya.Accent}"
+                                                    setup:TemplateBindings.Shadows="{x:Static setup:SetupGlows.RadioDot}" />
+                        </Grid>
+                        <TextBlock Grid.Column="1" Margin="11,0" VerticalAlignment="Center"
+                                   FontSize="14" LineStackingStrategy="BlockLineHeight" LineHeight="18"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource Setup.RowText}"
+                                   Text="{Binding Name}" />
+                        <controls:DotGrid x:Name="Meter" Grid.Column="2" VerticalAlignment="Center"
+                                          Columns="10" Rows="1" DotSize="5" Gap="3"
+                                          setup:TemplateBindings.DotOpacities="{Binding MeterOpacities}"
+                                          DotBrush="{DynamicResource Setup.MeterDot}" />
+                    </Grid>
+                </Border>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding ShowsSeparator}" Value="True">
+                    <Setter TargetName="Row" Property="BorderThickness" Value="0,1,0,0" />
+                </DataTrigger>
+                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource Setup.RowHover}" />
+                </Trigger>
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource Setup.RowSelected}" />
+                    <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource Akoya.Accent}" />
+                    <Setter TargetName="RadioDot" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="Meter" Property="DotBrush" Value="{DynamicResource Akoya.AccentLightSoft}" />
+                    <Setter TargetName="Meter" Property="setup:TemplateBindings.Shadows" Value="{x:Static setup:SetupGlows.MeterDot}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- .dev.more: padding 10 14, 13px, a chevron where the radio would be; clicking it unfolds the rows in its place. -->
+        <DataTemplate DataType="{x:Type setup:MoreRow}">
+            <Button Style="{DynamicResource Setup.Bare}" Command="{Binding ToggleCommand}">
+                <Border x:Name="Row" Padding="14,10" BorderThickness="0" BorderBrush="{DynamicResource Setup.RowSeparator}"
+                        Background="Transparent">
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="16" Height="16" VerticalAlignment="Center">
+                            <Path x:Name="Chevron" Width="8" Height="4.5" Margin="0,5,0,0"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M0,0 L4,4 L8,0" Stretch="None"
+                                  Stroke="{DynamicResource Setup.MoreChevron}" StrokeThickness="1.3"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                        </Grid>
+                        <TextBlock Margin="11,0,0,0" VerticalAlignment="Center"
+                                   FontSize="13" LineStackingStrategy="BlockLineHeight" LineHeight="16"
+                                   Foreground="{DynamicResource Setup.MoreText}"
+                                   Text="{Binding Label}" />
+                    </StackPanel>
+                </Border>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding ShowsSeparator}" Value="True">
+                    <Setter TargetName="Row" Property="BorderThickness" Value="0,1,0,0" />
+                </DataTrigger>
+                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource Setup.RowHover}" />
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- The list -->
+        <DockPanel x:Name="ListLayout" Margin="0,0,0,12">
+            <Button DockPanel.Dock="Bottom" Style="{DynamicResource Setup.ButtonLight}"
+                    Content="Continue" Command="{Binding ContinueCommand}" />
+            <StackPanel>
+                <controls:TrackedText Margin="0,6,0,0" Style="{DynamicResource Setup.Eyebrow}" Text="MICROPHONE" />
+                <TextBlock Margin="0,12,0,0" Style="{DynamicResource Setup.Title}" Text="{Binding MicTitle}" />
+                <TextBlock Margin="0,12,0,0" Style="{DynamicResource Setup.Body}" Text="{Binding MicBody}" />
+
+                <!-- .list: rounded 20, rows clipped by the rounded corners. -->
+                <controls:ClipBorder x:Name="List" Margin="0,16,0,0" CornerRadius="20" Background="{DynamicResource Setup.ListFill}">
+                    <ScrollViewer MaxHeight="195" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <ItemsControl ItemsSource="{Binding ListItems}" Focusable="False" />
+                    </ScrollViewer>
+                </controls:ClipBorder>
+
+                <!-- .chip, 18 below the list; keeps its place while empty so nothing jumps. -->
+                <Border x:Name="Chip" Margin="0,18,0,0" Height="26" Padding="11,0" CornerRadius="13"
+                        HorizontalAlignment="Center" Visibility="Hidden">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse x:Name="ChipDot" Width="6" Height="6" VerticalAlignment="Center" />
+                        <TextBlock x:Name="ChipText" Margin="7,0,0,0" VerticalAlignment="Center"
+                                   FontSize="12.5" LineStackingStrategy="BlockLineHeight" LineHeight="16"
+                                   Text="{Binding StatusText}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Windows is blocking the microphone -->
+        <DockPanel x:Name="BlockedLayout" Margin="0,0,0,14" Visibility="Collapsed">
+            <Button DockPanel.Dock="Bottom" Style="{DynamicResource Setup.ButtonBlue}"
+                    Content="Open Settings" Command="{Binding OpenSettingsCommand}" />
+            <StackPanel>
+                <!-- .well: 72 round, a mic with an amber slash. -->
+                <Grid Width="72" Height="72" Margin="0,40,0,0" HorizontalAlignment="Center">
+                    <Ellipse Fill="{DynamicResource Setup.WellFill}" />
+                    <Ellipse Stroke="{DynamicResource Setup.WellRing}" StrokeThickness="1" />
+                    <Viewbox Width="30" Height="30">
+                        <Canvas Width="24" Height="24">
+                            <Path Stroke="White" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Data="M12,3 A3,3 0 0 1 15,6 L15,11 A3,3 0 0 1 9,11 L9,6 A3,3 0 0 1 12,3 Z" />
+                            <Path Stroke="White" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Data="M5.5,11 A6.5,6.5 0 0 0 18.5,11 M12,17.5 L12,21" />
+                            <Path Stroke="{DynamicResource Akoya.Amber}" StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M4,4 L20,20" />
+                        </Canvas>
+                    </Viewbox>
+                </Grid>
+                <TextBlock Margin="0,14,0,0" Style="{DynamicResource Setup.Title}" FontSize="23" LineHeight="29"
+                           Text="Turn on your mic" />
+                <TextBlock Margin="0,14,0,0" Style="{DynamicResource Setup.Body}"
+                           Text="Windows is blocking it. Open Settings and switch on microphone access for desktop apps." />
+                <Border Margin="0,14,0,0" Height="26" Padding="11,0" CornerRadius="13" HorizontalAlignment="Center"
+                        Background="{DynamicResource Setup.ChipWaitFill}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{DynamicResource Akoya.Amber}" />
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center"
+                                   FontSize="12.5" LineStackingStrategy="BlockLineHeight" LineHeight="16"
+                                   Foreground="{DynamicResource Setup.ChipWaitText}"
+                                   Text="Waiting for the switch…" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</UserControl>

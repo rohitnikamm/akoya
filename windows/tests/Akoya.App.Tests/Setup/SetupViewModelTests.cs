@@ -162,9 +162,9 @@ public class SetupViewModelTests
         more.ToggleCommand.Execute(null);
 
         Assert.True(vm.MoreExpanded);
-        Assert.Equal(5, vm.ListItems.Count);
-        Assert.IsType<MoreRow>(vm.ListItems[^1]);
-        Assert.Equal(vm.MoreMics, vm.ListItems.Skip(2).Take(2));
+        Assert.Equal(4, vm.ListItems.Count);
+        Assert.DoesNotContain(vm.ListItems, i => i is MoreRow);
+        Assert.Equal(vm.MoreMics, vm.ListItems.Skip(2));
 
         vm.ToggleMore();
         Assert.False(vm.MoreExpanded);
