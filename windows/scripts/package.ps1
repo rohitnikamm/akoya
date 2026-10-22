@@ -5,7 +5,7 @@
 .PARAMETER Version     X.Y.Z, without the windows-v prefix.
 .PARAMETER OutDir      Where vpk writes Setup.exe, the .nupkg files and releases.win.json.
 .PARAMETER Token       When set, the previous release is downloaded first so vpk can also build a delta package.
-.PARAMETER RequireIcon Fail instead of warning when windows/src/Akoya.App/Assets/akoya.ico is missing.
+.PARAMETER RequireIcon Fail instead of warning when windows/src/Akoya.App/Assets/akoya-app.ico (the app icon) is missing.
 #>
 param(
     [Parameter(Mandatory)][string]$Version,
@@ -67,7 +67,7 @@ if ($Token) {
 $packArgs = @('pack', '--packId', 'Akoya', '--packVersion', $Version, '--packDir', $publish,
     '--mainExe', 'Akoya.exe', '--packTitle', 'Akoya', '--packAuthors', 'rohitnikamm',
     '--runtime', 'win-x64', '--channel', 'win', '--shortcuts', 'StartMenuRoot', '--outputDir', $OutDir)
-$icon = Join-Path $root 'windows\src\Akoya.App\Assets\akoya.ico'
+$icon = Join-Path $root 'windows\src\Akoya.App\Assets\akoya-app.ico'
 if (Test-Path $icon) { $packArgs += @('--icon', $icon) }
 elseif ($RequireIcon) { throw "missing $icon" }
 else { Write-Host "::warning::$icon is missing; packing without an icon" }

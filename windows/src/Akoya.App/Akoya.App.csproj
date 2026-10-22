@@ -12,6 +12,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Akoya.exe's icon (Start menu, taskbar, Task Manager, Settings > Apps, and every window that sets none):
+         the Mac app's icon, made by windows/scripts/make-app-icon.ps1. -->
+    <ApplicationIcon>Assets\akoya-app.ico</ApplicationIcon>
     <!-- Program.Main runs VelopackApp first and enforces a single instance before WPF starts. -->
     <StartupObject>Akoya.App.Program</StartupObject>
   </PropertyGroup>
