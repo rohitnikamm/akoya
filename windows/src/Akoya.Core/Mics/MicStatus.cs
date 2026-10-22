@@ -26,7 +26,7 @@ public readonly record struct MicActivity(DateTimeOffset? LastSpeech, DateTimeOf
 /// </summary>
 public static class MicStatus
 {
-    /// <summary>A step at or above this is speech (the silence gate is <c>SilenceMaxStep</c> = 2).</summary>
+    /// <summary>A step at or above this is speech (above the silence gate, <c>SilenceMaxStep</c> = 1: the setup chip waits for clearer speech than dictation does).</summary>
     public const int SpeechStep = 3;
 
     /// <summary>The highlighted mic heard speech this recently: "Hearing you".</summary>

@@ -86,7 +86,8 @@ public class DictationCoordinatorTests
     {
         Assert.Equal(TimeSpan.FromMilliseconds(300), DictationCoordinator.HoldThreshold);
         Assert.Equal(TimeSpan.FromSeconds(300), DictationCoordinator.MaxRecording);
-        Assert.Equal(2, DictationCoordinator.SilenceMaxStep);
+        Assert.Equal(1, DictationCoordinator.SilenceMaxStep);
+        Assert.Equal(2, DictationCoordinator.QuietMaxStep);
         Assert.Equal(TimeSpan.FromMilliseconds(900), DictationCoordinator.PastedDisplay);
         Assert.Equal(TimeSpan.FromMilliseconds(1600), DictationCoordinator.AlertDisplay);
         Assert.Equal(TimeSpan.FromMilliseconds(100), DictationCoordinator.PreviewTick);
@@ -488,11 +489,11 @@ public class DictationCoordinatorTests
     }
 
     [Fact]
-    public void QuietLevelsAtTheThreshold_StillCountAsSilence()
+    public void LevelsThatNeverMoveThePill_CountAsSilence()
     {
         using var rig = new Rig();
-        // -40 dBFS maps to step 2: the loudest level that still counts as silence.
-        var rms = RmsAtDb(-40);
+        // -46 dBFS maps to step 1: the pill's waveform stays flat, so nothing was said.
+        var rms = RmsAtDb(-46);
         Assert.Equal(DictationCoordinator.SilenceMaxStep, LevelMeter.Step(rms));
         rig.Press();
         rig.Audio.RaiseLevel(rms);
@@ -502,11 +503,85 @@ public class DictationCoordinatorTests
     }
 
     [Fact]
+    public void QuietSpeechThatMovesThePill_IsTranscribed()
+    {
+        // Rohit's report: quiet speech moved the pill (step 2, -44 to -39 dBFS) but was thrown away as silence.
+        using var rig = new Rig();
+        rig.Transcriber.Result = "quiet words still count";
+        var rms = RmsAtDb(-41);
+        Assert.Equal(DictationCoordinator.QuietMaxStep, LevelMeter.Step(rms));
+        rig.Press();
+        rig.Audio.RaiseLevel(rms);
+        rig.Advance(1000);
+        rig.Release();
+
+        Assert.Single(rig.Transcriber.Received);
+        Assert.Equal(new[] { "quiet words still count " }, rig.Inserter.Inserted);
+    }
+
+    [Theory]
+    [InlineData("Okay.")]
+    [InlineData("Thank you.")]
+    [InlineData("yeah")]
+    [InlineData("Mm-hmm.")]
+    public void QuietTake_WhoseWholeTextIsAFillerWord_IsDropped(string invented)
+    {
+        // Parakeet invents a lone word like "Okay." for near-silent audio; in a quiet take that is room noise.
+        using var rig = new Rig();
+        rig.Transcriber.Result = invented;
+        rig.Press();
+        rig.Audio.RaiseLevel(RmsAtDb(-41));
+        rig.Advance(1000);
+        rig.Release();
+
+        Assert.Single(rig.Transcriber.Received);
+        Assert.Empty(rig.Inserter.Inserted);
+        Assert.Equal(Idle, rig.Phase);
+    }
+
+    [Fact]
+    public void LouderTake_KeepsALoneFillerWord()
+    {
+        using var rig = new Rig();
+        rig.Transcriber.Result = "Okay.";
+        rig.Press();
+        rig.Audio.RaiseLevel(RmsAtDb(-30));
+        rig.Advance(1000);
+        rig.Release();
+
+        Assert.Equal(new[] { "Okay. " }, rig.Inserter.Inserted);
+    }
+
+    [Fact]
+    public void EachTake_ReportsItsPeakLevel_AndWhetherItWasTranscribed()
+    {
+        using var rig = new Rig();
+        var takes = new List<(int Step, double PeakDb, bool Transcribed)>();
+        rig.Coordinator.TakeEnded += (step, db, transcribed) => takes.Add((step, db, transcribed));
+
+        rig.Press();
+        rig.Audio.RaiseLevel(RmsAtDb(-41));
+        rig.Advance(1000);
+        rig.Release();
+        rig.Press();
+        rig.Audio.RaiseLevel(RmsAtDb(-48));
+        rig.Advance(1000);
+        rig.Release();
+
+        Assert.Equal(2, takes.Count);
+        Assert.Equal(2, takes[0].Step);
+        Assert.Equal(-41, takes[0].PeakDb, 1);
+        Assert.True(takes[0].Transcribed);
+        Assert.Equal(1, takes[1].Step);
+        Assert.False(takes[1].Transcribed);
+    }
+
+    [Fact]
     public void LevelJustAboveTheThreshold_IsTranscribed()
     {
         using var rig = new Rig();
         var rms = RmsAtDb(-35);
-        Assert.Equal(DictationCoordinator.SilenceMaxStep + 1, LevelMeter.Step(rms));
+        Assert.Equal(DictationCoordinator.QuietMaxStep + 1, LevelMeter.Step(rms));
         rig.Press();
         rig.Audio.RaiseLevel(rms);
         rig.Audio.RaiseLevel(0); // the loudest level counts, not the last one
