@@ -12,6 +12,8 @@ Hold a key, speak, release, and your words appear in any app. The same behaviour
 | `tests/Akoya.App.Tests` | xUnit, needs Windows: renders every view to PNG, engine smoke test, clipboard |
 | `scripts/ci.sh` | Push the branch, wait for the Windows CI run, print its summary (bash with `gh` logged in; Linux, macOS or Git Bash) |
 | `scripts/package.ps1` | Build the self-contained package and `Setup.exe` with Velopack |
+| `scripts/make-app-icon.ps1` | Make the app icon (`Assets/akoya-app.ico`) from the Mac's `Resources/AppIcon.icns` (Windows PowerShell) |
+| `scripts/make-tray-icon.py` | Make the tray icons (`Assets/akoya.ico`, `akoya-dark.ico`; needs Pillow) |
 
 ## Build and test
 

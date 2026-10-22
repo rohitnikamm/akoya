@@ -16,7 +16,7 @@ Nothing here could be checked by CI: it needs a real screen, microphones, a Wind
 - [ ] With only one input enabled (disable the others in Sound settings): the same screen with one row and the title "Is this the mic you want?".
 - [ ] Mic privacy switch off (Settings > Privacy & security > Microphone > "Let desktop apps access your microphone"): "Turn on your mic" and "Windows is blocking it. Open Settings and switch on microphone access for desktop apps." with Open Settings, which opens the right page. The text "Waiting for the switch..." shows and the screen moves on by itself within a couple of seconds of switching it on.
 - [ ] Continue saves the highlighted mic. After a relaunch the tray panel's Microphone row shows it.
-- [ ] Try it: "Hold [Right Alt] and say anything" with "or tap it once to start, again to stop". Holding the key shows a live waveform and your words fill the text card while you speak. Nothing is pasted into any other window, even if one has focus. If the model is still downloading, the card says "Getting the speech model ready..." with a percentage.
+- [ ] Try it: "Hold [Right Alt] and say anything" with "or tap it once to start, again to stop". Holding the key shows a live waveform and your words fill the text card while you speak. Nothing is pasted into any other window, even if one has focus. If the model is still downloading, the dots under the hint fill left to right with the download and a line under them says "Getting the speech model ready 62%"; the text card keeps "Your words will appear here." A failed download says "Model download failed · Retry" in that line.
 - [ ] Done (or Skip, or the x on any step) closes setup, and setup is not shown on the next launch. Everything is still reachable from the tray panel.
 
 ## Tray icon and panel
@@ -41,6 +41,7 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Hold the key without speaking: the pill just fades, nothing is pasted. Quiet speech still transcribes.
 - [ ] Holding the key for more than a few minutes: recording stops by itself at 5 minutes and pastes what it heard.
 - [ ] While the model is not ready (right after the first install), pressing the hotkey shows "Getting the speech model ready..." in the pill and records nothing.
+- [ ] Speak quietly (as quiet as still moves the pill's dots): the words are transcribed and pasted. Hold the key without saying anything: nothing is pasted. Each take adds a line like "Take: peak -41 dBFS (level 2); transcribing" to `%LocalAppData%\Akoya\logs\akoya.log`, never the words.
 
 ## Hotkey variants
 - [ ] AltGr layout (for example US International, German or Polish Programmers): with Right Alt as the hotkey, no stray Ctrl+Alt shortcuts fire in the app while holding it and typing characters that need AltGr still works when Akoya is not recording. Switch layouts with Win+Space.
@@ -66,7 +67,7 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 
 ## Windows limits (expected behaviour)
 - [ ] Admin window (UIPI): start Notepad as administrator, give it focus and hold the hotkey. Windows blocks a normal app from seeing keys while an elevated window has focus, so the hotkey does not fire at all there. This is expected. It works again as soon as a normal window has focus.
-- [ ] Paste into an elevated window when the dictation was started from a normal window and focus moved to the elevated one before release: no paste is attempted, the pill is blue with "Copied. Press Ctrl+V", and Ctrl+V pastes the text. The clipboard is not restored in this case.
+- [ ] Paste into an elevated window when the dictation was started from a normal window and focus moved to the elevated one before release: no paste is attempted, the pill is blue with "Copied. Press Ctrl+V", and Ctrl+V pastes the text.
 - [ ] Lock the PC (Win+L) and unlock: the hotkey works again without a restart. Same after sleep and resume.
 - [ ] Long uptime: the hotkey still works after several hours (Windows can silently remove a slow keyboard hook; Akoya reinstalls it).
 
@@ -80,10 +81,10 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 
 ## Install, update, uninstall
 Use the draft release's `Akoya-win-Setup.exe` (or the published one).
-- [ ] Download Setup.exe from the release in a browser. SmartScreen warns because the file is not signed: More info, then Run anyway. It installs for the current user with no admin prompt, adds Akoya to the Start menu, and starts it. Akoya appears in Settings > Apps > Installed apps.
+- [ ] Download Setup.exe from the release in a browser. SmartScreen warns because the file is not signed: More info, then Run anyway. It installs for the current user with no admin prompt, adds Akoya to the Start menu, and starts it. Akoya appears in Settings > Apps > Installed apps. Setup.exe, the Start menu entry, the taskbar button, Task Manager and Settings > Apps all show the Akoya icon (the dot logo on a navy rounded square), not a blank one.
 - [ ] The files are under `%LocalAppData%\Akoya\` (the `current` folder and the `Akoya.exe` launcher). The speech model goes to `%LocalAppData%\Akoya\models\`, not into `current`.
 - [ ] Launch at startup on: adds `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Akoya` pointing at `%LocalAppData%\Akoya\Akoya.exe` (check with `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Akoya`). Sign out and in: Akoya starts by itself. It also shows in Task Manager > Startup apps. Off removes the entry.
-- [ ] Update: publish a newer release (for example bump the version and push the next `windows-v` tag), then in the older installed copy: within a few seconds of launch (or after the 6-hour check) the tray panel shows "Update ready" with a Restart button. Restart quits, updates and reopens Akoya on the new version without a new SmartScreen prompt and without downloading the model again. Your settings are kept. Launch at startup still works afterwards (the Run entry points at the launcher, which survives updates).
+- [ ] Update: publish a newer release (for example bump the version and push the next `windows-v` tag), then in the older installed copy: within a few seconds of launch (or after the 6-hour check) the tray panel shows "Update ready" with a light-blue "Restart" link. Restart quits, updates and reopens Akoya on the new version without a new SmartScreen prompt and without downloading the model again. Your settings are kept. Launch at startup still works afterwards (the Run entry points at the launcher, which survives updates).
 - [ ] After the first Windows release is published, and again after the next Mac release: the update check still finds a Windows release when a newer Mac-only release exists. Velopack reads the latest 10 published releases and skips any without `releases.win.json`, so the Mac release (tag `vX.Y.Z`, no Windows files) is ignored. To confirm, keep an older Windows build installed, publish a Mac release after the newer Windows one, and check the old build still shows "Update ready". (An automated test covers the same feed logic; this checks it against real GitHub.)
 - [ ] When publishing the Windows draft, untick "Set as the latest release", so the README's release badge and `releases/latest` keep pointing at the Mac app. The updater does not care which release is marked latest.
 - [ ] A draft release is not seen by the updater. After you publish the draft, an installed older copy finds it.

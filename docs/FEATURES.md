@@ -73,7 +73,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Size | About 450 MB | About 480 MB tarball (482,468,385 bytes) | Same |
 | Download | By FluidAudio at first launch, in the background; whole-percent progress | From the sherpa-onnx GitHub release at launch, in the background, to a `.part` file; size and SHA-256 checked; extracted, then renamed into place | Different on purpose (different engines) |
 | Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch; every model file's byte size is checked, so a truncated file counts as missing | Different on purpose (unclear on Mac) |
-| Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and in setup's Try it card | Same |
+| Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and under setup's Try it waveform | Same |
 | Where | `~/Library/Application Support/Akoya/Models` | `%LocalAppData%\Akoya\models\` (outside Velopack's `current`, so updates keep it) | Different on purpose (platform folders) |
 | Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Missing on Mac (unclear if Core ML needs it) |
 | Hardware | Core ML (compute units chosen by FluidAudio, unclear) | CPU only, half the logical cores and at most 8 threads; a provider setting (Auto / Cpu) exists in settings.json but is ignored. A GPU path was measured and is not worth building yet (docs/superpowers/plans/2026-10-21-akoya-windows-gpu.md) | Different on purpose (CPU already transcribes a 7 s dictation in about 0.3 s) |
@@ -173,7 +173,7 @@ Every user-visible string not already quoted above, with when it appears.
 | "Couldn't paste" | None | Red, another app holds the clipboard, 1.6 s | Different on purpose (no pasteboard lock on Mac) |
 | "Microphone not detected" | None | Red pill (saved mic or every mic missing, 1.6 s); also the tray status | Different on purpose (see Microphone) |
 | "Turn on your mic in Settings" | None | Red pill, privacy switch off, 1.6 s | Different on purpose (see Microphone) |
-| "Getting the speech model ready…" | Onboarding footer (with %) | Blue pill on a press while loading (1.6 s); tray status (with %); Try it card (with %) | Different on purpose (see Dictation) |
+| "Getting the speech model ready…" | Onboarding footer (with %) | Blue pill on a press while loading (1.6 s); tray status (with %); under the Try it waveform, whose dots fill with the download (with %) | Different on purpose (see Dictation) |
 | "Speech model failed" | None | Red pill on a press after the model failed, 1.6 s | Different on purpose (see Dictation) |
 | Model failed (panel) | Chip "Model failed" with "Retry" | Status "Model download failed" (download) or "Speech model failed" (load; Retry loads the same files again, and when they fail a second time the model folder is deleted so Retry downloads it again) with "Retry" | Different on purpose (wording, unclear why) |
 | "Setup needed" | Chip, a permission is missing, with "Finish setup" | Not applicable | Different on purpose (no permissions on Windows) |
