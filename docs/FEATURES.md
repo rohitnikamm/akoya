@@ -188,6 +188,7 @@ Every user-visible string not already quoted above, with when it appears.
 | Feature | Mac | Windows | Status |
 | --- | --- | --- | --- |
 | Requirements | macOS 14 or later, Apple Silicon only | Windows 11 target, self-contained win-x64 (no .NET install) | Different on purpose (platforms) |
+| App icon | The dot logo on a navy rounded square (`Resources/AppIcon.icns`, made by `scripts/make-icon.swift`) | The same artwork as `Assets/akoya-app.ico` (16 to 256 px; 16 to 32 px drawn dot by dot so the dots stay sharp; made by `windows/scripts/make-app-icon.ps1`): Akoya.exe, the Start menu, the taskbar, Task Manager, Settings › Apps and Setup.exe | Same |
 | Install | `brew install --cask rohitnikamm/tap/akoya` (the cask downloads the release zip) | `Akoya-win-Setup.exe` from the GitHub release ("Akoya for Windows"), per user, no admin prompt, Start menu entry and uninstaller | Different on purpose (platform conventions) |
 | Unsigned | Not notarized; the cask clears the quarantine flag, so no Gatekeeper warning | Not code-signed; SmartScreen: "More info", then "Run anyway" once | Same |
 | Updates | `brew upgrade`; no in-app check | In-app: checks GitHub releases at launch and every 6 h, downloads in the background, "Update ready" with "Restart" in the tray; Restart waits for a transcription to finish and cancels a recording; copies not installed by Setup.exe never update | Missing on Mac (in-app update check) |
