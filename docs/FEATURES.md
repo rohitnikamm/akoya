@@ -76,7 +76,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and in setup's Try it card | Same |
 | Where | `~/Library/Application Support/Akoya/Models` | `%LocalAppData%\Akoya\models\` (outside Velopack's `current`, so updates keep it) | Different on purpose (platform folders) |
 | Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Missing on Mac (unclear if Core ML needs it) |
-| Hardware | Core ML (compute units chosen by FluidAudio, unclear) | CPU only; a provider setting (Auto / Cpu) exists in settings.json but is ignored | Different on purpose (Windows spec: v1 CPU-only, GPU later) |
+| Hardware | Core ML (compute units chosen by FluidAudio, unclear) | CPU only, half the logical cores and at most 8 threads; a provider setting (Auto / Cpu) exists in settings.json but is ignored. A GPU path was measured and is not worth building yet (docs/superpowers/plans/2026-10-21-akoya-windows-gpu.md) | Different on purpose (CPU already transcribes a 7 s dictation in about 0.3 s) |
 | Silk folder migration | Moves `~/Library/Application Support/Silk/Models` to the Akoya folder once | Not applicable | Different on purpose (Windows never had Silk) |
 
 ## Recording indicator
