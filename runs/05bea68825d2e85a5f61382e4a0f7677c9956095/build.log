@@ -1,0 +1,15 @@
+  Determining projects to restore...
+  Restored D:\a\akoya\akoya\windows\src\Akoya.Core\Akoya.Core.csproj (in 223 ms).
+  Restored D:\a\akoya\akoya\windows\src\Akoya.App\Akoya.App.csproj (in 6.73 sec).
+  Restored D:\a\akoya\akoya\windows\tests\Akoya.Core.Tests\Akoya.Core.Tests.csproj (in 6.94 sec).
+  Restored D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\Akoya.App.Tests.csproj (in 6.95 sec).
+  Akoya.Core -> D:\a\akoya\akoya\windows\src\Akoya.Core\bin\Release\net10.0\Akoya.Core.dll
+  Akoya.Core.Tests -> D:\a\akoya\akoya\windows\tests\Akoya.Core.Tests\bin\Release\net10.0\Akoya.Core.Tests.dll
+  Akoya.App -> D:\a\akoya\akoya\windows\src\Akoya.App\bin\Release\net10.0-windows\win-x64\Akoya.App.dll
+  Akoya.App.Tests -> D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\bin\Release\net10.0-windows\win-x64\Akoya.App.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:28.37

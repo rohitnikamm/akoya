@@ -1,0 +1,10 @@
+exit code: 0
+--- akoya.log ---
+2026-10-22 02:10:51.948 +00:00 INFO Smoke run: models at C:\Users\runneradmin\AppData\Local\Temp\akoya-smoke-models-4516
+2026-10-22 02:10:52.254 +00:00 INFO Akoya 1.0.0.0 starting
+2026-10-22 02:10:52.796 +00:00 INFO Downloading the speech model
+2026-10-22 02:10:52.814 +00:00 INFO Not installed by Setup.exe; updates off
+2026-10-22 02:10:57.811 +00:00 INFO Smoke run finished
+2026-10-22 02:10:57.813 +00:00 INFO Akoya stopping
+
+PASSED
