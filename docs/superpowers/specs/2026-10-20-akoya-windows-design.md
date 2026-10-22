@@ -67,8 +67,12 @@ windows/
 - `DictationCoordinator`: the state machine (`Idle`, `Recording`, `Transcribing`, `Pasted`,
   `Error`, `MicMissing`). Hold ≥ 0.30 s = push-to-talk; shorter = latched hands-free, next press
   stops. Esc cancels. 300 s max recording auto-stops. Silence gate: if the loudest level step never
-  exceeds 2 (≈ −44 to −39 dBFS; same `LevelMeter` steps as the Mac) nothing is transcribed and the
-  pill just fades. Practice destination for setup's Try it (text goes to the card, with a live
+  exceeds 1 (below ≈ −44 dBFS, where the pill's waveform stays flat; same `LevelMeter` steps as the
+  Mac) nothing is transcribed and the pill just fades. Whatever moves the pill is transcribed: quiet
+  speech at step 2 (≈ −44 to −39 dBFS) used to be thrown away while the pill showed it (Rohit,
+  2026-10-21). In such a quiet take, a transcript that is only a filler word Parakeet invents for
+  near-silence ("Okay.", "Thank you.", "Yeah.") is dropped. Each take's peak level is logged, never
+  its words. Practice destination for setup's Try it (text goes to the card, with a live
   preview every 100 ms like the Mac's `LivePreviewScheduler`; never two transcriptions at once).
   Trailing space after pasted text, as on the Mac.
 - Ports (interfaces) mirroring the Mac's `Ports.swift`: `IAudioRecorder` (start/stop/snapshot/

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Akoya.App.Pill;
 using Akoya.App.Platform;
 using Akoya.Core.Audio;
@@ -128,6 +129,7 @@ public sealed class AppHost : IDisposable
         _coordinator.PhaseChanged += OnPhaseChanged;
         _coordinator.Level += OnLevel;
         _coordinator.Faulted += OnFaulted;
+        _coordinator.TakeEnded += OnTakeEnded;
         _p.Microphones.Changed += OnMicrophonesChanged;
         _p.Session.Locked += OnSessionLocked;
         _p.Session.Unlocked += OnSessionUnlocked;
@@ -214,6 +216,7 @@ public sealed class AppHost : IDisposable
             if (_coordinator.Phase == DictationPhase.Recording) _coordinator.Handle(HotkeyEvent.Cancel);
         }, "cancel the recording");
         _coordinator.Faulted -= OnFaulted;
+        _coordinator.TakeEnded -= OnTakeEnded;
 
         Try(() => _hook?.Dispose(), "release the keyboard hook");
         _hook = null;
@@ -335,6 +338,11 @@ public sealed class AppHost : IDisposable
     }
 
     private void OnFaulted(Exception e) => _p.Log.Error("Dictation fault", e);
+
+    /// <summary>Each take's peak level, to tune the silence gate with real data (never the words).</summary>
+    private void OnTakeEnded(int step, double peakDb, bool transcribed) =>
+        _p.Log.Info(string.Create(CultureInfo.InvariantCulture,
+            $"Take: peak {(double.IsFinite(peakDb) ? peakDb.ToString("0", CultureInfo.InvariantCulture) : "-inf")} dBFS (level {step}); {(transcribed ? "transcribing" : "silent, skipped")}"));
 
     private void StartFrames()
     {

@@ -23,8 +23,8 @@ public class LivePreviewSchedulerTests
     public void WaitsForSpeech()
     {
         var scheduler = new LivePreviewScheduler();
-        Assert.False(scheduler.ShouldRun(At(0), Audio(2000), loudestStep: 2, inFlight: false));
-        Assert.True(scheduler.ShouldRun(At(0), Audio(2000), loudestStep: 3, inFlight: false));
+        Assert.False(scheduler.ShouldRun(At(0), Audio(2000), loudestStep: 1, inFlight: false));
+        Assert.True(scheduler.ShouldRun(At(0), Audio(2000), loudestStep: 2, inFlight: false));
     }
 
     [Fact]

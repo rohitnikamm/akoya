@@ -18,7 +18,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Tap to latch (hands-free) | Release under 0.30 s: keeps recording; the next press stops | Same | Same |
 | Esc cancels | Esc while recording (held or latched) cancels, nothing pasted; Esc is swallowed only while recording. A long-held Esc may still auto-repeat into the app | Same; Esc auto-repeat is swallowed too | Same |
 | Max length | 300 s, then stops as if released and pastes | Same | Same |
-| Silence gate | Loudest level step never above 2 (about -44 to -39 dBFS): not transcribed, brief red error cue | Same gate; the pill just fades, no cue | Different on purpose (Windows spec: a silent take fades quietly) |
+| Silence gate | Loudest level step never above 2 (about -44 to -39 dBFS): not transcribed, brief red error cue | Lower: only a take that never moved the pill (loudest step 1, below about -44 dBFS) counts as silence, and it just fades, no cue. Quiet speech (step 2) is transcribed; a quiet take whose whole text is a filler word the model invents for near-silence ("Okay.", "Thank you.") is dropped. Each take's peak level is logged | Missing on Mac (the Mac drops quiet speech that its waveform shows; port open) |
 | Empty transcript | Red error cue (0.6 s), nothing pasted | Pill fades, nothing pasted | Different on purpose (Windows spec) |
 | Transcription error | Red error cue | Pill fades (logged) | Different on purpose (Windows spec) |
 | Press while model not ready | Ignored with the red error cue | Pill shows "Getting the speech model ready…" (blue, 1.6 s), or red "Speech model failed" if it failed; nothing recorded | Different on purpose (the pill has room for words) |
@@ -219,6 +219,7 @@ Every user-visible string not already quoted above, with when it appears.
 
 ## Open differences
 
+- Dictation: quiet speech that moves the waveform is transcribed (Missing on Mac)
 - Dictation: the dictated text stays on the clipboard (Missing on Mac)
 - Dictation: paste blocked fallback (Missing on Mac)
 - Dictation: screen lock mid-dictation (Missing on Mac)

@@ -273,6 +273,22 @@ public class AppHostFinalFixTests
         });
     }
 
+    [Fact]
+    public void EachTake_LogsItsPeakLevel_NeverTheWords()
+    {
+        UiThread.Run(() =>
+        {
+            using var rig = new HostRig();
+            var host = rig.Start();
+
+            Dictate(rig, host);
+
+            var line = Assert.Single(rig.Log.Infos, l => l.Contains("Take:", StringComparison.Ordinal));
+            Assert.Matches(@"Take: peak -?\d+ dBFS \(level \d\); transcribing$", line);
+            Assert.DoesNotContain("hello world", string.Join("\n", rig.Log.Infos)); // the fake's transcript
+        });
+    }
+
     private static void Dictate(HostRig rig, AppHost host, DictationPhase until = DictationPhase.Pasted)
     {
         rig.Hook.Fire(HotkeyEvent.Pressed);

@@ -58,10 +58,22 @@ public sealed class DictationCoordinator
 
     /// <summary>
     /// A recording whose loudest <see cref="LevelMeter.Step"/> never rose above this is silence
-    /// and is not transcribed: Parakeet invents text such as "Okay." for silent audio. Step 2 is
-    /// roughly -44 to -39 dBFS.
+    /// and is not transcribed: Parakeet invents text such as "Okay." for silent audio. Step 1 is
+    /// below about -44 dBFS, where the pill's waveform stays flat, so whatever moves the pill is
+    /// transcribed (quiet speech at step 2 used to be thrown away while the pill showed it).
     /// </summary>
-    public const int SilenceMaxStep = 2;
+    public const int SilenceMaxStep = 1;
+
+    /// <summary>
+    /// A take whose loudest step is at most this (about -44 to -39 dBFS) is quiet: a transcript that
+    /// is only a filler word Parakeet invents for near-silence ("Okay.", "Thank you.") is dropped.
+    /// </summary>
+    public const int QuietMaxStep = 2;
+
+    private static readonly HashSet<string> InventedForSilence = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "okay", "ok", "thank you", "thanks", "yeah", "you", "bye", "mm", "mmhmm", "hmm", "uh", "um", "oh",
+    };
 
     public static readonly TimeSpan PastedDisplay = TimeSpan.FromMilliseconds(900);
     public static readonly TimeSpan AlertDisplay = TimeSpan.FromMilliseconds(1600);
@@ -81,6 +93,9 @@ public sealed class DictationCoordinator
 
     /// <summary>Loudest level step seen in the current recording.</summary>
     private int _loudestStep = 1;
+
+    /// <summary>Loudest level (RMS) seen in the current recording, for <see cref="TakeEnded"/>.</summary>
+    private float _loudestRms;
 
     /// <summary>True once a quick tap released the key: the next press stops.</summary>
     private bool _latched;
@@ -130,6 +145,12 @@ public sealed class DictationCoordinator
     /// threw). For logging: the phase has already moved on as documented.
     /// </summary>
     public event Action<Exception>? Faulted;
+
+    /// <summary>
+    /// A recording stopped (not cancelled): its loudest level step, its peak level in dBFS, and whether it goes on to be
+    /// transcribed (false: it was silence). For the log, so the silence gate can be tuned; never carries the words.
+    /// </summary>
+    public event Action<int, double, bool>? TakeEnded;
 
     /// <summary>
     /// When the current recording started (from <see cref="IScheduler.Now"/>). Set while
@@ -221,6 +242,7 @@ public sealed class DictationCoordinator
 
         _generation++;
         _loudestStep = 1;
+        _loudestRms = 0;
         _latched = false;
         _lockedWhileTranscribing = false;
         _preview = new LivePreviewScheduler();
@@ -286,7 +308,9 @@ public sealed class DictationCoordinator
     {
         EndRecordingTimers();
         var silent = _loudestStep <= SilenceMaxStep; // nothing was said: the pill just fades
+        var quiet = _loudestStep <= QuietMaxStep;
         var destination = _destination;
+        TakeEnded?.Invoke(_loudestStep, _loudestRms > 0 ? 20 * Math.Log10(_loudestRms) : double.NegativeInfinity, !silent);
         SetPhase(silent ? DictationPhase.Idle : DictationPhase.Transcribing);
         float[] samples;
         try
@@ -304,7 +328,7 @@ public sealed class DictationCoordinator
         Level?.Invoke(0);
         if (!silent)
         {
-            _ = FinishAsync(samples, destination);
+            _ = FinishAsync(samples, destination, quiet);
         }
         else if (destination is Destination.Practice practice)
         {
@@ -320,11 +344,11 @@ public sealed class DictationCoordinator
         }
     }
 
-    private async Task FinishAsync(float[] samples, Destination destination)
+    private async Task FinishAsync(float[] samples, Destination destination, bool quiet)
     {
         try
         {
-            await DeliverAsync(samples, destination);
+            await DeliverAsync(samples, destination, quiet);
         }
         catch (Exception e)
         {
@@ -335,7 +359,7 @@ public sealed class DictationCoordinator
         }
     }
 
-    private async Task DeliverAsync(float[] samples, Destination destination)
+    private async Task DeliverAsync(float[] samples, Destination destination, bool quiet)
     {
         // A partial pass may still be running; never run two transcriptions at once.
         if (_inFlight is { } partial)
@@ -354,6 +378,7 @@ public sealed class DictationCoordinator
         try
         {
             text = (await TranscribeExclusive(samples)).Trim();
+            if (quiet && IsInventedForSilence(text)) text = ""; // room noise in a quiet take, not words
         }
         catch (Exception e)
         {
@@ -496,7 +521,20 @@ public sealed class DictationCoordinator
         if (Phase != DictationPhase.Recording)
             return;
         _loudestStep = Math.Max(_loudestStep, LevelMeter.Step(rms));
+        if (rms > _loudestRms) _loudestRms = rms;
         Level?.Invoke(rms);
+    }
+
+    /// <summary>The whole transcript is a filler word Parakeet invents for near-silence, ignoring case and punctuation.</summary>
+    private static bool IsInventedForSilence(string text)
+    {
+        var words = new System.Text.StringBuilder(text.Length);
+        foreach (var ch in text)
+        {
+            if (char.IsLetter(ch)) words.Append(char.ToLowerInvariant(ch));
+            else if (char.IsWhiteSpace(ch) && words.Length > 0 && words[^1] != ' ') words.Append(' ');
+        }
+        return InventedForSilence.Contains(words.ToString().Trim());
     }
 
     private void OnAudioInterrupted()
