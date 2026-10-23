@@ -9,6 +9,8 @@ final class PillDisplay: ObservableObject {
     @Published var isShown = false
     /// When the running pop-in began; nil once it has settled.
     @Published var popInStartedAt: Date?
+    /// True while the panel is ordered in; nothing animates while it is off screen.
+    @Published var isOnScreen = false
     /// Read at each show: the pop-in becomes a plain fade.
     var reduceMotion = false
     var recordingStartedAt = Date()
@@ -31,8 +33,8 @@ struct PillView: View {
 
     var body: some View {
         // Only the waveform, the scanner, the timer and the pop-in change with time.
-        let ticking = display.content == .listening || display.content == .transcribing
-            || display.popInStartedAt != nil
+        let ticking = display.isOnScreen
+            && (display.content == .listening || display.content == .transcribing || display.popInStartedAt != nil)
         TimelineView(.animation(paused: !ticking)) { timeline in
             pill(now: timeline.date)
         }
@@ -157,7 +159,7 @@ private struct PillBackground: View {
     /// CSS `0 12px 40px` glow over `0 8px 24px` black, drawn only outside the capsule as CSS draws
     /// outer box-shadows (the glass is slightly see-through). Shadow radius is half the CSS blur.
     private var outerShadows: some View {
-        let margin: CGFloat = 60
+        let margin = PillPanelController.glowMargin
         let glow = isAlert ? Color(rgba: 239, 68, 68, 0.28) : Color(rgba: 47, 107, 255, 0.32)
         return ZStack {
             Capsule().fill(.black).shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 8)

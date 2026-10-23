@@ -68,6 +68,7 @@ public final class PillPanelController {
         display.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         display.isShown = true
         display.popInStartedAt = Date()
+        display.isOnScreen = true
         panel.orderFrontRegardless()
         let mine = generation
         let duration = display.reduceMotion ? Self.reduceMotionFade : PillPopIn.duration
@@ -84,6 +85,7 @@ public final class PillPanelController {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             display.isShown = false
             display.popInStartedAt = nil
+            display.isOnScreen = false
             panel.orderOut(nil)
             return
         }
@@ -93,6 +95,7 @@ public final class PillPanelController {
             try? await Task.sleep(for: .seconds(PillHide.duration))
             guard let self, self.generation == mine else { return }
             self.display.popInStartedAt = nil
+            self.display.isOnScreen = false
             self.panel.orderOut(nil)
         }
     }
