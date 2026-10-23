@@ -63,6 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         super.init()
         coordinator.isReady = { [weak self] in self?.modelState == .ready }
+        coordinator.isModelFailed = { [weak self] in
+            if case .failed = self?.modelState { true } else { false }
+        }
+        coordinator.usesPill = { settings.indicator == .pill }
         onboarding.retryModel = { [weak self] in self?.prepareModel() }
     }
 

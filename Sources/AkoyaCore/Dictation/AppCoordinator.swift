@@ -13,6 +13,9 @@ import Foundation
 ///
 /// The hotkey is hold-or-tap: releasing after `holdThreshold` stops (push-to-talk); releasing
 /// sooner latches the recording on, and the next press stops it. Esc cancels either way.
+///
+/// In pill mode (`usesPill()` at the press) there is no `.error` phase: every dictation goes
+/// straight back to `.idle` and reports exactly one `DictationOutcome`, which the pill shows.
 @MainActor
 public final class AppCoordinator {
     /// A recording whose loudest level step (see `LevelMeter.step(forRMS:)`) never rose above
@@ -57,6 +60,9 @@ public final class AppCoordinator {
     /// last dictation instead of being pasted into a screen the user cannot see.
     private var holdsResult = false
 
+    /// `usesPill()` as read at the press that started the current dictation.
+    private var isPillDictation = false
+
     /// The in-flight transcription/insert task (or error-cue task). Test hook.
     var pendingWork: Task<Void, Never>?
 
@@ -69,6 +75,15 @@ public final class AppCoordinator {
 
     /// Presses are ignored while this returns false (e.g. the model is still downloading).
     public var isReady: () -> Bool = { true }
+
+    /// Read at each press: whether this dictation reports to the pill instead of the menu bar.
+    public var usesPill: () -> Bool = { false }
+
+    /// Whether the speech model failed to load, so a press shows that instead of "loading".
+    public var isModelFailed: () -> Bool = { false }
+
+    /// How each pill-mode dictation ended (never for practice).
+    public var onOutcome: (DictationOutcome) -> Void = { _ in }
 
     public var phase: DictationPhase { model.phase }
     public var isRecording: Bool { model.phase == .recording }
@@ -98,8 +113,9 @@ public final class AppCoordinator {
     public func handle(_ event: HotkeyEvent) {
         switch (event, model.phase) {
         case (.pressed, .idle):
+            isPillDictation = usesPill()
             guard isReady() else {
-                showError()
+                fail(.message(isModelFailed() ? .modelFailed : .modelLoading))
                 return
             }
             startRecording()
@@ -143,8 +159,11 @@ public final class AppCoordinator {
         model.pillColumns = pillMeter.columns
         do {
             try audio.start()
+        } catch AudioCaptureError.microphoneNotAuthorized {
+            fail(.message(.micBlocked))
+            return
         } catch {
-            showError()
+            fail(.message(.micMissing))
             return
         }
         isLatched = false
@@ -160,6 +179,7 @@ public final class AppCoordinator {
         audio.cancel()
         model.voiceLevel = 0
         model.phase = .idle
+        if isPillDictation { report(.dismissed, for: destination) }
     }
 
     private func stopRecording() {
@@ -169,13 +189,14 @@ public final class AppCoordinator {
         model.voiceLevel = 0
         let destination = destination
         guard loudestStep > Self.silenceMaxStep else {
-            showError() // nothing was said; treat it like an empty transcript
+            fail(.dismissed) // nothing was said; treat it like an empty transcript
             return
         }
         model.phase = .transcribing
         holdsResult = false
         let transcriber = transcriber
         let inserter = inserter
+        let isPill = isPillDictation
         // A partial pass may still be running; never run two transcriptions at once.
         let partial = pendingPreview
         pendingWork = Task {
@@ -186,21 +207,24 @@ public final class AppCoordinator {
                 switch destination {
                 case .paste where holdsResult:
                     if !trimmed.isEmpty { model.lastDictation = trimmed }
+                    if isPill { return report(.dismissed, for: destination) }
                 case .paste:
-                    guard !trimmed.isEmpty else { return await flashError() }
+                    guard !trimmed.isEmpty else { return await fail(.dismissed, isPill, destination) }
                     try await inserter.insert(trimmed + " ")
                     model.lastDictation = trimmed
+                    if isPill { return report(.pasted, for: destination) }
                 case .practice(let onText):
                     onText(trimmed, true)
-                    guard !trimmed.isEmpty else { return await flashError() }
+                    guard !trimmed.isEmpty else { return await fail(.dismissed, isPill, destination) }
                 }
                 model.phase = .idle
             } catch {
                 guard !holdsResult else {
                     model.phase = .idle
+                    if isPill { report(.dismissed, for: destination) }
                     return
                 }
-                await flashError()
+                await fail(.dismissed, isPill, destination)
             }
         }
     }
@@ -275,7 +299,34 @@ public final class AppCoordinator {
         stopRecording()
     }
 
-    // MARK: - Error cue
+    // MARK: - Outcomes and error cue
+
+    /// Ends a pill-mode dictation: straight back to `.idle`, then the outcome is reported.
+    /// Practice reports nothing; its Try it card is the feedback.
+    private func report(_ outcome: DictationOutcome, for destination: Destination) {
+        model.phase = .idle
+        if case .practice = destination { return }
+        onOutcome(outcome)
+    }
+
+    /// A dictation that ended without text: the pill's outcome, or the menu bar's error cue.
+    private func fail(_ outcome: DictationOutcome) {
+        if isPillDictation {
+            report(outcome, for: destination)
+        } else {
+            showError()
+        }
+    }
+
+    /// `fail` inside the transcription task, with the indicator and destination it captured.
+    private func fail(_ outcome: DictationOutcome, _ isPill: Bool,
+                      _ destination: Destination) async {
+        if isPill {
+            report(outcome, for: destination)
+        } else {
+            await flashError()
+        }
+    }
 
     /// Shows `.error` for `errorDisplay` seconds, then returns to `.idle`.
     private func flashError() async {
