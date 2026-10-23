@@ -72,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
+        settings.$indicator.assign(to: &model.$indicator)
 
         refreshInputs()
         inputDevicesObservation = AudioDevices.observeChanges { [weak self] in self?.refreshInputs() }

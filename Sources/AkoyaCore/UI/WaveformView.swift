@@ -11,6 +11,9 @@ public final class WaveformModel: ObservableObject {
     @Published public var look: WaveLook = .pixel
     @Published public var redTint = false
     @Published public var hideIdleIcon = false
+    /// Where dictation shows. Defaults to `.menuBar` so the model alone behaves as it always
+    /// did; the app binds `AkoyaSettings.indicator` (default `.pill`) to it.
+    @Published public var indicator: DictationIndicator = .menuBar
     /// Set by `StatusItemController` while the item cross-fades from one content to another;
     /// nil otherwise.
     @Published public var fade: ContentFade?
@@ -239,7 +242,8 @@ public struct WaveformView: View {
         // Only the scanner, the error flash and a cross-fading scanner depend on elapsed time;
         // other states redraw from model changes alone, so the timeline stays paused to keep
         // an idle menu bar free.
-        let animating = model.phase == .transcribing || model.phase == .error || model.fade?.from == .scanner
+        let phase = WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator)
+        let animating = phase == .transcribing || phase == .error || model.fade?.from == .scanner
         TimelineView(.animation(paused: !animating)) { timeline in
             Canvas { context, size in
                 draw(into: &context, size: size, now: timeline.date)
@@ -249,10 +253,11 @@ public struct WaveformView: View {
 
     private func draw(into context: inout GraphicsContext, size: CGSize, now: Date) {
         context.clip(to: Path(CGRect(origin: .zero, size: size)))
-        let current = StatusItemContent(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
+        let phase = WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator)
+        let current = StatusItemContent(phase: phase, hideIdleIcon: model.hideIdleIcon)
         let elapsed = now.timeIntervalSince(model.phaseEnteredAt)
         let glyphColor: Color =
-            model.phase == .error && elapsed < WaveformLayout.errorFlashDuration ? .red : .primary
+            phase == .error && elapsed < WaveformLayout.errorFlashDuration ? .red : .primary
         if let fade = model.fade {
             drawContent(
                 fade.from, opacity: 1 - fade.progress, elapsed: now.timeIntervalSince(fade.fromPhaseEnteredAt),

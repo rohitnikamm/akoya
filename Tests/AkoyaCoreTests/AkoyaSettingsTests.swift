@@ -8,6 +8,19 @@ struct AkoyaSettingsTests {
         UserDefaults(suiteName: "akoya-test-\(UUID())")!
     }
 
+    @Test func indicatorDefaultsToPill() {
+        let settings = AkoyaSettings(defaults: makeDefaults())
+        #expect(settings.indicator == .pill)
+    }
+
+    @Test func indicatorPersistsAndBadValuesFallBackToPill() {
+        let defaults = makeDefaults()
+        AkoyaSettings(defaults: defaults).indicator = .menuBar
+        #expect(AkoyaSettings(defaults: defaults).indicator == .menuBar)
+        defaults.set("banana", forKey: "akoya.indicator")
+        #expect(AkoyaSettings(defaults: defaults).indicator == .pill)
+    }
+
     @Test func defaultsMatchSpec() {
         let settings = AkoyaSettings(defaults: makeDefaults())
         #expect(settings.hotkey == .rightOption)
