@@ -1,0 +1,209 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap"><style>
+body{margin:0;background:radial-gradient(circle at 20% 80%,#0d1a3a 0,transparent 50%),#05070d;font-family:Outfit,system-ui,sans-serif;color:#fff;padding:36px 40px;width:1180px;box-sizing:border-box}
+.cap{font-size:13px;color:#8b93a7;margin-bottom:12px}
+.panel{position:relative;width:320px;padding:14px;box-sizing:border-box;border-radius:30px;background:linear-gradient(180deg,#0E1424,#070A12);box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;gap:10px}
+.card{position:relative;overflow:hidden;border-radius:24px;padding:16px 16px 14px;background:radial-gradient(ellipse at 50% 0%,rgba(40,90,200,.22) 0,transparent 62%),#03060F;display:flex;flex-direction:column;align-items:center;gap:8px}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.2px);background-size:10px 10px}
+.row{position:relative;width:100%;display:flex;align-items:center;justify-content:space-between}
+.wm{font-weight:600;font-size:14px}
+.chip{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.78)} .chip i{width:7px;height:7px;border-radius:4px;background:#93C5FD;box-shadow:0 0 6px #60A5FA}
+.logo{position:relative;height:44px;display:flex;align-items:center;margin:2px 0}
+.hint{position:relative;font-size:13px;color:rgba(255,255,255,.78);display:flex;align-items:center;gap:7px}
+.kc{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 10px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-weight:600;color:#fff} .kc b{font-size:9px;color:rgba(255,255,255,.6);font-weight:400}
+.kc-open{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.sub{position:relative;font-size:11.5px;color:rgba(255,255,255,.55)}
+.last{padding:12px 14px;border-radius:20px;background:rgba(30,36,58,.55);display:flex;flex-direction:column;gap:6px}
+.lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:500} .copy{font-size:12px;color:#93C5FD}
+.txt{font-size:13px;line-height:1.4;color:rgba(255,255,255,.9)}
+.group{border-radius:18px;background:rgba(30,36,58,.55);padding:2px 0}
+.gi{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:13px}
+.gl{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.88)} .gl svg{color:rgba(255,255,255,.6)}
+.gv{color:rgba(255,255,255,.62);font-size:12.5px} .gv b{font-size:9px;font-weight:400}
+.sep{height:1px;margin:0 14px;background:rgba(255,255,255,.07)}
+.sw{width:34px;height:20px;border-radius:10px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);position:relative}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:rgba(255,255,255,.55)}
+.sw.on{background:rgba(255,255,255,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)} .sw.on i{left:16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.quit{display:flex;justify-content:space-between;padding:6px 14px 4px;font-size:13px;color:rgba(255,255,255,.62)} .sc{color:rgba(255,255,255,.4)}
+.mi{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;color:rgba(255,255,255,.88)} .mi span:first-child{flex-grow:1}
+.mi.sel{background:rgba(255,255,255,.10)} .mi .k{color:rgba(255,255,255,.5);width:14px;text-align:center} .mi .ck{width:12px;color:#fff}
+.sub2{margin:0 10px 6px;padding:2px 0;border-radius:12px;background:rgba(255,255,255,.035)}
+.gi.in{padding:8px 12px}
+.gl2{font-size:12.5px;color:rgba(255,255,255,.8)}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:12px}
+.seg span{padding:3px 10px;border-radius:6px;color:rgba(255,255,255,.55)}
+.seg span.on{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);color:#fff;font-weight:600}
+.note{padding:2px 12px 8px;font-size:11px;color:rgba(255,255,255,.5)}
+h1{font-size:20px;font-weight:600;margin:0 0 6px}
+p.lead{margin:0 0 26px;color:#8b93a7;font-size:13px;max-width:1080px;line-height:1.55}
+.cols{display:grid;grid-template-columns:repeat(3,320px);gap:26px 60px;align-items:start}
+.state{font-size:12.5px;color:#dbe3f5;font-weight:600;margin:0 0 8px}
+.note{font-size:11.5px;color:#8b93a7;line-height:1.5;margin-top:9px;padding:0 4px}
+.note em{font-style:normal;color:#b9c2d6}
+.holder{width:320px;padding:14px;box-sizing:border-box;border-radius:30px;background:linear-gradient(180deg,#0E1424,#070A12)}
+canvas.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.card.c1{height:136px;box-sizing:border-box;padding:0;display:block;background:radial-gradient(ellipse at 50% 0%,rgba(40,90,200,.12) 0,transparent 60%),#03060F}
+.card.c1.s-failed,.card.c1.s-setup{background:#03060F}
+.logo{position:absolute;z-index:1;top:36px;left:50%;transform:translateX(-50%);height:56px;display:flex;align-items:center;gap:4px;margin:0}
+.logo .col{display:flex;flex-direction:column;gap:4px}
+.logo i{display:block;width:6px;height:6px;border-radius:3px;background:#96ACD6}
+.ln{position:absolute;z-index:1;left:0;right:0;top:97px;height:24px;display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:12.5px;color:rgba(255,255,255,.7);white-space:nowrap}
+.ln.on{color:rgba(255,255,255,.9)} .ln.am{color:#FBBF24;font-weight:500}
+.ln .mid{color:rgba(255,255,255,.4);margin:0 2px} .ln b.tab{font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+.ln .err{color:#FCA5A5} .ln .warn{color:rgba(251,191,36,.9)}
+.ln .lnk{color:#7DB4FF;font-weight:500;margin-left:4px}
+.kc{position:relative;display:inline-flex;align-items:center;gap:4px;height:24px;box-sizing:border-box;padding:0 5px;margin:0 -3px;border-radius:6px;color:#fff;font-weight:600;background:none;border:0}
+.kc::after{content:"";position:absolute;left:5px;right:17px;top:19px;height:1px;background:rgba(255,255,255,.3)}
+.kc svg{color:rgba(255,255,255,.6)}
+.kc.hov{background:rgba(255,255,255,.10)} .kc.hov::after{opacity:0}
+.kc.focus{box-shadow:0 0 0 2px rgba(125,180,255,.75)}
+.bar{position:absolute;z-index:1;left:50%;top:120px;transform:translateX(-50%);width:120px;height:2px;border-radius:1px;background:rgba(255,255,255,.12);overflow:hidden}
+.bar i{display:block;height:100%;background:#3D8BFF}
+.pop{position:absolute;width:212px;padding:5px;box-sizing:border-box;border-radius:12px;background:#161B2C;box-shadow:0 14px 34px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.09);z-index:5;font-size:13px}
+.pop .ph{padding:4px 8px 6px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.pop .tip{padding:7px 8px 4px;margin-top:4px;border-top:1px solid rgba(255,255,255,.07);font-size:11.5px;line-height:1.4;color:rgba(255,255,255,.55)}
+.pop .mi .k{text-align:right}
+</style></head>
+<body><h1>Direction 1 · A · One lit scene</h1>
+<p class="lead">The light and the logo are one material: every light character sits on the logo’s own 10 pt dot lattice (half-stepped), and the logo has no glow of its own, so it is lit only by the light above it. Inside the 136 pt card there is nothing but the light, the logo, one line of words and an underlined keycap: no buttons, pills, outlines, dots or icons. Errors and setup use plain text links, which is the bet this direction tests.</p>
+<div class="cols">
+<div class="st"><div class="state">Whole dropdown · Ready</div><div class="panel"><div class="card c1 s-ready" data-s="ready"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln">Hold <span class="kc">Right ⌥<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span> to talk</div></div>
+  <div class="last">
+    <div class="row"><span class="lbl">Last dictation</span><span class="copy">Copy</span></div>
+    <div class="txt">Okay, this is actually really smooth. I could get used to talking to my Mac.</div>
+  </div>
+  <div class="group">
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+    <div class="sep"></div><div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv">Pixel <b>›</b></span></div><div class="sep"></div>
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+  </div>
+  <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div></div><div class="note"><em>Light at rest:</em> four-ish rows of <code>· : + *</code>, stopping 4 pt above the logo; a soft wash carries on onto its top dots. Breathes ±10% over 4 s.</div></div>
+<div class="st"><div class="state">Keycap pressed · hotkey menu</div><div class="panel"><div class="card c1 s-ready" data-s="ready"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln">Hold <span class="kc hov focus">Right ⌥<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span> to talk</div></div><div class="pop"><div class="ph">Hotkey</div><div class="mi sel"><span>Right Option</span><span class="k">⌥</span><span class="ck">✓</span></div><div class="mi"><span>Right Command</span><span class="k">⌘</span><span class="ck"></span></div><div class="mi"><span>Right Control</span><span class="k">⌃</span><span class="ck"></span></div><div class="tip">Hold to talk, or tap once to start and again to stop.</div></div>
+  <div class="last">
+    <div class="row"><span class="lbl">Last dictation</span><span class="copy">Copy</span></div>
+    <div class="txt">Okay, this is actually really smooth. I could get used to talking to my Mac.</div>
+  </div>
+  <div class="group">
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="4.5" y="1" width="5" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 7a4.5 4.5 0 0 0 9 0M7 11.5V13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Microphone</span><span class="gv">MacBook Pro Mic <b>▾</b></span></div>
+    <div class="sep"></div><div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Menu bar icon</span><span class="gv">Pixel <b>›</b></span></div><div class="sep"></div>
+    <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+  </div>
+  <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div></div><div class="note">At rest the keycap is semibold with a 30% underline and an 8 pt chevron. Hover or press: a 10% chip (24 pt target), plus a 2 pt focus ring from the keyboard.</div></div>
+<div class="st"><div class="state">Transcribing · mid-sweep (0.6 s)</div><div class="holder"><div class="card c1 s-sweep" data-s="sweep"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln tw am" style="opacity:0">Transcribing…</div></div></div><div class="note">The amber front crosses the field in 1.2 s, then runs onto the logo dots. <em>No words yet</em>: a short clip only ever shows the amber light.</div></div>
+<div class="st"><div class="state">Listening · held</div><div class="holder"><div class="card c1 s-listen" data-s="listen"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln on">Listening… release to paste</div></div></div><div class="note"><em>1.6× brighter, 30% deeper</em>, reach follows the mic (80 ms up, 300 ms down). The logo’s top two dot rows take the light’s tint, brightest on the side facing it.</div></div>
+<div class="st"><div class="state">Listening · latched</div><div class="holder"><div class="card c1 s-latched" data-s="latched"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln on">Listening… press Right ⌥ to stop</div></div></div><div class="note">Same light. Only the instruction changes, because your finger is off the key.</div></div>
+<div class="st"><div class="state">Transcribing · rested</div><div class="holder"><div class="card c1 s-transcribe" data-s="transcribe"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln tw am">Transcribing…</div></div></div><div class="note">Once the sweep has passed, light and every logo dot rest in the pill’s amber #FBBF24. “Transcribing…” fades in after 1 s.</div></div>
+<div class="st"><div class="state">Downloading · 42%</div><div class="holder"><div class="card c1 s-download" data-s="download"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln on">Downloading speech model<span class="mid">·</span><b class="tab">42%</b></div><div class="bar"><i style="width:42%"></i></div></div></div><div class="note">Light at 40% and still. % in semibold tabular figures; a 120 × 2 pt hairline 6 pt under the line.</div></div>
+<div class="st"><div class="state">Speech model failed</div><div class="holder"><div class="card c1 s-failed" data-s="failed"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln"><span class="err">Speech model failed</span><span class="lnk">Retry</span></div></div></div><div class="note">Light drains to grey at 25%: no bloom, no drift; logo dots #6B7280. The Hold line is hidden. “Retry” is a link-blue text link, underlined on hover.</div></div>
+<div class="st"><div class="state">Setup needed</div><div class="holder"><div class="card c1 s-setup" data-s="setup"><div class="logo"><div class="col"><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i><i></i><i></i></div><div class="col"><i></i><i></i></div></div><div class="ln"><span class="warn">Akoya needs microphone access</span><span class="lnk">Finish setup ›</span></div></div></div><div class="note">Same grey card. The words name what is missing; “Finish setup ›” is a text link. The hotkey comes back once setup clears.</div></div>
+</div>
+<p class="note" style="margin-top:22px;max-width:1080px">Every state change is a 180 ms crossfade in place; the card is 136 pt in every state, so Last dictation never moves. Reduce Motion: one still average frame, no sweep (amber at once), same words.</p><script>
+const RAMPS={bars:['·','╷','╎','|','┃'],ramp:['·',':','+','*'],slash:['·',"'",'/','╱']};
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v=>(v+0.5)/16);
+const STOPS=[[0,[30,64,175]],[0.45,[59,130,246]],[0.8,[219,234,254]],[1,[238,244,255]]];
+function tint(b,S){S=S||STOPS;b=Math.max(0,Math.min(1,b));for(let i=1;i<S.length;i++)if(b<=S[i][0]){
+  const[a0,c0]=S[i-1],[a1,c1]=S[i],f=(b-a0)/(a1-a0);return c0.map((v,k)=>Math.round(v+(c1[k]-v)*f));}return S[S.length-1][1];}
+function h2(x,y){let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295;}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,s=t=>t*t*(3-2*t);
+  const a=h2(xi,yi),b=h2(xi+1,yi),c=h2(xi,yi+1),d=h2(xi+1,yi+1);
+  return a+(b-a)*s(xf)+(c-a)*s(yf)+(a-b-c+d)*s(xf)*s(yf);}
+function fbm(x,y){return 0.65*vnoise(x,y)+0.35*vnoise(x*2.1+7,y*2.1+3);}
+function smooth(e0,e1,x){const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0)));return t*t*(3-2*t);}
+
+const AMBER=[[0,[120,53,15]],[0.45,[251,191,36]],[0.8,[254,236,170]],[1,[255,248,226]]];
+const GREY=[[0,[52,58,72]],[0.5,[104,112,128]],[1,[168,174,188]]];
+const CFG={
+  ready:     {gain:1,   ry:44, maxY:31, live:1},
+  listen:    {gain:1.6, ry:57, maxY:46, live:1, voice:1},
+  latched:   {gain:1.6, ry:57, maxY:46, live:1, voice:1},
+  transcribe:{gain:1,   ry:44, maxY:31, live:1, sweep:1, at:3000},
+  sweep:     {gain:1,   ry:44, maxY:31, live:1, sweep:1, at:640},
+  download:  {gain:0.4, ry:44, maxY:31},
+  failed:    {gain:0.25,ry:44, maxY:31, grey:1},
+  setup:     {gain:0.25,ry:44, maxY:31, grey:1},
+};
+const T0=performance.now();
+// the pool: ragged, V-ish, densest at the top centre. Shape only; brightness is applied per state.
+function shape(x,y,W,cf,t,voice){
+  const cx=W/2, ry=cf.ry*(1+0.10*voice);
+  const dr=cf.live?3*Math.sin(t/4000*2*Math.PI):0;              // field drifts under 4 pt; glyphs never move
+  const v=Math.min(1,Math.max(0,y)/ry);
+  const rx=W*0.34*(1-0.55*v)*(1+0.06*voice)*(0.78+0.44*vnoise(y/9+4,(x>cx?7:1)+dr/30));                     // narrows with depth: a V
+  const e=Math.hypot((x-cx)/rx,(y+3)/ry);
+  if(e>=1)return 0;
+  const n=fbm((x+dr)/20,y/14), n2=fbm((x-dr)/64+5,y/48+2);
+  return Math.pow(1-e,0.62)*1.4*(0.35+0.9*n+0.25*n2);
+}
+function mix(a,b,f){return a.map((v,i)=>Math.round(v+(b[i]-v)*f));}
+function draw(card,t){
+  const s=card.dataset.s,cf=CFG[s];
+  let c=card.querySelector('canvas.fx');
+  if(!c){c=document.createElement('canvas');c.className='fx';card.prepend(c);card._off=document.createElement('canvas');card._bl=document.createElement('canvas');}
+  const W=card.clientWidth,H=card.clientHeight,dpr=2,off=card._off,bl=card._bl;
+  if(c.width!==W*dpr){c.width=off.width=bl.width=W*dpr;c.height=off.height=bl.height=H*dpr;}
+  const g=c.getContext('2d'),o=off.getContext('2d'),b2=bl.getContext('2d');
+  [g,o,b2].forEach(k=>{k.setTransform(dpr,0,0,dpr,0,0);k.clearRect(0,0,W,H);});
+  const cr=card.getBoundingClientRect();
+  if(!card._dots)card._dots=[...card.querySelectorAll('.logo i')].map(el=>{const r=el.getBoundingClientRect();
+    return{el,x:r.left-cr.left+r.width/2,y:r.top-cr.top+r.height/2};});
+  const dots=card._dots, cx=W/2, y0=Math.min(...dots.map(d=>d.y)), pitch=10;
+  const tt=cf.at!==undefined?cf.at:t-T0;                       // transcribing runs once from load, then rests
+  const tl=cf.live?t:0;
+  const breath=cf.live?1+0.10*Math.sin(t/4000*2*Math.PI):1;
+  const voice=cf.voice?0.55+0.45*Math.abs(Math.sin(t/430)*Math.sin(t/1170+1)):0;
+  const gain=cf.gain*breath*(cf.voice?0.9+0.2*voice:1);
+  const sx=cf.sweep?-40+(W+80)*Math.min(1,tt/1200):-1e4;       // amber front, left to right in 1.2 s
+  const pal=x=>cf.grey?GREY:(cf.sweep&&x<sx?AMBER:STOPS);
+  const band=x=>cf.sweep&&tt<1200?1+0.8*Math.exp(-Math.pow((x-sx)/26,2)):1;
+  const S=(x,y)=>shape(x,y,W,cf,tl,voice);
+  // 1. smooth wash: carries the light below the glyphs and onto the top of the logo
+  for(let y=0;y<H*0.62;y+=2)for(let x=0;x<W;x+=2){const b=S(x,y);if(b<0.02)continue;
+    const k=b*gain*band(x);const[r,gg,bb]=tint(Math.min(.62,k*0.42),pal(x));
+    g.fillStyle=`rgba(${r},${gg},${bb},${(0.22*Math.min(1,k)).toFixed(3)})`;g.fillRect(x,y,2,2);}
+  // 2. glyphs on the logo's own lattice: every 5 pt across and down, checkerboarded, so even cells sit on dot columns
+  o.font='500 8.5px "SF Mono",Menlo,monospace';o.textAlign='center';o.textBaseline='middle';
+  const R=['·',':','+','*'];
+  const dim=cf.grey?0.42:Math.min(1,0.45+0.55*cf.gain);
+  for(let j=-1;;j--){const y=y0+j*5; if(y<3)break;
+    for(let i=-30;i<=30;i++){ if((i+j)&1)continue; const x=cx+i*5; if(x<4||x>W-4)continue;
+      if(y>cf.maxY)continue;
+      if(y>y0-6&&Math.abs(x-cx)<=27)continue;                    // never on top of the logo; the wash does that
+      const b=S(x,y);
+      const thr=0.35+0.3*(vnoise(i*0.45+3,j*0.6+11)-0.5);      // value-noise edge, not a checker
+      let ch,a,k=b*gain*band(x);
+      if(b>=thr){ch=R[Math.min(3,Math.floor(smooth(thr,1.25,b)*4))];a=(0.28+0.62*smooth(thr,1.0,b))*dim;}
+      else if(b>0.08&&h2(i+40,j+90)>0.86){ch='·';a=0.32*dim;}       // sparse stray stars at the edge
+      else continue;
+      const[r,gg,bb]=tint(Math.min(cf.voice?0.8:0.74,0.22+k*0.42),pal(x));
+      o.fillStyle=`rgba(${r},${gg},${bb},${Math.min(1,a*band(x)).toFixed(3)})`;o.fillText(ch,x,y);
+      if(!cf.grey&&k>0.75){b2.fillStyle=`rgba(${r},${gg},${bb},${Math.min(1,(k-0.75)*0.9).toFixed(3)})`;
+        b2.beginPath();b2.arc(x,y,4,0,7);b2.fill();}
+    }}
+  // 3. wide soft bloom behind the brightest cells, then the sharp glyphs
+  g.save();g.setTransform(1,0,0,1,0,0);
+  if(!cf.grey){g.globalCompositeOperation='lighter';g.filter='blur(12px)';g.globalAlpha=0.55;g.drawImage(bl,0,0);
+    g.filter='blur(4px)';g.globalAlpha=0.35;g.drawImage(off,0,0);}
+  g.filter='none';g.globalAlpha=1;g.globalCompositeOperation='source-over';g.drawImage(off,0,0);g.restore();
+  // 4. logo: no glow of its own, lit only by the light; the dots facing the light are brightest
+  const base=[150,172,214];
+  dots.forEach(d=>{
+    if(cf.grey){d.el.style.background='#6B7280';d.el.style.opacity=.8;d.el.style.boxShadow='none';return;}
+    const row=Math.round((d.y-y0)/pitch);
+    let lit=Math.min(1,S(d.x,d.y-2)*gain*1.6);
+    if(cf.voice&&row<2)lit=Math.max(lit,(row?0.55:0.9)*(0.75+0.25*voice));   // top two rows take the tint
+    let col=mix(base,tint(Math.min(.9,0.45+lit*0.5)),lit), glow=cf.voice?lit*0.8:lit*0.3;
+    if(cf.sweep){const f=Math.max(0,Math.min(1,(tt-1200-(d.x-cx+25)*3-row*25)/160));   // then onto the dots
+      col=mix(col,mix([251,191,36],[254,226,150],lit*0.6),f);}
+    if(s==='download')col=mix(col,base,0.3);
+    d.el.style.background=`rgb(${col})`;d.el.style.opacity=s==='download'?0.75:1;
+    d.el.style.boxShadow=glow>0.05?`0 0 ${(2+4*glow).toFixed(1)}px rgba(${col},${(glow*0.7).toFixed(2)})`:'none';
+  });
+  if(cf.sweep){const w=card.querySelector('.tw');if(w)w.style.opacity=smooth(1000,1180,tt);}   // words only after 1 s
+}
+function frame(t){document.querySelectorAll('.card[data-s]').forEach(c=>draw(c,t));requestAnimationFrame(frame);}
+document.fonts.ready.then(()=>{
+  document.querySelectorAll('.panel .pop').forEach(p=>{const pn=p.closest('.panel'),k=pn.querySelector('.kc'),
+    pr=pn.getBoundingClientRect(),kr=k.getBoundingClientRect();
+    p.style.top=(kr.bottom-pr.top+6)+'px';p.style.left=Math.min(pr.width-p.offsetWidth-10,kr.left-pr.left-6)+'px';});
+  requestAnimationFrame(frame);});
+</script></body></html>

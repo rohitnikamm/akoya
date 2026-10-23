@@ -140,3 +140,10 @@ private let barSize = CGSize(width: 77, height: 22)
 @Test func idleGlyphIgnoresRedWhileRecording() {
     #expect(WaveformLayout.tint(for: .glyph, redTint: true) == .primary)
 }
+
+@Test func menuBarStaysIdleInPillMode() {
+    for phase in [DictationPhase.idle, .recording, .transcribing, .error] {
+        #expect(WaveformGeometry.menuBarPhase(phase, indicator: .pill) == .idle)
+        #expect(WaveformGeometry.menuBarPhase(phase, indicator: .menuBar) == phase)
+    }
+}

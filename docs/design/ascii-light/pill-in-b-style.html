@@ -1,0 +1,119 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Pill in B Style</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap">
+<style>
+:root{--blue:#2F6BFF;--amber:#FBBF24;--red:#EF4444;--dot:#DBE6FF}
+body{margin:0;padding:34px 40px 40px;background:#05070d;color:#e6e9f2;font-family:Outfit,system-ui,sans-serif;width:1340px}
+h1{font-size:21px;font-weight:600;margin:0 0 6px}
+.lead{color:#8b93a7;font-size:13.5px;line-height:1.5;max-width:1150px;margin:0 0 24px}
+.wrap{display:grid;grid-template-columns:330px 1fr;gap:34px;align-items:start}
+.ref .cap{margin-top:14px}.ref img{width:325px;display:block;border-radius:22px}
+.cap{font-size:12.5px;color:#8b93a7;margin:0 0 8px}.cap b{color:#dbe3f5;font-weight:600}
+table{border-collapse:separate;border-spacing:0 14px;width:100%}
+th{font-size:12.5px;font-weight:600;color:#dbe3f5;text-align:left;padding:0 0 2px}
+th span{display:block;font-weight:400;color:#8b93a7;font-size:11.5px;margin-top:2px}
+td.st{font-size:12.5px;color:#8b93a7;width:120px;vertical-align:middle}
+td.st b{display:block;color:#dbe3f5;font-weight:600}
+td.cell{height:92px;vertical-align:middle;text-align:center;
+ background:radial-gradient(ellipse at 50% 120%,rgba(30,50,100,.35),transparent 60%),linear-gradient(180deg,#121826,#0b0f1a);border-radius:14px}
+td.gap{width:14px}
+
+/* pill */
+.pill{position:relative;display:inline-flex;align-items:center;gap:10px;height:34px;padding:0 15px;border-radius:17px;overflow:hidden;
+ background:linear-gradient(180deg,rgba(14,18,34,.96),rgba(9,13,30,.97));vertical-align:middle}
+.pill .grid{position:relative;z-index:2;display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,3px);gap:2px}
+.pill .grid b{width:3px;height:3px;border-radius:50%;background:var(--dot)}
+.pill .time{position:relative;z-index:2;font-size:11.5px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.pill .txt{position:relative;z-index:2;font-size:13.5px;color:rgba(255,255,255,.9);white-space:nowrap}
+.pill .ico{position:relative;z-index:2;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:var(--blue);box-shadow:0 0 12px rgba(47,107,255,.8)}
+.pill canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+/* today: blue rim glow at the bottom */
+.pill.today{box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5)}
+.pill.today.amber{box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5)}
+.pill.today.alert{box-shadow:inset 0 0 0 1px rgba(255,150,150,.22),inset 0 -8px 14px -7px rgba(239,68,68,.85),inset 0 -2px 3px -1px rgba(255,170,170,.85),0 12px 40px rgba(239,68,68,.28),0 8px 24px rgba(0,0,0,.5)}
+.pill.today.alert .ico{background:var(--red);box-shadow:0 0 12px rgba(239,68,68,.7);font-weight:700;font-size:12px;color:#fff}
+/* B style: no rim; light comes from the top (canvas), hairline edge, soft shadow */
+.pill.b{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 -6px 26px -6px rgba(47,107,255,.55),0 12px 34px rgba(0,0,0,.55)}
+.pill.b[data-light=amber]{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 -6px 26px -6px rgba(251,191,36,.5),0 12px 34px rgba(0,0,0,.55)}
+.pill.b[data-light=grey]{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 -6px 22px -8px rgba(150,160,180,.25),0 12px 34px rgba(0,0,0,.55)}
+.pill.b[data-light=dim]{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 -6px 24px -8px rgba(47,107,255,.35),0 12px 34px rgba(0,0,0,.55)}
+.pill.b .err{color:#FCA5A5}
+.pill.b.amber .txt{color:#FBBF24}
+</style></head><body>
+<h1>The pill in direction B's style</h1>
+<p class="lead">Today's Windows pill glows from a blue rim along its bottom edge. In B's style the glow moves to the top, like the card: a soft light from above that brightens with your voice, turns amber and sweeps back and forth while transcribing, and goes grey and still when something is wrong, with the words carrying the colour. Middle column: just the light. Right column: the light with one faint row of B's classic characters in its brightest part, to judge whether ASCII works at pill size. Live: the dots move and the light breathes. Actual size.</p>
+<div class="wrap">
+ <div class="ref">
+  <div class="cap"><b>Direction B</b> · the card, for comparison</div>
+  <img src="b-ready.png">
+  <div class="cap"><b>B · Listening</b></div><img src="b-listen.png">
+  <div class="cap"><b>B · Transcribing</b></div><img src="b-trans.png">
+ </div>
+ <table>
+  <tr><th></th><th>Today<span>Windows pill as built</span></th><td class="gap"></td><th>B · top light<span>glow from above, no characters</span></th><td class="gap"></td><th>B · top light + characters<span>one faint row of · : + *</span></th></tr>
+  <tr><td class="st"><b>Listening</b>quiet</td>
+   <td class="cell"><span class="pill today"><span class="grid live" data-cols="23" data-v="0.35"></span><span class="time">0:04</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="0.35"><span class="grid live" data-cols="23" data-v="0.35"></span><span class="time">0:04</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="0.35" data-glyph="1"><span class="grid live" data-cols="23" data-v="0.35"></span><span class="time">0:04</span></span></td></tr>
+  <tr><td class="st"><b>Listening</b>speaking</td>
+   <td class="cell"><span class="pill today"><span class="grid live" data-cols="23" data-v="1"></span><span class="time">0:07</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="1"><span class="grid live" data-cols="23" data-v="1"></span><span class="time">0:07</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="1" data-glyph="1"><span class="grid live" data-cols="23" data-v="1"></span><span class="time">0:07</span></span></td></tr>
+  <tr><td class="st"><b>Transcribing</b>sweep</td>
+   <td class="cell"><span class="pill today amber"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="time">0:09</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b amber" data-light="amber"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="time">0:09</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b amber" data-light="amber" data-glyph="1"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="time">0:09</span></span></td></tr>
+  <tr><td class="st"><b>Pasted</b>0.9 s</td>
+   <td class="cell"><span class="pill today"><span class="ico"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2 4.1 7.3 8 3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="txt">Pasted</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="0.3"><span class="ico"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2 4.1 7.3 8 3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="txt">Pasted</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="blue" data-v="0.3" data-glyph="1"><span class="ico"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2 4.1 7.3 8 3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="txt">Pasted</span></span></td></tr>
+  <tr><td class="st"><b>Error</b>1.6 s</td>
+   <td class="cell"><span class="pill today alert"><span class="ico">!</span><span class="txt">Speech model failed</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="grey"><span class="txt err">Speech model failed</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="grey" data-glyph="1"><span class="txt err">Speech model failed</span></span></td></tr>
+  <tr><td class="st"><b>Model loading</b>1.6 s</td>
+   <td class="cell"><span class="pill today"><span class="txt">Getting the speech model ready…</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="dim"><span class="txt">Getting the speech model ready…</span></span></td><td class="gap"></td>
+   <td class="cell"><span class="pill b" data-light="dim" data-glyph="1"><span class="txt">Getting the speech model ready…</span></span></td></tr>
+ </table>
+</div>
+<script>
+const Q=new URLSearchParams(location.search),FIX=Q.has('t')?parseFloat(Q.get('t')):null;
+// dot grids (same drawing as the Windows mockup)
+document.querySelectorAll('.grid').forEach(g=>{let h='';for(let i=0;i<+g.dataset.cols*4;i++)h+='<b></b>';g.innerHTML=h});
+const RAMP=['·',':','+','*'];
+const PAL={blue:[[30,64,175],[59,130,246],[219,234,254]],amber:[[146,64,14],[245,158,11],[254,243,199]],grey:[[60,66,80],[110,118,135],[160,166,180]],dim:[[30,64,175],[59,130,246],[180,205,250]]};
+function mix(p,b){b=Math.max(0,Math.min(1,b));const[a,c,d]=p;const lerp=(x,y,f)=>x.map((v,k)=>Math.round(v+(y[k]-v)*f));return b<.5?lerp(a,c,b*2):lerp(c,d,(b-.5)*2)}
+function drawLight(pill,t){
+  const kind=pill.dataset.light;let c=pill.querySelector('canvas');
+  if(!c){c=document.createElement('canvas');pill.prepend(c);}
+  const W=pill.clientWidth,H=pill.clientHeight,dpr=2;if(c.width!==W*dpr){c.width=W*dpr;c.height=H*dpr}
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const base=+(pill.dataset.v||0.5);
+  const voice=kind==='blue'?base*(0.75+0.25*Math.abs(Math.sin(t*5.3)*Math.sin(t*1.7+1))):0;
+  const breath=kind==='grey'?1:(1+0.08*Math.sin(t/4*2*Math.PI));
+  let I={blue:0.85+0.7*voice,amber:1.25,grey:0.5,dim:0.6}[kind]*breath;
+  const rx=W*(0.32+0.12*(kind==='blue'?voice:0.3)),ry=H*(0.95+0.25*(kind==='blue'?voice:0.2));
+  // amber: brightness sweeps back and forth with the dots (1.4 s, scanner easing)
+  let sx=W/2;if(kind==='amber'){const p=(t%1.4)/1.4,leg=p<.5?p*2:2-p*2;sx=W*0.18+(1-Math.cos(Math.PI*leg))/2*W*0.64}
+  const L=(x,y)=>Math.pow(Math.max(0,1-Math.hypot((x-sx)/rx,(y+3)/ry)),1.6)*I;
+  const pal=PAL[kind];
+  for(let y=0;y<H;y+=1)for(let x=0;x<W;x+=1){const b=L(x,y);if(b<.02)continue;const[r,gg,bb]=mix(pal,b);g.fillStyle=`rgba(${r},${gg},${bb},${(0.62*Math.min(1,b)).toFixed(3)})`;g.fillRect(x,y,1,1)}
+  // hairline highlight along the top edge, brightest under the light
+  const grd=g.createLinearGradient(0,0,W,0);const[r1,g1,b1]=mix(pal,Math.min(1,I));
+  grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(Math.max(0,sx/W-.25),'rgba(0,0,0,0)');grd.addColorStop(sx/W,`rgba(${r1},${g1},${b1},${(0.9*Math.min(1,I)).toFixed(2)})`);grd.addColorStop(Math.min(1,sx/W+.25),'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=grd;g.fillRect(14,0,W-28,1);
+  if(pill.dataset.glyph){ // one faint row of characters in the brightest part
+    g.font='600 6.5px "SF Mono",Menlo,monospace';g.textAlign='center';g.textBaseline='middle';
+    for(let x=4;x<W;x+=4){const b=L(x,4);if(b<.25)continue;const k=Math.min(3,Math.floor((b-.25)/.75*4));const[r,gg,bb]=mix(pal,b);
+      g.fillStyle=`rgba(${r},${gg},${bb},${(0.35+0.55*Math.min(1,(b-.25)/.75)).toFixed(2)})`;g.fillText(RAMP[k],x,4.5)}
+  }
+}
+function tick(now){
+  if(FIX!==null)now=FIX*1000;const t=now/1000;
+  document.querySelectorAll('.grid.live').forEach(g=>{const n=+g.dataset.cols,d=g.children,v=+g.dataset.v;for(let c=0;c<n;c++){const x=(c+.5)/n;const env=Math.pow(Math.sin(Math.PI*x),.7);const L=env*(0.28+0.72*Math.abs(Math.sin(t*6.1+c*.8))*(0.65+0.35*Math.sin(t*2.3+c*.31)))*5.2*v;for(let r=0;r<4;r++){const dd=Math.abs(r-1.5);d[c*4+r].style.opacity=dd<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(L-2)/1.6))}}});
+  document.querySelectorAll('.grid.scan').forEach(g=>{const n=+g.dataset.cols,d=g.children,p=(t%1.4)/1.4,leg=p<.5?p*2:2-p*2,head=(1-Math.cos(Math.PI*leg))/2*(n-1);for(let c=0;c<n;c++){const k=Math.abs(c-head);const o=k<1?1:k<2?.7:k<3?.48:k<4?.32:.18;for(let r=0;r<4;r++){const mid=r===1||r===2;d[c*4+r].style.opacity=mid?o:.18;d[c*4+r].style.background=mid&&o>.18?g.dataset.tint:'#dbe6ff'}}});
+  document.querySelectorAll('.pill.b').forEach(p=>drawLight(p,t));
+  if(FIX===null)requestAnimationFrame(tick);
+}
+document.fonts.ready.then(()=>requestAnimationFrame(tick));
+</script></body></html>
