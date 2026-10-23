@@ -45,7 +45,7 @@ private func exists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath:
     let models = root.appendingPathComponent("Akoya/Models", isDirectory: true)
     try touch(models.appendingPathComponent("parakeet-tdt-0.6b-v2/x"))
     BuiltInModel.removeDownloadedCopies(
-        modelsDirectory: models, legacyDirectory: root.appendingPathComponent("Silk/Models"))
+        modelsDirectory: models, legacyDirectory: root.appendingPathComponent("Silk/Models"), builtInDirectory: nil)
     #expect(!exists(models))
 }
 
@@ -56,7 +56,7 @@ private func exists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath:
     try touch(models.appendingPathComponent("parakeet-tdt-0.6b-v2/x"))
     try touch(models.appendingPathComponent("other"))
     BuiltInModel.removeDownloadedCopies(
-        modelsDirectory: models, legacyDirectory: root.appendingPathComponent("Silk/Models"))
+        modelsDirectory: models, legacyDirectory: root.appendingPathComponent("Silk/Models"), builtInDirectory: nil)
     #expect(!exists(models.appendingPathComponent("parakeet-tdt-0.6b-v2")))
     #expect(exists(models.appendingPathComponent("other")))
 }
@@ -67,7 +67,7 @@ private func exists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath:
     let legacy = root.appendingPathComponent("Silk/Models", isDirectory: true)
     try touch(legacy.appendingPathComponent("parakeet-tdt-0.6b-v2/x"))
     BuiltInModel.removeDownloadedCopies(
-        modelsDirectory: root.appendingPathComponent("Akoya/Models"), legacyDirectory: legacy)
+        modelsDirectory: root.appendingPathComponent("Akoya/Models"), legacyDirectory: legacy, builtInDirectory: nil)
     #expect(!exists(legacy))
     #expect(exists(root.appendingPathComponent("Silk")))
 }
@@ -77,6 +77,22 @@ private func exists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath:
     defer { try? FileManager.default.removeItem(at: root) }
     BuiltInModel.removeDownloadedCopies(
         modelsDirectory: root.appendingPathComponent("Akoya/Models"),
-        legacyDirectory: root.appendingPathComponent("Silk/Models"))
+        legacyDirectory: root.appendingPathComponent("Silk/Models"), builtInDirectory: nil)
     #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+}
+
+@Test func neverRemovesTheBuiltInFolder() throws {
+    let root = try makeRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let models = root.appendingPathComponent("Models", isDirectory: true)
+    let builtIn = models.appendingPathComponent(BuiltInModel.folderName, isDirectory: true)
+    try touch(builtIn.appendingPathComponent("x"))
+    BuiltInModel.removeDownloadedCopies(
+        modelsDirectory: models, legacyDirectory: root.appendingPathComponent("Silk/Models"),
+        builtInDirectory: builtIn)
+    #expect(exists(builtIn.appendingPathComponent("x")))
+    // A legacy folder that contains the built-in one is kept too.
+    BuiltInModel.removeDownloadedCopies(
+        modelsDirectory: root.appendingPathComponent("Other"), legacyDirectory: models, builtInDirectory: builtIn)
+    #expect(exists(builtIn.appendingPathComponent("x")))
 }

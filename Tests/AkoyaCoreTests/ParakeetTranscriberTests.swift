@@ -79,7 +79,9 @@ func builtInModelLoadsAndTranscribes() async throws {
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("akoya-parakeet-builtin-\(UUID().uuidString)")
     let transcriber = ParakeetTranscriber(
-        modelsDirectory: directory, builtInDirectory: URL(fileURLWithPath: path, isDirectory: true))
+        modelsDirectory: directory,
+        legacyDirectory: directory.appendingPathComponent("Silk/Models"),
+        builtInDirectory: URL(fileURLWithPath: path, isDirectory: true))
     let recorder = StateRecorder()
     await transcriber.prepare { recorder.record($0) }
     #expect(recorder.states == [.ready])
