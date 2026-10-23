@@ -68,7 +68,26 @@ public sealed class SpeechModelTests : IDisposable
     }
 
     [Fact]
-    public void BuiltInLoadFailure_NextLoadUsesTheDownloadedCopy_AndKeepsBoth()
+    public void BuiltInLoadFailure_Once_NextLoadTriesTheBuiltInAgain()
+    {
+        WriteFakeModel(_builtIn);
+        var builtInDir = Path.Combine(_builtIn, Folder);
+        var loads = new List<string>();
+        var model = new SpeechModel(Store(), (dir, _) =>
+        {
+            loads.Add(dir);
+            return loads.Count == 1 ? throw new InvalidOperationException("out of memory") : new FakeTranscriber("hi");
+        });
+
+        Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        Assert.True(model.IsInstalled); // so AppHost's Retry doesn't download (blocked on some company PCs)
+        Assert.IsType<FakeTranscriber>(model.Load(InferenceProvider.Cpu));
+
+        Assert.Equal(new[] { builtInDir, builtInDir }, loads);
+    }
+
+    [Fact]
+    public void BuiltInLoadFailsTwice_DiscardUsesTheDownloadedCopy_AndKeepsBoth()
     {
         WriteFakeModel(_builtIn);
         WriteFakeModel(_root);
@@ -81,21 +100,26 @@ public sealed class SpeechModelTests : IDisposable
         });
 
         Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        model.Discard(); // what AppHost does after the second failure
         Assert.True(model.IsInstalled);
         model.Load(InferenceProvider.Cpu);
 
-        Assert.Equal(new[] { builtInDir, Path.Combine(_root, Folder) }, loads);
+        Assert.Equal(new[] { builtInDir, builtInDir, Path.Combine(_root, Folder) }, loads);
         Assert.True(Directory.Exists(Path.Combine(_root, Folder)));
         Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(builtInDir, name))));
     }
 
     [Fact]
-    public void BuiltInLoadFailure_WithoutADownloadedCopy_IsNotInstalled()
+    public void BuiltInLoadFailsTwice_WithoutADownloadedCopy_DiscardMakesItNotInstalled()
     {
         WriteFakeModel(_builtIn);
         var model = new SpeechModel(Store(), (_, _) => throw new InvalidOperationException("corrupt"));
 
         Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        Assert.True(model.IsInstalled);
+        Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        model.Discard();
 
         Assert.False(model.IsInstalled); // so AppHost's next EnsureAsync downloads it
         Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));

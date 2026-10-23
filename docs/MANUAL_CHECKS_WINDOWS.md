@@ -68,7 +68,7 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 ## Built-in speech model
 - [ ] Fresh install of Setup.exe (no `%LocalAppData%\Akoya\models\`) with the network off: Akoya becomes Ready with no download and no "Getting the speech model ready" progress, and a dictation works. `models\sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` (four files) and `ThirdPartyNotices.txt` are next to `Akoya.exe` in `%LocalAppData%\Akoya\current`. Setup.exe is about 524.5 MB (550,013,004 bytes).
 - [ ] Update check: start from a version that downloaded its model (`%LocalAppData%\Akoya\models\` exists, with or without a `.part` file), update to this version. Once Ready, `%LocalAppData%\Akoya\models\` is gone and the model inside `current\models` is untouched.
-- [ ] Damaged install: rename `current\models` and relaunch: Akoya downloads the model as before. With a corrupted built-in file of the right size: "Speech model failed", Retry uses the downloaded copy or downloads one, and the built-in is tried again after a relaunch.
+- [ ] Damaged install: rename `current\models` and relaunch: Akoya downloads the model as before. With a corrupted built-in file of the right size: "Speech model failed"; the first Retry loads the built-in again and fails again, the second Retry uses the downloaded copy or downloads one, and the built-in is tried again after a relaunch.
 - [ ] After one update, note the size of Velopack's local packages folder (`%LocalAppData%\Akoya\packages`) and of the whole `%LocalAppData%\Akoya` folder, and whether the update downloaded the full package or a delta (the model should not ship again unless it changed). Record the numbers here.
 
 ## Windows limits (expected behaviour)

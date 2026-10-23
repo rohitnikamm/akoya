@@ -62,21 +62,13 @@ namespace Akoya.App
         /// <summary>
         /// Builds the transcriber. Once the built-in copy has loaded, the downloaded copy from older versions is deleted
         /// (best effort: if it can't be deleted now, the next launch tries again). A built-in copy that fails to load is
-        /// a damaged install: it is rejected for this session, so the next attempt uses a downloaded copy or downloads one.
+        /// kept: one failure may be out of memory or an antivirus scan, so the next attempt loads it again; AppHost calls
+        /// <see cref="Discard"/> after a second failure, which rejects it for this session.
         /// </summary>
         public ITranscriber Load(InferenceProvider provider)
         {
             var (directory, builtIn) = _store.Resolve();
-            ITranscriber transcriber;
-            try
-            {
-                transcriber = _createTranscriber(directory, provider);
-            }
-            catch when (builtIn)
-            {
-                _store.RejectBuiltIn();
-                throw;
-            }
+            var transcriber = _createTranscriber(directory, provider);
             if (builtIn)
             {
                 try { _store.RemoveDownloadedCopy(); } catch (IOException) { } catch (UnauthorizedAccessException) { }

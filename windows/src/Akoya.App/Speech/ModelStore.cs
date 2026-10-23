@@ -51,8 +51,8 @@ public sealed class ModelStore
     private string DownloadDirectory => Path.Combine(_root, _spec.FolderName);
 
     /// <summary>
-    /// The app ships a complete copy of the model (every file at its pinned size) and it has not failed to load in
-    /// this session.
+    /// The app ships a complete copy of the model (every file at its pinned size) and it has not been rejected in
+    /// this session (see <see cref="RejectBuiltIn"/>).
     /// </summary>
     public bool UsesBuiltIn =>
         !_builtInRejected && _builtInRoot is not null && IsComplete(Path.Combine(_builtInRoot, _spec.FolderName));
@@ -65,8 +65,8 @@ public sealed class ModelStore
         UsesBuiltIn ? (Path.Combine(_builtInRoot!, _spec.FolderName), true) : (DownloadDirectory, false);
 
     /// <summary>
-    /// The built-in copy failed to load (a damaged install): use the downloaded copy for the rest of this session, or
-    /// download one. The built-in folder itself is left alone.
+    /// The built-in copy failed to load twice (a damaged install): use the downloaded copy for the rest of this session,
+    /// or download one. The built-in folder itself is left alone.
     /// </summary>
     public void RejectBuiltIn() => _builtInRejected = true;
 
@@ -74,9 +74,9 @@ public sealed class ModelStore
     public bool IsInstalled => UsesBuiltIn || IsComplete(DownloadDirectory);
 
     /// <summary>
-    /// The model in use failed to load. A downloaded copy is deleted, so the next <see cref="EnsureAsync"/> downloads
-    /// it again; the built-in copy is never deleted, only rejected (see <see cref="RejectBuiltIn"/>), which keeps a
-    /// downloaded copy as the fallback. Throws if the folder can't be deleted.
+    /// The model in use failed to load twice. A downloaded copy is deleted, so the next <see cref="EnsureAsync"/>
+    /// downloads it again; the built-in copy is never deleted, only rejected (see <see cref="RejectBuiltIn"/>), which
+    /// keeps a downloaded copy as the fallback. Throws if the folder can't be deleted.
     /// </summary>
     public void Discard()
     {
