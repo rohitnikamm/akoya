@@ -263,7 +263,7 @@ private struct PillLabel: View {
     var body: some View {
         Text(text)
             .font(AkoyaFonts.outfit(13.5))
-            .foregroundStyle(.white.opacity(0.9))
+            .foregroundStyle(.white.opacity(0.85))
             .lineLimit(1)
     }
 }
