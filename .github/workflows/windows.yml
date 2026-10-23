@@ -26,7 +26,7 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Force out | Out-Null
 
-      # The cache holds the pinned tarball (key = its SHA-256 from ModelManifest.cs).
+      # The cache holds the pinned tarball (key = its SHA-256 from ModelManifest.cs); a changed pin needs a new key.
       - name: Restore speech model cache
         uses: actions/cache@v4
         with:
