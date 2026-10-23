@@ -18,7 +18,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Tap to latch (hands-free) | Release under 0.30 s: keeps recording; the next press stops | Same | Same |
 | Esc cancels | Esc while recording (held or latched) cancels, nothing pasted; Esc is swallowed only while recording. A long-held Esc may still auto-repeat into the app | Same; Esc auto-repeat is swallowed too | Same |
 | Max length | 300 s, then stops as if released and pastes | Same | Same |
-| Silence gate | Loudest level step never above 2 (about -44 to -39 dBFS): not transcribed, brief red error cue | Lower: only a take that never moved the pill (loudest step 1, below about -44 dBFS) counts as silence, and it just fades, no cue. Quiet speech (step 2) is transcribed; a quiet take whose whole text is a filler word the model invents for near-silence ("Okay.", "Thank you.") is dropped. Each take's peak level is logged | Missing on Mac (the Mac drops quiet speech that its waveform shows; port open) |
+| Silence gate | Loudest level step never above 2 (about -44 to -39 dBFS): not transcribed, brief red error cue | Lower: only a take that never moved the pill (loudest step 1, below about -44 dBFS) counts as silence, and it just fades, no cue. Quiet speech (step 2) is transcribed; a quiet take whose whole text is a filler word the model invents for near-silence ("Okay.", "Thank you.") is dropped. Each take's peak level is logged | Different on purpose (the Mac mic picks up quiet speech well enough that it is not a problem in practice; Rohit, 2026-10-22) |
 | Empty transcript | Red error cue (0.6 s), nothing pasted | Pill fades, nothing pasted | Different on purpose (Windows spec) |
 | Transcription error | Red error cue | Pill fades (logged) | Different on purpose (Windows spec) |
 | Press while model not ready | Ignored with the red error cue | Pill shows "Getting the speech model ready…" (blue, 1.6 s), or red "Speech model failed" if it failed; nothing recorded | Different on purpose (the pill has room for words) |
@@ -27,12 +27,12 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Never two transcriptions at once | A live-preview pass still running is awaited before the final pass | Same | Same |
 | Trailing space | Pasted text gets one trailing space | Same | Same |
 | Paste method | Clipboard, then Cmd+V posted, needs Accessibility | Clipboard, then `SendInput` Ctrl+V; held modifiers released in the injected sequence | Different on purpose (platform APIs) |
-| Clipboard after a dictation | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | The dictated text stays on the clipboard as the latest copy, so Ctrl+V pastes it again anywhere (for example after switching windows mid-sentence); what was copied before is not put back but stays in Win+V history | Missing on Mac (Rohit's choice on Windows, 2026-10-20; the Mac still restores) |
+| Clipboard after a dictation | Byte-for-byte snapshot of every item and type, restored after 300 ms unless the user copied something meanwhile | The dictated text stays on the clipboard as the latest copy, so Ctrl+V pastes it again anywhere (for example after switching windows mid-sentence); what was copied before is not put back but stays in Win+V history | Different on purpose (Rohit prefers the Mac restoring the clipboard, and keeps the Windows behaviour; Rohit, 2026-10-22) |
 | Clipboard history | Marks its entry `org.nspasteboard.TransientType` so clipboard managers skip it | An ordinary copy: it shows in Win+V history and cloud clipboard like any other | Different on purpose (the dictation is meant to stay as a copy on Windows) |
-| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V" | Missing on Mac (a message saying the text is on the clipboard; unclear if wanted) |
+| Paste blocked fallback | Accessibility off: text left on the clipboard, red error cue, no message | Elevated (admin) foreground window: no paste, text left on the clipboard, blue pill "Copied. Press Ctrl+V" | Different on purpose (on the Mac the hotkey needs Accessibility too, so a blocked paste almost never happens; not needed, Rohit, 2026-10-22) |
 | Clipboard busy | Not applicable (the pasteboard has no lock) | 10 tries, 20 ms apart; then red "Couldn't paste", text kept as Last dictation | Different on purpose (Windows clipboard can be held open by another app) |
 | Mic unplugged mid-recording | Stops and transcribes what was captured (also on a default-input switch) | Stops and transcribes what was captured | Same |
-| Screen lock mid-dictation | Nothing special | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Missing on Mac |
+| Screen lock mid-dictation | Lock or sleep cancels a recording, as Esc does; a dictation already transcribing is not pasted, its text is kept as Last dictation, and an empty or failed one ends quietly (no red cue) | Lock or sleep cancels a recording; a dictation already transcribing is not pasted, its text is kept as Last dictation | Same |
 | Hotkey changed mid-recording | Unclear (the old key's release is probably read as a release, which stops) | Recording is cancelled | Different on purpose (unclear on Mac) |
 | Dictation with the panel open | Pastes into the frontmost app (the panel never takes focus) | The hotkey closes the panel and gives focus back to the window the user was in, then records; the pill and the paste go to that window | Same |
 | Protected input | Secure Keyboard Entry or password fields: the hotkey does nothing | Elevated window focused: the hotkey does not fire (Windows UIPI) | Different on purpose (OS limits) |
@@ -75,7 +75,7 @@ Status values: **Same**, **Different on purpose** (reason in the cell), **Missin
 | Interrupted download | Unclear (handled by FluidAudio) | Restarts cleanly on the next launch; every model file's byte size is checked, so a truncated file counts as missing | Different on purpose (unclear on Mac) |
 | Retry | "Retry" in the dropdown and in setup | "Retry" in the tray and under setup's Try it waveform | Same |
 | Where | `~/Library/Application Support/Akoya/Models` | `%LocalAppData%\Akoya\models\` (outside Velopack's `current`, so updates keep it) | Different on purpose (platform folders) |
-| Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Missing on Mac (unclear if Core ML needs it) |
+| Warm-up | "Ready" once the model is loaded | "Ready" only after a warm-up transcription of 0.5 s of silence | Different on purpose (not needed on the Mac; Rohit, 2026-10-22) |
 | Hardware | Core ML (compute units chosen by FluidAudio, unclear) | CPU only, half the logical cores and at most 8 threads; a provider setting (Auto / Cpu) exists in settings.json but is ignored. A GPU path was measured and is not worth building yet (docs/superpowers/plans/2026-10-21-akoya-windows-gpu.md) | Different on purpose (CPU already transcribes a 7 s dictation in about 0.3 s) |
 | Silk folder migration | Moves `~/Library/Application Support/Silk/Models` to the Akoya folder once | Not applicable | Different on purpose (Windows never had Silk) |
 
@@ -91,7 +91,7 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Waveform look | Pixel (stacked 2 pt cells) or Solid (bars), user choice | Pixel (dots) or Solid: per column one 3 DIP bar with round ends, one dot tall when quiet rising linearly to the four rows' height (Mac's Solid is linear in the level too); the sweep becomes bars the centre two rows tall | Same |
 | Pixel waveform, round-dot shape (idea) | Not applicable | Proposed, not built: Pixel as round dots growing evenly from one dim centre line (1, 3 or 5 rows of 3 DIP dots, unlit dots hidden), with a small cluster gliding along the line while transcribing. Rohit is keeping today's Pixel for now and may switch later. Mockups and two rounds of designer reviews (14 reviewers): the "Pill Pixel Waveform" design canvas | Proposed |
 | Red while recording | Optional: the waveform turns red | Optional (off by default): the listening dots or bars turn red `#FF6B6B`; the rim glow stays blue | Same |
-| Amber sweep while processing when Red while recording is on | No (the scanner stays the menu bar colour) | Yes: the transcribing sweep's lit columns turn amber `#FBBF24` | Missing on Mac |
+| Amber sweep while processing when Red while recording is on | Yes: the scanner turns amber `#FBBF24` on light and dark menu bars | Yes: the transcribing sweep's lit columns turn amber `#FBBF24` | Same |
 | Transcribing | Scanner: a bright head eases back and forth across the columns, period 1.4 s, tail opacities 0.7, 0.48, 0.32, base 0.18; two cells tall | Same scanner math on the centre two of the 4 rows across 23 columns, the outer rows staying at rest (Solid: bars two rows tall; amber lit columns with Red while recording); timer frozen | Same |
 | Pasted | Item collapses back to the idle glyph | Blue check badge and "Pasted" for 0.9 s, then fades | Different on purpose (the menu bar item has no room for words) |
 | Error look | Idle glyph flashes red for 0.6 s (also shown while "Hide when idle" is on) | Red rim glow, red "!" badge, white text, 1.6 s (see Messages) | Different on purpose (the pill has room for words) |
@@ -119,11 +119,11 @@ Mac: the menu bar item. Windows: a floating pill above the taskbar (no menu bar 
 | Logo and hint | Dot logo; "Hold [keycap ▾] to talk"; "or tap it once to start, again to stop" | Same | Same |
 | Voice glow | Status card rim glow follows the voice while listening (0.2 floor, attack 0.10 s, release 0.45 s), none at rest | Same | Same |
 | Glow with reduced motion | Reduce Motion: fixed glow while recording | "Animation effects" off: the same fixed glow (opacity 0.5) while listening, none at rest | Same |
-| Last dictation | "LAST DICTATION" card with "Copy" (flips to "Copied" for 1.5 s), up to 4 lines; hidden until the first dictation; only set by a successful paste; in memory only | Same card; also set when the paste failed, only copied, or the screen locked; Copy refused while a paste is in progress, "Copied" only when it worked | Different on purpose (Windows keeps the words when the paste did not land) |
+| Last dictation | "LAST DICTATION" card with "Copy" (flips to "Copied" for 1.5 s), up to 4 lines; hidden until the first dictation; only set by a successful paste, or by a dictation the screen lock kept from pasting; in memory only | Same card; also set when the paste failed, only copied, or the screen locked; Copy refused while a paste is in progress, "Copied" only when it worked | Different on purpose (Windows keeps the words when the paste did not land; the Mac keeps them only for a screen lock, Rohit, 2026-10-22) |
 | Menu bar icon row | "Menu bar icon" with the Waveform value and ›, collapsed by default, expands inline (spring 0.32 s, chevron rotates): "Waveform" Pixel / Solid, "Red while recording", "Hide when idle", note "Hidden? Open Akoya from Spotlight to get back here." | "Pill" row between Microphone and Launch at startup, waveform glyph, the Waveform value and ›, collapsed each time the panel opens, expands inline (0.22 s, › turns, options fade down): "Waveform" Pixel / Solid, "Red while recording"; no note | Different on purpose (on Windows the waveform is the pill; Hide when idle and its note are left out) |
 | Hide when idle | Switch: the menu bar item shrinks to nothing at rest | Left out: the tray icon already sits behind the ^ overflow and the pill only shows while talking | Different on purpose (nothing shows at rest on Windows anyway) |
 | Launch at login / startup row | "Launch at login" switch with a power glyph | "Launch at startup" switch with a power glyph | Same |
-| Update row | None | "Update ready" with a light-blue "Restart" text link (styled like Copy), shown once an update is downloaded | Missing on Mac (see Install and updates) |
+| Update row | None | "Update ready" with a light-blue "Restart" text link (styled like Copy), shown once an update is downloaded | Different on purpose (`brew upgrade` is enough on the Mac; Rohit, 2026-10-22) |
 | Quit | Quiet "Quit Akoya" text row, no shortcut label | Same | Same |
 | Neutral controls | Grey and white switches and segments, no solid-blue selected states | Same | Same |
 
@@ -167,9 +167,9 @@ Every user-visible string not already quoted above, with when it appears.
 
 | Feature | Mac | Windows | Status |
 | --- | --- | --- | --- |
-| Generic error cue | Red idle glyph, 0.6 s: failed start, mic denied, no mic, silence, empty or failed transcript, model not ready, paste blocked | None generic; each case below has its own message or fades | Different on purpose (the pill has room for words) |
+| Generic error cue | Red idle glyph, 0.6 s: failed start, mic denied, no mic, silence, empty or failed transcript, model not ready, paste blocked | None generic; each case below has its own message or fades | Different on purpose (the pill has room for words; the Mac menu bar stays wordless, Rohit, 2026-10-22) |
 | "Pasted" | None | Blue check, after a successful paste, 0.9 s | Different on purpose (see Recording indicator) |
-| "Copied. Press Ctrl+V" | None | Blue check, foreground app is elevated or input was blocked, 0.9 s | Missing on Mac (see Dictation: paste blocked fallback) |
+| "Copied. Press Ctrl+V" | None | Blue check, foreground app is elevated or input was blocked, 0.9 s | Different on purpose (see Dictation: paste blocked fallback) |
 | "Couldn't paste" | None | Red, another app holds the clipboard, 1.6 s | Different on purpose (no pasteboard lock on Mac) |
 | "Microphone not detected" | None | Red pill (saved mic or every mic missing, 1.6 s); also the tray status | Different on purpose (see Microphone) |
 | "Turn on your mic in Settings" | None | Red pill, privacy switch off, 1.6 s | Different on purpose (see Microphone) |
@@ -191,7 +191,7 @@ Every user-visible string not already quoted above, with when it appears.
 | App icon | The dot logo on a navy rounded square (`Resources/AppIcon.icns`, made by `scripts/make-icon.swift`) | The same artwork as `Assets/akoya-app.ico` (16 to 256 px; 16 to 32 px drawn dot by dot so the dots stay sharp; made by `windows/scripts/make-app-icon.ps1`): Akoya.exe, the Start menu, the taskbar, Task Manager, Settings › Apps and Setup.exe | Same |
 | Install | `brew install --cask rohitnikamm/tap/akoya` (the cask downloads the release zip) | `Akoya-win-Setup.exe` from the GitHub release ("Akoya for Windows"), per user, no admin prompt, Start menu entry and uninstaller | Different on purpose (platform conventions) |
 | Unsigned | Not notarized; the cask clears the quarantine flag, so no Gatekeeper warning | Not code-signed; SmartScreen: "More info", then "Run anyway" once | Same |
-| Updates | `brew upgrade`; no in-app check | In-app: checks GitHub releases at launch and every 6 h, downloads in the background, "Update ready" with "Restart" in the tray; Restart waits for a transcription to finish and cancels a recording; copies not installed by Setup.exe never update | Missing on Mac (in-app update check) |
+| Updates | `brew upgrade`; no in-app check | In-app: checks GitHub releases at launch and every 6 h, downloads in the background, "Update ready" with "Restart" in the tray; Restart waits for a transcription to finish and cancels a recording; copies not installed by Setup.exe never update | Different on purpose (`brew upgrade` is enough on the Mac; Rohit, 2026-10-22) |
 | Uninstall | `brew uninstall`; `--zap` also removes `~/Library/Application Support/Akoya` and the preferences | Settings > Apps: quits, removes the Start menu and startup entries and the model folder; `settings.json` may remain | Different on purpose (platform conventions) |
 | Releases | `scripts/release.sh VERSION`: GitHub release `vX.Y.Z` and Homebrew tap update | Tag `windows-vX.Y.Z`: draft release with Setup.exe and Velopack packages; Rohit publishes it, unticking "Set as the latest release" | Different on purpose (separate channels) |
 | Upgrading from Silk | Asks a running Silk to quit at launch; models moved; permissions asked again (new bundle id) | Not applicable | Different on purpose (Windows never had Silk) |
@@ -219,11 +219,4 @@ Every user-visible string not already quoted above, with when it appears.
 
 ## Open differences
 
-- Dictation: quiet speech that moves the waveform is transcribed (Missing on Mac)
-- Dictation: the dictated text stays on the clipboard (Missing on Mac)
-- Dictation: paste blocked fallback (Missing on Mac)
-- Dictation: screen lock mid-dictation (Missing on Mac)
-- Speech model: warm-up before "Ready" (Missing on Mac)
-- Tray / menu bar panel: update row (Missing on Mac)
-- Messages and errors: "Copied. Press Ctrl+V" (Missing on Mac)
-- Install and updates: in-app update check (Missing on Mac)
+None. Proposed: the Windows pill on the Mac, as an option next to the menu bar waveform (Rohit, 2026-10-22; being discussed, not designed yet).

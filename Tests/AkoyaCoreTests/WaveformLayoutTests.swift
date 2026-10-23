@@ -126,3 +126,17 @@ private let barSize = CGSize(width: 77, height: 22)
 
 
 
+
+@Test func waveformTintFollowsRedWhileRecording() {
+    #expect(WaveformLayout.tint(for: .waveform, redTint: false) == .primary)
+    #expect(WaveformLayout.tint(for: .waveform, redTint: true) == .red)
+}
+
+@Test func scannerTurnsAmberOnlyWithRedWhileRecording() {
+    #expect(WaveformLayout.tint(for: .scanner, redTint: false) == .primary)
+    #expect(WaveformLayout.tint(for: .scanner, redTint: true) == .amber)
+}
+
+@Test func idleGlyphIgnoresRedWhileRecording() {
+    #expect(WaveformLayout.tint(for: .glyph, redTint: true) == .primary)
+}

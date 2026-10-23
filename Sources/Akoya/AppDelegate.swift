@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var hotkeyRetryTimer: Timer?
     private var becameActiveObserver: NSObjectProtocol?
+    /// Screen lock and sleep observers; see `observeScreenLock`.
+    private var screenLockObservers: [NSObjectProtocol] = []
     /// Keeps the audio device listeners alive; see `refreshInputs`.
     private var inputDevicesObservation: AnyObject?
 
@@ -90,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         migrateModelsFolder()
         prepareModel()
         startHotkeyMonitor()
+        observeScreenLock()
     }
 
     /// Practice mode must not outlive the onboarding window.
@@ -164,6 +167,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         Task { await transcriber.prepare(onState: report) }
+    }
+
+    // MARK: - Screen lock
+
+    /// A lock or sleep cancels a recording, and a dictation still transcribing is kept as the
+    /// last dictation instead of being pasted behind the lock screen.
+    private func observeScreenLock() {
+        let sources: [(NotificationCenter, Notification.Name)] = [
+            (DistributedNotificationCenter.default(), Notification.Name("com.apple.screenIsLocked")),
+            (NSWorkspace.shared.notificationCenter, NSWorkspace.willSleepNotification),
+        ]
+        screenLockObservers = sources.map { center, name in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.coordinator.screenLocked() }
+            }
+        }
     }
 
     // MARK: - Hotkey
