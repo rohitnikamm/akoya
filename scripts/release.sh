@@ -61,7 +61,7 @@ ZIP="build/Akoya-$TAG.zip"
 CASK_OUT="build/akoya.rb"
 TAP_DIR="${TAP_DIR:-$(cd .. && pwd)/homebrew-tap}"
 
-scripts/build-app.sh release "$VERSION"
+scripts/build-app.sh release "$VERSION" --with-model
 
 # A release must carry the stable self-signed identity, or users re-grant permissions on every update.
 # "Silk Self-Signed" is the pre-rename identity and is still accepted.

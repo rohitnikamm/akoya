@@ -93,3 +93,5 @@ Inspired by [Voxtype](https://github.com/peteonrails/voxtype) in [Omarchy](https
 ## License
 
 [MIT](LICENSE)
+
+Speech model: NVIDIA Parakeet TDT 0.6B v2, licensed CC-BY-4.0 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2); Core ML conversion by FluidInference, ONNX int8 conversion by sherpa-onnx.
