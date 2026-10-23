@@ -341,11 +341,13 @@ public sealed class ModelStoreTests : IDisposable
         WriteFakeModel(_root);
         var store = BuiltInStore();
 
-        store.Discard();
+        store.Discard(); // the built-in was in use: rejected, not deleted
+        store.Discard(); // now the downloaded copy is in use: deleted
 
         Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
-        Assert.True(store.UsesBuiltIn);
+        Assert.False(store.UsesBuiltIn);
         Assert.False(Directory.Exists(Path.Combine(_root, Folder)));
+        Assert.False(store.IsInstalled);
     }
 
     [Fact]
