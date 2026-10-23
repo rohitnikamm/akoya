@@ -1042,7 +1042,7 @@ private final class PhaseLog {
     #expect(log.phases.contains(.error))
 }
 
-@MainActor @Test func practiceInPillModeReportsNothing() async {
+@MainActor @Test func practiceInPillModeKeepsTheErrorCueAndReportsNothing() async {
     let (rig, practice) = practiceRig(transcript: "final")
     rig.pill.usesPill = true
     let log = PhaseLog(rig.model)
@@ -1058,8 +1058,82 @@ private final class PhaseLog {
     log.stop()
     #expect(practice.finals.contains(true))
     #expect(rig.pill.outcomes.isEmpty)
-    #expect(!log.phases.contains(.error))
+    // The Try it card's retry hint follows `.error`; the forced-idle menu bar and the pill
+    // ignore it.
+    #expect(log.phases.contains(.error))
     #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func tryItRetryHintInPillMode() async {
+    let rig = pillRig(transcript: " ")
+    let session = TryItSession(coordinator: rig.coordinator, model: rig.model)
+    session.begin()
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released) // silent
+    await rig.coordinator.pendingWork?.value
+    #expect(session.transcript.showsRetryHint)
+
+    rig.dictate() // an empty transcript
+    #expect(!session.transcript.showsRetryHint)
+    await rig.coordinator.pendingWork?.value
+    #expect(session.transcript.showsRetryHint)
+    #expect(rig.pill.outcomes.isEmpty)
+}
+
+@MainActor @Test func pillDictationSwitchedToPracticeStillEndsThePill() async {
+    for transcript in ["hello", " "] {
+        let rig = pillRig(transcript: transcript)
+        rig.coordinator.handle(.pressed)
+        rig.speak()
+        rig.coordinator.destination = .practice { _, _ in }
+        rig.clock.advance(1)
+        rig.coordinator.handle(.released)
+        await rig.coordinator.pendingWork?.value
+        #expect(rig.pill.outcomes == [.dismissed])
+        #expect(rig.inserter.inserted.isEmpty)
+        #expect(rig.coordinator.phase == .idle)
+    }
+
+    let silent = pillRig()
+    silent.coordinator.handle(.pressed)
+    silent.coordinator.destination = .practice { _, _ in }
+    silent.clock.advance(1)
+    silent.coordinator.handle(.released)
+    await silent.coordinator.pendingWork?.value
+    #expect(silent.pill.outcomes == [.dismissed])
+    #expect(silent.coordinator.phase == .idle)
+}
+
+@MainActor @Test func indicatorSettingChangesWaitForTheDictationToEnd() async {
+    let rig = pillRig()
+    let setting = CurrentValueSubject<DictationIndicator, Never>(.pill)
+    rig.model.followIndicator(setting)
+    var menuBar: DictationPhase { WaveformGeometry.menuBarPhase(rig.model.phase, indicator: rig.model.indicator) }
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    setting.send(.menuBar)
+    rig.pill.usesPill = false
+    #expect(menuBar == .idle)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.model.phase == .transcribing && menuBar == .idle)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.indicator == .menuBar)
+    #expect(rig.pill.outcomes == [.pasted])
+
+    // The other way: a menu bar dictation keeps the menu bar until it ends.
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    setting.send(.pill)
+    rig.pill.usesPill = true
+    #expect(menuBar == .recording)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(menuBar == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.indicator == .pill)
+    #expect(rig.pill.outcomes == [.pasted])
 }
 
 @MainActor @Test func pillModeEscDismisses() async {

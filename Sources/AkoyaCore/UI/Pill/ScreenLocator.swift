@@ -10,9 +10,17 @@ public enum ScreenLocator {
     /// The Dock's icon size when the user never changed it (an unset `tilesize` reserves 90 pt).
     static let defaultTileSize: CGFloat = 64
 
+    /// How long an Accessibility query may wait on the frontmost app: a hung app would otherwise
+    /// block the main thread for the system default (about 6 s).
+    static let messagingTimeout: Float = 0.2
+
     /// The screen containing the centre of the frontmost app's focused window (Accessibility), or
-    /// `NSScreen.main` when there is none or it cannot be read.
+    /// `NSScreen.main` when there is none or it cannot be read. When Akoya itself is frontmost
+    /// (onboarding, settings) its key window's screen is used instead of asking Accessibility.
     public static func screenForFocusedWindow() -> NSScreen? {
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier == getpid() {
+            return NSApp.keyWindow?.screen ?? NSScreen.main
+        }
         guard let frame = focusedWindowFrame(),
               let primary = NSScreen.screens.first else { return NSScreen.main }
         // Accessibility frames are top-left based, measured from the primary screen's top.
@@ -36,6 +44,8 @@ public enum ScreenLocator {
     private static func focusedWindowFrame() -> CGRect? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         let element = AXUIElementCreateApplication(app.processIdentifier)
+        // Applies to queries on this element and the window elements it returns.
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
         var window: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXFocusedWindowAttribute as CFString, &window) == .success,
               let window, CFGetTypeID(window) == AXUIElementGetTypeID() else { return nil }

@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// Observable state behind the menu bar item. The coordinator mutates it; `WaveformView`
@@ -29,7 +30,20 @@ public final class WaveformModel: ObservableObject {
     /// Deliberately not `@Published`: it only matters while the timeline is ticking.
     public private(set) var phaseEnteredAt = Date()
 
+    private var indicatorFollower: AnyCancellable?
+
     public init() {}
+
+    /// Makes `indicator` follow the setting, but only while idle: a change made mid-dictation
+    /// waits until the phase returns to `.idle`, so the menu bar and the pill never both show
+    /// (or both miss) one dictation. The coordinator sets `indicator` at each press.
+    public func followIndicator<Setting: Publisher>(_ setting: Setting)
+    where Setting.Output == DictationIndicator, Setting.Failure == Never {
+        // `@Published` emits in willSet, so use the delivered phase, not `phase`.
+        indicatorFollower = setting.combineLatest($phase)
+            .filter { $0.1 == .idle }
+            .sink { [weak self] indicator, _ in self?.indicator = indicator }
+    }
 }
 
 /// A cross-fade in progress: `from` fades out as the current phase's content fades in.

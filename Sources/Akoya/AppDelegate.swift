@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
-        settings.$indicator.assign(to: &model.$indicator)
+        model.followIndicator(settings.$indicator)
 
         refreshInputs()
         inputDevicesObservation = AudioDevices.observeChanges { [weak self] in self?.refreshInputs() }
@@ -128,8 +128,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let presenter = pillPresenter
         pillController = PillPanelController(presenter: presenter, model: model)
         // `@Published` emits in willSet, so use the delivered phase, not `model.phase`.
-        pillPhaseSubscription = model.$phase.sink { [coordinator, settings] phase in
-            presenter.phaseChanged(phase, isPractice: coordinator.isPracticing, usesPill: settings.indicator == .pill)
+        // The coordinator sets `model.indicator` at the press, before the phase leaves `.idle`.
+        pillPhaseSubscription = model.$phase.sink { [coordinator, model] phase in
+            presenter.phaseChanged(phase, isPractice: coordinator.isPracticing, usesPill: model.indicator == .pill)
         }
         coordinator.onOutcome = { presenter.outcome($0) }
     }
