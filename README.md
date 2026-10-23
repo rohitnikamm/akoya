@@ -90,8 +90,8 @@ scripts/build-app.sh debug   # builds build/products.noindex/Akoya.app
 
 Inspired by [Voxtype](https://github.com/peteonrails/voxtype) in [Omarchy](https://omarchy.org). Speech recognition by [FluidAudio](https://github.com/FluidInference/FluidAudio) running [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2).
 
+Speech model: NVIDIA Parakeet TDT 0.6B v2, licensed CC-BY-4.0 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2); Core ML conversion by FluidInference, ONNX int8 conversion by sherpa-onnx. License: https://creativecommons.org/licenses/by/4.0/
+
 ## License
 
 [MIT](LICENSE)
-
-Speech model: NVIDIA Parakeet TDT 0.6B v2, licensed CC-BY-4.0 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2); Core ML conversion by FluidInference, ONNX int8 conversion by sherpa-onnx.

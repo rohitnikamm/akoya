@@ -2,8 +2,8 @@ name: release-windows
 
 # Tag push windows-vX.Y.Z: build Setup.exe with Velopack and attach everything to a DRAFT GitHub release.
 # Publishing the draft stays a manual step. Tag pushes ignore the paths filter below.
-# Pushes to a branch that touch this file, the packaging script or Program.cs (vpk checks VelopackApp.Run is
-# there), and manual runs, only do a dry run:
+# Pushes to a branch that touch this file, the packaging or model staging scripts, ModelManifest.cs (the pinned
+# model) or Program.cs (vpk checks VelopackApp.Run is there), and manual runs, only do a dry run:
 # the package is built, nothing is uploaded, and the size of Setup.exe is printed as a notice.
 on:
   push:
@@ -13,6 +13,8 @@ on:
       - '.github/workflows/release-windows.yml'
       - 'windows/scripts/package.ps1'
       - 'windows/src/Akoya.App/Program.cs'
+      - 'windows/scripts/stage-model.ps1'
+      - 'windows/src/Akoya.Core/Model/ModelManifest.cs'
   workflow_dispatch:
 
 concurrency:
