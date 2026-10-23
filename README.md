@@ -27,7 +27,7 @@ On-device dictation for macOS and Windows.
 brew install --cask rohitnikamm/tap/akoya
 ```
 
-Open Akoya and follow the short setup: it asks for Microphone and Accessibility access and downloads the speech model (about 450 MB). Akoya is not notarized; the cask clears the quarantine flag so it opens without a Gatekeeper warning.
+Open Akoya and follow the short setup: it asks for Microphone and Accessibility access. The speech model is built into the app, so it works offline on first launch. Akoya is not notarized; the cask clears the quarantine flag so it opens without a Gatekeeper warning.
 
 <div align="center">
 <img src="docs/assets/in-use.png" alt="A sentence dictated into Notes, with the Akoya dropdown open in the menu bar" width="100%">
@@ -59,7 +59,7 @@ The same dictation on Windows 11, with a slim pill above the taskbar in place of
 
 ### Install
 
-Download `Akoya-win-Setup.exe` from the [releases page](https://github.com/rohitnikamm/akoya/releases) and run it. Setup picks your microphone and downloads the speech model (about 480 MB); after that Akoya keeps itself up to date. Akoya is not code-signed, so the first time Windows SmartScreen appears, click **More info → Run anyway**.
+Download `Akoya-win-Setup.exe` from the [releases page](https://github.com/rohitnikamm/akoya/releases) and run it. Setup picks your microphone; the speech model is built into the app, so it works offline on first launch, and after that Akoya keeps itself up to date. Akoya is not code-signed, so the first time Windows SmartScreen appears, click **More info → Run anyway**.
 
 <div align="center">
 <img src="docs/assets/windows-hero.png" alt="Akoya on Windows: the pill listening above the taskbar and the tray panel open in the corner" width="100%">

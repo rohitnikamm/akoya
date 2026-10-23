@@ -65,6 +65,12 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Another app holding the clipboard open (some remote desktop or clipboard managers): the pill goes red with "Couldn't paste" and the text is kept as Last dictation with Copy.
 - [ ] Close the panel, then dictate right away: the text lands in the previous app, not in Akoya.
 
+## Built-in speech model
+- [ ] Fresh install of Setup.exe (no `%LocalAppData%\Akoya\models\`) with the network off: Akoya becomes Ready with no download and no "Getting the speech model ready" progress, and a dictation works. `models\sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` (four files) and `ThirdPartyNotices.txt` are next to `Akoya.exe` in `%LocalAppData%\Akoya\current`. Setup.exe is about 524.5 MB (550,013,004 bytes).
+- [ ] Update check: start from a version that downloaded its model (`%LocalAppData%\Akoya\models\` exists, with or without a `.part` file), update to this version. Once Ready, `%LocalAppData%\Akoya\models\` is gone and the model inside `current\models` is untouched.
+- [ ] Damaged install: rename `current\models` and relaunch: Akoya downloads the model as before. With a corrupted built-in file of the right size: "Speech model failed", Retry uses the downloaded copy or downloads one, and the built-in is tried again after a relaunch.
+- [ ] After one update, note the size of Velopack's local packages folder (`%LocalAppData%\Akoya\packages`) and of the whole `%LocalAppData%\Akoya` folder, and whether the update downloaded the full package or a delta (the model should not ship again unless it changed). Record the numbers here.
+
 ## Windows limits (expected behaviour)
 - [ ] Admin window (UIPI): start Notepad as administrator, give it focus and hold the hotkey. Windows blocks a normal app from seeing keys while an elevated window has focus, so the hotkey does not fire at all there. This is expected. It works again as soon as a normal window has focus.
 - [ ] Paste into an elevated window when the dictation was started from a normal window and focus moved to the elevated one before release: no paste is attempted, the pill is blue with "Copied. Press Ctrl+V", and Ctrl+V pastes the text.

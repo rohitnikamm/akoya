@@ -62,6 +62,11 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Finder shows `build/products.noindex/Akoya.app` with the dark rounded icon and the glowing dot logo.
 - [ ] System Settings > Privacy & Security > Microphone / Accessibility list "Akoya" with that icon, so it is easy to find.
 
+## Built-in speech model
+- [ ] Fresh install of a release build (no `~/Library/Application Support/Akoya/Models`, no `Silk/Models`) with Wi-Fi and Ethernet off: Akoya becomes Ready without any download or "Downloading" progress, and a dictation works. `Akoya.app/Contents/Resources/Models/parakeet-tdt-0.6b-v2` and `Contents/Resources/ThirdPartyNotices.txt` exist; the app is about 464 MB (`du -sh`), the release zip about 441 MiB.
+- [ ] Update check: start from a version that downloaded its model (`ls ~/Library/Application Support/Akoya/Models/parakeet-tdt-0.6b-v2` exists), install this version over it and open it. It becomes Ready, and once it is Ready that folder (and `Models`, and `Silk/Models` if present) is gone. The built-in model inside the app is untouched.
+- [ ] Damaged install: move the app's `Models` folder away (or use a debug build without `--with-model`): Akoya falls back to downloading (or to a downloaded copy if one exists), with the usual progress and Retry.
+
 ## Core flow
 - [ ] Hold Right Option, speak, release: waveform while speaking, scanning bar, then text appears in TextEdit, Safari, Slack, Terminal and VS Code.
 - [ ] With Accessibility granted while Akoya is in the background, the hotkey starts working within ~2 s.
