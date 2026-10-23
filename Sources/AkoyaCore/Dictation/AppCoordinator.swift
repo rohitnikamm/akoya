@@ -87,6 +87,10 @@ public final class AppCoordinator {
 
     public var phase: DictationPhase { model.phase }
     public var isRecording: Bool { model.phase == .recording }
+    /// True while dictation goes to onboarding's practice field instead of the frontmost app.
+    public var isPracticing: Bool {
+        if case .practice = destination { true } else { false }
+    }
 
     public init(audio: AudioRecording, transcriber: Transcribing, inserter: TextInserting,
                 model: WaveformModel,

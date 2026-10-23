@@ -1,5 +1,6 @@
 import AkoyaCore
 import AppKit
+import Combine
 import os
 import SwiftUI
 
@@ -20,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let onboarding: OnboardingWindowController
     private var statusController: StatusItemController?
     private var panel: StatusPanelController?
+    private let pillPresenter = PillPresenter()
+    private var pillController: PillPanelController?
+    private var pillPhaseSubscription: AnyCancellable?
 
     private var modelState: ModelState = .notReady {
         didSet {
@@ -91,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
+        startPill()
 
         quitLegacySilk()
         showOnboardingIfNeeded()
@@ -115,6 +120,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // open pastes into the previous app (the panel survives the hide: canHide is false).
         WindowPresenter.handBackFocusIfActive()
         return false
+    }
+
+    // MARK: - Pill
+
+    private func startPill() {
+        let presenter = pillPresenter
+        pillController = PillPanelController(presenter: presenter, model: model)
+        // `@Published` emits in willSet, so use the delivered phase, not `model.phase`.
+        pillPhaseSubscription = model.$phase.sink { [coordinator, settings] phase in
+            presenter.phaseChanged(phase, isPractice: coordinator.isPracticing, usesPill: settings.indicator == .pill)
+        }
+        coordinator.onOutcome = { presenter.outcome($0) }
     }
 
     // MARK: - Microphones
