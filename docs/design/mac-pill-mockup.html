@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mac Pill</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap">
+<style>
+/* The Windows pill brought to the Mac: where it sits, every message, and the dropdown setting. Dark-only, like Akoya. */
+:root{--blue:#2F6BFF;--blue2:#1D4ED8;--red:#EF4444;--amber:#FBBF24;--ink:#e8ecf6;--muted:rgba(232,236,246,.62);--line:rgba(255,255,255,.1);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#07090f;color:var(--ink);font-family:Outfit,-apple-system,sans-serif;padding:32px 16px 80px}
+.wrap{max-width:1040px;margin:0 auto}
+h1{font-weight:600;font-size:28px;margin:0 0 6px}
+h2{font-weight:500;font-size:21px;margin:46px 0 6px}
+p.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.5;max-width:800px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:2px;background:rgba(47,107,255,.2);color:#9db8ff}
+
+/* ---------- Mac desktop (real scale) ---------- */
+.mac{position:relative;height:600px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.08);
+ background:radial-gradient(ellipse 60% 55% at 70% 85%,#3a2a7a 0%,transparent 70%),radial-gradient(ellipse 55% 60% at 20% 30%,#123a7a 0%,transparent 70%),linear-gradient(160deg,#0b1430,#1a1240 60%,#0a0f24)}
+.mac.small{height:330px}
+.menubar{position:absolute;left:0;right:0;top:0;height:24px;background:rgba(18,20,30,.55);backdrop-filter:blur(20px);display:flex;align-items:center;padding:0 12px;gap:18px;font-size:13px;font-family:-apple-system,"SF Pro Text",sans-serif;color:rgba(255,255,255,.92)}
+.menubar .r{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:12.5px}
+.menubar b{font-weight:600}
+.glyph{display:inline-flex;align-items:center;gap:1.5px;height:16px;padding:0 6px}
+.glyph i{display:block;width:2px;border-radius:1px;background:#fff}
+.win{position:absolute;left:120px;top:70px;width:560px;height:330px;border-radius:12px;background:#1e1f24;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 22px 60px rgba(0,0,0,.55);overflow:hidden;font-family:-apple-system,"SF Pro Text",sans-serif}
+.win .bar{height:38px;display:flex;align-items:center;gap:8px;padding:0 14px;background:#26272d;border-bottom:1px solid rgba(255,255,255,.06)}
+.win .bar i{width:12px;height:12px;border-radius:6px;background:#ff5f57}.win .bar i:nth-child(2){background:#febc2e}.win .bar i:nth-child(3){background:#28c840}
+.win .bar span{margin-left:auto;margin-right:auto;font-size:13px;color:rgba(255,255,255,.7);font-weight:600}
+.win .body{padding:20px 26px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.88)}
+.caret{display:inline-block;width:1.5px;height:17px;background:#4f8bff;vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.dock{position:absolute;left:50%;transform:translateX(-50%);bottom:6px;height:64px;padding:8px 10px;border-radius:20px;display:flex;gap:9px;align-items:center;
+ background:rgba(40,42,58,.45);backdrop-filter:blur(24px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.dock i{display:block;width:48px;height:48px;border-radius:12px}
+.dock.left{left:6px;top:50%;bottom:auto;transform:translateY(-50%);height:auto;width:64px;flex-direction:column}
+.measure{position:absolute;width:1px;border-left:1px solid rgba(255,255,255,.35)}
+.measure::before,.measure::after{content:"";position:absolute;left:-5px;width:9px;border-top:1px solid rgba(255,255,255,.35)}
+.measure::before{top:0}.measure::after{bottom:0}
+.measure b{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:500;color:rgba(255,255,255,.75);white-space:nowrap}
+.ghost{position:absolute;left:50%;transform:translateX(-50%);bottom:6px;width:440px;height:64px;border-radius:20px;border:1.5px dashed rgba(157,184,255,.45);background:rgba(157,184,255,.04)}
+.ghost span{position:absolute;left:50%;transform:translateX(-50%);top:22px;font-size:12px;color:rgba(157,184,255,.75);white-space:nowrap}
+
+/* ---------- pill (34 pt, as on Windows) ---------- */
+.pill{position:absolute;left:50%;transform:translateX(-50%);height:34px;border-radius:17px;display:flex;align-items:center;gap:10px;padding:0 15px;
+ background:linear-gradient(180deg,rgba(14,18,34,.94),rgba(9,13,30,.96));
+ box-shadow:inset 0 0 0 1px rgba(140,170,255,.18),inset 0 -8px 14px -7px rgba(47,107,255,.85),inset 0 -2px 3px -1px rgba(150,185,255,.9),0 12px 40px rgba(47,107,255,.32),0 8px 24px rgba(0,0,0,.5)}
+.pill.inline{position:relative;left:auto;transform:none;display:inline-flex}
+.pill.alert{box-shadow:inset 0 0 0 1px rgba(255,150,150,.22),inset 0 -8px 14px -7px rgba(239,68,68,.85),inset 0 -2px 3px -1px rgba(255,170,170,.85),0 12px 40px rgba(239,68,68,.28),0 8px 24px rgba(0,0,0,.5)}
+.grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,3px);gap:2px}
+.grid b{width:3px;height:3px;border-radius:50%;background:#dbe6ff}
+.red .grid.live b{background:#ff6b6b}
+.ptime{font-size:11.5px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.ptxt{font-size:13.5px;color:rgba(255,255,255,.9);white-space:nowrap}
+.ico{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;flex:none}
+.ico.ok{background:var(--blue);box-shadow:0 0 12px rgba(47,107,255,.8)}
+.ico.bad{background:var(--red);box-shadow:0 0 12px rgba(239,68,68,.7);font-weight:700;font-size:12px;color:#fff}
+.kbd{font-size:12px;padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.12);margin-left:2px}
+
+/* ---------- message gallery ---------- */
+.msgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.msg{border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:12px;min-width:0}
+.msg .stage{height:60px;border-radius:10px;display:grid;place-items:center;background:radial-gradient(ellipse 80% 120% at 50% 120%,#2a2370 0%,transparent 70%),#0d1230;overflow:hidden}
+.msg p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
+.msg p b{color:var(--ink);font-weight:500}
+.msg .new{color:#9db8ff;font-size:11.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+
+/* ---------- dropdown ---------- */
+.row2{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+.pcol{flex:0 0 320px}
+.cap{font-size:13px;color:#8b93a7;margin-bottom:10px}
+.panel{width:320px;padding:14px;border-radius:30px;background:linear-gradient(180deg,#0E1424,#070A12);box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);display:flex;flex-direction:column;gap:10px}
+.group{border-radius:18px;background:rgba(30,36,58,.55);padding:2px 0}
+.gi{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:13px}
+.gl{display:flex;align-items:center;gap:9px;color:rgba(255,255,255,.88);white-space:nowrap}.gl svg{color:rgba(255,255,255,.6);flex:none}
+.gv{color:rgba(255,255,255,.62);font-size:12.5px;white-space:nowrap}
+.sep{height:1px;margin:0 14px;background:rgba(255,255,255,.07)}
+.sw{width:34px;height:20px;border-radius:10px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);position:relative;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:rgba(255,255,255,.55)}
+.sw.on{background:rgba(255,255,255,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}.sw.on i{left:16px;background:#fff}
+.sub2{margin:0 10px 6px;padding:2px 0;border-radius:12px;background:rgba(255,255,255,.035)}
+.gi.in{padding:8px 12px}.gl2{font-size:12.5px;color:rgba(255,255,255,.8)}
+.isnew{box-shadow:0 0 0 1.5px rgba(47,107,255,.7),0 0 22px rgba(47,107,255,.25);border-radius:10px}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:12px}
+.seg span{padding:3px 10px;border-radius:6px;color:rgba(255,255,255,.55)}
+.seg span.on{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);color:#fff;font-weight:600}
+.note{padding:2px 12px 8px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.4}
+.quit{display:flex;justify-content:space-between;padding:6px 14px 4px;font-size:13px;color:rgba(255,255,255,.62)}.sc{color:rgba(255,255,255,.4)}
+.diff{margin:0;padding:0;list-style:none;font-size:14px;color:var(--muted);line-height:1.6;flex:1 1 300px}
+.diff li{padding-left:18px;position:relative;margin-bottom:8px}.diff li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;border-radius:3px;background:#9db8ff}
+.diff b{color:var(--ink);font-weight:500}
+.scenes2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.scenes2 h3{font-size:15px;font-weight:500;margin:0 0 8px}.scenes2 h3 small{color:var(--muted);font-weight:400;font-size:13px;margin-left:4px}
+</style></head><body><div class="wrap">
+
+<h1>The pill on the Mac</h1>
+<p class="sub">The Windows pill, brought over as it is: same look, same 34 pt height, same live dot waveform and timer, same jelly pop-in and the same messages. It becomes the Mac's default way to show dictation; the menu bar waveform stays available as an option. Everything below is at real size.</p>
+
+<!-- ======================= 1. where it sits ======================= -->
+<h2>1. Where it sits</h2>
+<p class="sub">Centred above the Dock on the screen holding the window you're typing into. It never takes focus, clicks pass through it, and it shows on every Space and over full-screen apps. While the pill is showing, the menu bar item stays the plain idle glyph (no second waveform).</p>
+<div class="mac" id="main">
+  <div class="menubar"><b></b><b>Notes</b><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Window</span>
+    <div class="r"><span class="glyph"><i style="height:4px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:4px"></i></span><span>⌘</span><span>Wed 22 Oct  10:41 PM</span></div></div>
+  <div class="win"><div class="bar"><i></i><i></i><i></i><span>Notes</span></div>
+    <div class="body">Ideas for the weekend<br><br>Okay, so the plan is to head out early on Saturday and<span class="caret"></span></div></div>
+  <div class="pill live-pill" style="bottom:90px"><span class="grid live" data-cols="23"></span><span class="ptime">0:04</span></div>
+  <div class="measure" style="left:calc(50% + 130px);bottom:70px;height:20px"><b>20 pt above the Dock</b></div>
+  <div class="dock"><i style="background:linear-gradient(#5ac8fa,#007aff)"></i><i style="background:linear-gradient(#ffd60a,#ff9f0a)"></i><i style="background:linear-gradient(#30d158,#248a3d)"></i><i style="background:linear-gradient(#ff6482,#ff2d55)"></i><i style="background:linear-gradient(#bf5af2,#8944ab)"></i><i style="background:linear-gradient(#64d2ff,#0a84ff)"></i><i style="background:linear-gradient(#8e8e93,#48484a)"></i></div>
+</div>
+
+<div class="scenes2" style="margin-top:16px">
+  <div><h3>Dock on the left <small>or right</small></h3>
+    <div class="mac small">
+      <div class="menubar"><b></b><b>Notes</b><div class="r"><span class="glyph"><i style="height:4px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:4px"></i></span></div></div>
+      <div class="win" style="left:110px;top:50px;width:340px;height:190px"><div class="bar"><i></i><i></i><i></i><span>Notes</span></div></div>
+      <div class="pill" style="bottom:20px"><span class="grid live" data-cols="23"></span><span class="ptime">0:02</span></div>
+      <div class="measure" style="left:calc(50% + 130px);bottom:0;height:20px"><b>20 pt</b></div>
+      <div class="dock left"><i style="background:linear-gradient(#5ac8fa,#007aff)"></i><i style="background:linear-gradient(#ffd60a,#ff9f0a)"></i><i style="background:linear-gradient(#30d158,#248a3d)"></i><i style="background:linear-gradient(#ff6482,#ff2d55)"></i></div>
+    </div>
+    <p class="sub" style="margin-top:8px;font-size:13.5px">Centred on the screen, 20 pt above its bottom edge.</p></div>
+  <div><h3>Dock hidden <small>(automatically hide)</small></h3>
+    <div class="mac small">
+      <div class="menubar"><b></b><b>Notes</b><div class="r"><span class="glyph"><i style="height:4px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:4px"></i></span></div></div>
+      <div class="win" style="left:150px;top:50px;width:340px;height:170px"><div class="bar"><i></i><i></i><i></i><span>Notes</span></div></div>
+      <div class="ghost"><span>Dock when it pops up</span></div>
+      <div class="pill" style="bottom:90px"><span class="grid live" data-cols="23"></span><span class="ptime">0:02</span></div>
+    </div>
+    <p class="sub" style="margin-top:8px;font-size:13.5px">Same spot as when the Dock shows (like Windows with an auto-hidden taskbar), so the Dock never covers it when it pops up.</p></div>
+</div>
+
+<!-- ======================= 2. states and messages ======================= -->
+<h2>2. Every state and message</h2>
+<p class="sub">The same set as Windows, worded for the Mac. Today every one of the failures below is the same 0.6 s red flash on the menu bar icon; with the pill the Mac can finally say which one it was. Results show for 0.9 s, alerts for 1.6 s, then the pill fades and sinks out.</p>
+<div class="msgs">
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="grid live" data-cols="23"></span><span class="ptime">0:07</span></span></div><p><b>Listening.</b> Live dot waveform and timer. Pops in the moment you press the hotkey.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline red"><span class="grid live" data-cols="23"></span><span class="ptime">0:07</span></span></div><p><b>Listening, "Red while recording" on.</b> Red dots, as on Windows.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#dbe6ff"></span><span class="ptime">0:09</span></span></div><p><b>Transcribing.</b> The sweep glides back and forth (1.4 s), the same motion as the menu bar icon.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="grid scan" data-cols="23" data-tint="#FBBF24"></span><span class="ptime">0:09</span></span></div><p><b>Transcribing, "Red while recording" on.</b> The sweep turns amber, matching the menu bar icon you just got.</p></div>
+  <div class="msg"><div class="stage"><span class="pill inline"><span class="ico ok"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2 4.1 7.3 8 3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ptxt">Pasted</span></span></div><p><b>Pasted.</b> 0.9 s, then it fades.</p></div>
+  <div class="msg"><span class="new">New on the Mac</span><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Microphone not detected</span></span></div><p><b>No microphone,</b> or the one you picked is unplugged. Today: a red flash.</p></div>
+  <div class="msg"><span class="new">New on the Mac</span><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Turn on your mic in System Settings</span></span></div><p><b>Microphone permission denied.</b> Today: a red flash.</p></div>
+  <div class="msg"><span class="new">New on the Mac</span><div class="stage"><span class="pill inline"><span class="ptxt">Getting the speech model ready…</span></span></div><p><b>Hotkey pressed before the model has loaded.</b> Blue, 1.6 s. Today: a red flash.</p></div>
+  <div class="msg"><span class="new">New on the Mac</span><div class="stage"><span class="pill inline alert"><span class="ico bad">!</span><span class="ptxt">Speech model failed</span></span></div><p><b>The model couldn't load.</b> Retry stays in the dropdown. Today: a red flash.</p></div>
+  <div class="msg"><span class="new">New on the Mac</span><div class="stage" style="background:radial-gradient(ellipse 80% 120% at 50% 120%,#2a2370 0%,transparent 70%),#0d1230"><span style="font-size:12px;color:rgba(255,255,255,.4)">pill fades out, nothing pasted</span></div><p><b>Nothing said, or nothing heard.</b> The pill just fades, as on Windows. Today: a red flash.</p></div>
+</div>
+
+<!-- ======================= 3. the setting ======================= -->
+<h2>3. The setting</h2>
+<p class="sub">The dropdown's "Menu bar icon" row becomes "Dictation indicator", because it now covers both. A new first option picks where dictation shows (new part outlined). Pill is the default for everyone, including people updating.</p>
+<div class="row2">
+  <div class="pcol"><div class="cap">Dropdown, row expanded</div><div class="panel">
+    <div class="group">
+      <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="5" width="2" height="4" rx="1" fill="currentColor"/><rect x="4" y="3" width="2" height="8" rx="1" fill="currentColor"/><rect x="7" y="1" width="2" height="12" rx="1" fill="currentColor"/><rect x="10" y="3" width="2" height="8" rx="1" fill="currentColor"/></svg>Dictation indicator</span><span class="gv">Pill ⌄</span></div>
+      <div class="sub2">
+        <div class="gi in isnew"><span class="gl2">Show while dictating</span><span class="seg"><span class="on">Pill</span><span>Menu bar</span></span></div>
+        <div class="gi in"><span class="gl2">Waveform</span><span class="seg"><span class="on">Pixel</span><span>Solid</span></span></div>
+        <div class="gi in"><span class="gl2">Red while recording</span><span class="sw"><i></i></span></div>
+        <div class="gi in"><span class="gl2">Hide menu bar icon when idle</span><span class="sw"><i></i></span></div>
+        <div class="note">Hidden? Open Akoya from Spotlight to get back here.</div>
+      </div>
+      <div class="sep"></div>
+      <div class="gi"><span class="gl"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.8v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.2 3.6a4.6 4.6 0 1 0 5.6 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Launch at login</span><span class="sw on"><i></i></span></div>
+    </div>
+    <div class="quit"><span>Quit Akoya</span><span class="sc">⌘Q</span></div>
+  </div></div>
+  <ul class="diff">
+    <li><b>Waveform and Red while recording</b> apply to whichever one you pick, the pill or the menu bar.</li>
+    <li><b>Hide menu bar icon when idle</b> keeps working in both modes; the icon is still how you open this dropdown.</li>
+    <li><b>Menu bar mode</b> is exactly today's Mac behaviour: the waveform in the menu bar and the red flash for errors.</li>
+    <li><b>Onboarding's Try it</b> keeps using its own card for feedback; the pill stays hidden there, as on Windows.</li>
+    <li><b>Reduce Motion</b> swaps the jelly pop for a plain fade, like Windows with animations off.</li>
+  </ul>
+</div>
+
+</div>
+<script>
+document.querySelectorAll('.grid').forEach(g=>{let h='';for(let i=0;i<+g.dataset.cols*4;i++)h+='<b></b>';g.innerHTML=h});
+const Q=new URLSearchParams(location.search),FIX=Q.has('t')?parseFloat(Q.get('t')):null;
+function tick(now){
+  if(FIX!==null)now=FIX*1000;const t=now/1000;
+  document.querySelectorAll('.grid.live').forEach(g=>{const n=+g.dataset.cols,d=g.children;for(let c=0;c<n;c++){const x=(c+.5)/n;const env=Math.pow(Math.sin(Math.PI*x),.7);const L=env*(0.28+0.72*Math.abs(Math.sin(t*6.1+c*.8))*(0.65+0.35*Math.sin(t*2.3+c*.31)))*5.2;for(let r=0;r<4;r++){const dd=Math.abs(r-1.5);d[c*4+r].style.opacity=dd<1?0.95:0.12+0.83*Math.min(1,Math.max(0,(L-2)/1.6))}}});
+  document.querySelectorAll('.grid.scan').forEach(g=>{const n=+g.dataset.cols,d=g.children,p=(t%1.4)/1.4,leg=p<.5?p*2:2-p*2,head=(1-Math.cos(Math.PI*leg))/2*(n-1);for(let c=0;c<n;c++){const k=Math.abs(c-head);const o=k<1?1:k<2?.7:k<3?.48:k<4?.32:.18;for(let r=0;r<4;r++){const mid=r===1||r===2;d[c*4+r].style.opacity=mid?o:.18;d[c*4+r].style.background=mid&&o>.18?g.dataset.tint:'#dbe6ff'}}});
+  if(FIX===null)requestAnimationFrame(tick);
+}
+document.fonts.ready.then(()=>requestAnimationFrame(tick));
+</script>
+</body></html>
