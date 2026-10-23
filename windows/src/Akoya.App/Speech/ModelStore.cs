@@ -15,6 +15,7 @@ public sealed class ModelDownloadException : Exception
 /// <summary>
 /// Owns the speech model folder under <c>modelsRoot</c>: downloads the tarball to a .part file, checks
 /// its size and SHA-256, extracts into a temp folder, then renames that into place in one step.
+/// A complete copy shipped with the app under <c>builtInRoot</c> is used instead and never modified.
 /// </summary>
 public sealed class ModelStore
 {
@@ -22,6 +23,7 @@ public sealed class ModelStore
     private const string ExtractPrefix = ".extract-";
 
     private readonly string _root;
+    private readonly string? _builtInRoot;
     private readonly HttpClient _http;
     private readonly ModelSpec _spec;
     private readonly TimeSpan _inactivityTimeout;
@@ -30,31 +32,59 @@ public sealed class ModelStore
     /// <summary>How long a single body read may produce no data before the download is abandoned.</summary>
     public static readonly TimeSpan DefaultInactivityTimeout = TimeSpan.FromSeconds(30);
 
-    public ModelStore(string modelsRoot, HttpClient http) : this(modelsRoot, http, ModelManifest.Spec) { }
+    /// <summary>The copy installed with the app: <c>&lt;app dir&gt;\models</c>.</summary>
+    public static string DefaultBuiltInRoot => Path.Combine(AppContext.BaseDirectory, "models");
 
-    public ModelStore(string modelsRoot, HttpClient http, ModelSpec spec, TimeSpan? inactivityTimeout = null)
+    public ModelStore(string modelsRoot, HttpClient http)
+        : this(modelsRoot, http, ModelManifest.Spec, builtInRoot: DefaultBuiltInRoot) { }
+
+    public ModelStore(string modelsRoot, HttpClient http, ModelSpec spec, TimeSpan? inactivityTimeout = null, string? builtInRoot = null)
     {
         _root = modelsRoot;
         _http = http;
         _spec = spec;
         _inactivityTimeout = inactivityTimeout ?? DefaultInactivityTimeout;
+        _builtInRoot = builtInRoot;
     }
 
-    public string ModelDirectory => Path.Combine(_root, _spec.FolderName);
+    private string DownloadDirectory => Path.Combine(_root, _spec.FolderName);
+
+    /// <summary>The app ships a complete copy of the model (every file at its pinned size).</summary>
+    public bool UsesBuiltIn => _builtInRoot is not null && IsComplete(Path.Combine(_builtInRoot, _spec.FolderName));
+
+    /// <summary>The built-in copy when it is complete, else the downloaded one.</summary>
+    public string ModelDirectory => UsesBuiltIn ? Path.Combine(_builtInRoot!, _spec.FolderName) : DownloadDirectory;
 
     /// <summary>Every file is there, at its pinned size (a truncated or zero-byte encoder is not installed).</summary>
-    public bool IsInstalled => IsComplete(ModelDirectory);
+    public bool IsInstalled => UsesBuiltIn || IsComplete(DownloadDirectory);
 
     /// <summary>
-    /// Deletes the installed model (after it failed to load), so the next <see cref="EnsureAsync"/> downloads it
-    /// again. Throws if the folder can't be deleted.
+    /// Deletes the downloaded model (after it failed to load), so the next <see cref="EnsureAsync"/> downloads it
+    /// again. Never touches the built-in copy. Throws if the folder can't be deleted.
     /// </summary>
     public void Discard()
     {
         _gate.Wait();
         try
         {
-            if (Directory.Exists(ModelDirectory)) Directory.Delete(ModelDirectory, recursive: true);
+            if (Directory.Exists(DownloadDirectory)) Directory.Delete(DownloadDirectory, recursive: true);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Deletes everything under <c>modelsRoot</c> (the downloaded model, .part files, extract leftovers), once the
+    /// built-in copy has loaded. Never touches the built-in copy. Throws if the folder can't be deleted.
+    /// </summary>
+    public void RemoveDownloadedCopy()
+    {
+        _gate.Wait();
+        try
+        {
+            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
         }
         finally
         {
@@ -74,7 +104,7 @@ public sealed class ModelStore
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (IsInstalled)
+            if (UsesBuiltIn || IsComplete(DownloadDirectory))
             {
                 progress.Report(1);
                 return;
@@ -98,8 +128,8 @@ public sealed class ModelStore
                 }
 
                 // A half-installed folder from an older attempt must not block the move.
-                if (Directory.Exists(ModelDirectory)) Directory.Delete(ModelDirectory, recursive: true);
-                Directory.Move(extracted, ModelDirectory);
+                if (Directory.Exists(DownloadDirectory)) Directory.Delete(DownloadDirectory, recursive: true);
+                Directory.Move(extracted, DownloadDirectory);
                 progress.Report(1);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

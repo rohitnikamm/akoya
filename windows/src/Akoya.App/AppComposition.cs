@@ -10,7 +10,10 @@ namespace Akoya.App;
 /// <summary>The real ports for <see cref="AppHost"/>. Call on the UI thread after the dispatcher exists.</summary>
 public static class AppComposition
 {
-    /// <param name="modelsRoot">Where the speech model lives; default <c>%LocalAppData%\Akoya\models</c>.</param>
+    /// <param name="modelsRoot">
+    /// Where a downloaded speech model lives; default <c>%LocalAppData%\Akoya\models</c>. The copy shipped in
+    /// <c>&lt;app dir&gt;\models</c> is used instead when it is complete.
+    /// </param>
     public static AppPorts CreatePorts(Dispatcher dispatcher, Action shutdown, ILog log, string? modelsRoot = null)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
