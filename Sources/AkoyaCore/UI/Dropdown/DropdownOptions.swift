@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The options card (docs/design/all-in-one-dropdown-target.html, `.group`): Microphone menu,
-/// the Menu bar icon disclosure, and Launch at login, separated by hairlines.
+/// the Dictation indicator disclosure, and Launch at login, separated by hairlines.
 struct OptionsGroup: View {
     @ObservedObject var settings: AkoyaSettings
     let microphone: MicrophoneMenuModel
@@ -13,7 +13,7 @@ struct OptionsGroup: View {
         VStack(spacing: 0) {
             MicrophoneRow(menu: microphone, select: selectMicrophone)
             RowSeparator()
-            MenuBarIconRow(look: settings.look, disclosure: disclosure)
+            MenuBarIconRow(indicator: settings.indicator, look: settings.look, disclosure: disclosure)
             if disclosure.isExpanded {
                 MenuBarIconOptions(settings: settings)
                     .transition(.opacity.combined(with: .offset(y: -6)))
@@ -146,6 +146,7 @@ private struct MicrophoneRow: View {
 // MARK: - Menu bar icon
 
 private struct MenuBarIconRow: View {
+    let indicator: DictationIndicator
     let look: WaveLook
     @ObservedObject var disclosure: DisclosureState
 
@@ -154,10 +155,11 @@ private struct MenuBarIconRow: View {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { disclosure.isExpanded.toggle() }
         } label: {
             HStack(spacing: 12) {
-                RowLabel(title: "Menu bar icon") { WaveGlyph() }
+                RowLabel(title: "Dictation indicator") { WaveGlyph() }
                 Spacer(minLength: 0)
                 RowValue(
-                    text: MenuBarIconDisclosure.value(look: look, isExpanded: disclosure.isExpanded),
+                    text: MenuBarIconDisclosure.value(
+                        indicator: indicator, look: look, isExpanded: disclosure.isExpanded),
                     mark: .disclosure(isExpanded: disclosure.isExpanded))
             }
             .padding(.vertical, 10)
@@ -165,8 +167,8 @@ private struct MenuBarIconRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Menu bar icon")
-        .accessibilityValue(look.displayName)
+        .accessibilityLabel("Dictation indicator")
+        .accessibilityValue(MenuBarIconDisclosure.value(indicator: indicator, look: look, isExpanded: false) ?? "")
         .accessibilityHint(disclosure.isExpanded ? "Hides the icon options" : "Shows the icon options")
     }
 }
@@ -176,6 +178,17 @@ private struct MenuBarIconOptions: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                InnerTitle("Show while dictating")
+                Spacer(minLength: 8)
+                NeutralSegmented(
+                    options: DictationIndicator.allCases.map { ($0, $0.displayName) },
+                    selection: $settings.indicator)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Show while dictating")
             HStack {
                 InnerTitle("Waveform")
                 Spacer(minLength: 8)
@@ -190,7 +203,7 @@ private struct MenuBarIconOptions: View {
                 .toggleStyle(NeutralSwitchStyle())
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
-            Toggle(isOn: $settings.hideIdleIcon) { InnerTitle("Hide when idle") }
+            Toggle(isOn: $settings.hideIdleIcon) { InnerTitle("Hide menu bar icon when idle") }
                 .toggleStyle(NeutralSwitchStyle())
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)

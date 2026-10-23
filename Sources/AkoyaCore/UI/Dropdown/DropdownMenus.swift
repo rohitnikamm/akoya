@@ -68,11 +68,12 @@ public enum HotkeyMenuModel {
     }
 }
 
-/// The Menu bar icon row's value: the current look while collapsed, nothing (just the rotated
-/// chevron) while expanded.
+/// The Dictation indicator row's value: "Pill" in pill mode, else the current look while
+/// collapsed; nothing (just the rotated chevron) while expanded.
 public enum MenuBarIconDisclosure {
-    public static func value(look: WaveLook, isExpanded: Bool) -> String? {
-        isExpanded ? nil : look.displayName
+    public static func value(indicator: DictationIndicator, look: WaveLook, isExpanded: Bool) -> String? {
+        if isExpanded { return nil }
+        return indicator == .pill ? indicator.displayName : look.displayName
     }
 }
 
@@ -99,6 +100,15 @@ extension HotkeyKey {
 
     /// Short keycap label, e.g. "Right ⌘".
     public var keycapLabel: String { "Right \(symbol)" }
+}
+
+extension DictationIndicator {
+    public var displayName: String {
+        switch self {
+        case .pill: "Pill"
+        case .menuBar: "Menu bar"
+        }
+    }
 }
 
 extension WaveLook {

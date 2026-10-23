@@ -68,12 +68,18 @@ struct HotkeyMenuModelTests {
 }
 
 struct MenuBarIconDisclosureTests {
-    @Test func collapsedShowsTheCurrentLook() {
-        #expect(MenuBarIconDisclosure.value(look: .pixel, isExpanded: false) == "Pixel")
-        #expect(MenuBarIconDisclosure.value(look: .solid, isExpanded: false) == "Solid")
+    @Test func indicatorRowValue() {
+        #expect(MenuBarIconDisclosure.value(indicator: .pill, look: .solid, isExpanded: false) == "Pill")
+        #expect(MenuBarIconDisclosure.value(indicator: .menuBar, look: .solid, isExpanded: false) == "Solid")
+        #expect(MenuBarIconDisclosure.value(indicator: .pill, look: .pixel, isExpanded: true) == nil)
     }
 
-    @Test func expandedShowsOnlyTheChevron() {
-        #expect(MenuBarIconDisclosure.value(look: .solid, isExpanded: true) == nil)
+    @Test func menuBarModeShowsTheCurrentLook() {
+        #expect(MenuBarIconDisclosure.value(indicator: .menuBar, look: .pixel, isExpanded: false) == "Pixel")
+    }
+
+    @Test func indicatorNames() {
+        #expect(DictationIndicator.pill.displayName == "Pill")
+        #expect(DictationIndicator.menuBar.displayName == "Menu bar")
     }
 }
