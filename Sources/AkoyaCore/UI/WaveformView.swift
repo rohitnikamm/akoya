@@ -8,6 +8,8 @@ public final class WaveformModel: ObservableObject {
         didSet { if phase != oldValue { phaseEnteredAt = Date() } }
     }
     @Published public var columns: [Int] = Array(repeating: 1, count: 22)
+    /// The pill's level history: one step (1...8) per pill column.
+    @Published public var pillColumns: [Int] = Array(repeating: 1, count: PillDots.columns)
     @Published public var look: WaveLook = .pixel
     @Published public var redTint = false
     @Published public var hideIdleIcon = false

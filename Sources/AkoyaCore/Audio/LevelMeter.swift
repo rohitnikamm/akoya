@@ -7,8 +7,8 @@ public struct LevelMeter {
 
     public private(set) var columns: [Int]
 
-    public init() {
-        columns = Array(repeating: 1, count: Self.columnCount)
+    public init(columnCount: Int = LevelMeter.columnCount) {
+        columns = Array(repeating: 1, count: columnCount)
     }
 
     /// Appends a step for `rms` as the newest (rightmost) column. The new step never falls
@@ -22,7 +22,7 @@ public struct LevelMeter {
     }
 
     public mutating func reset() {
-        columns = Array(repeating: 1, count: Self.columnCount)
+        columns = Array(repeating: 1, count: columns.count)
     }
 
     /// Maps dBFS linearly from -50 (step 1) to -10 (step 8), clamped to 1...8.

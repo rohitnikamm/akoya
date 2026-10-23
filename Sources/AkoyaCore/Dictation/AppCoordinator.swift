@@ -37,6 +37,7 @@ public final class AppCoordinator {
     private let errorDisplay: TimeInterval
 
     private var meter = LevelMeter()
+    private var pillMeter = LevelMeter(columnCount: PillDots.columns)
     /// Loudest raw level step seen in the current recording.
     private var loudestStep = 1
     private var recordingStartedAt: TimeInterval = 0
@@ -136,8 +137,10 @@ public final class AppCoordinator {
 
     private func startRecording() {
         meter.reset()
+        pillMeter.reset()
         loudestStep = 1
         model.columns = meter.columns
+        model.pillColumns = pillMeter.columns
         do {
             try audio.start()
         } catch {
@@ -263,6 +266,8 @@ public final class AppCoordinator {
         model.voiceLevel = Double(step - 1) / 7
         meter.push(rms: rms)
         model.columns = meter.columns
+        pillMeter.push(rms: rms)
+        model.pillColumns = pillMeter.columns
     }
 
     private func receiveInterruption() {

@@ -393,6 +393,13 @@ private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool)
     #expect(rig.model.columns.count == 22)
 }
 
+@MainActor @Test func levelsFeedPillColumns() {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    #expect(rig.model.pillColumns.count == 23 && rig.model.pillColumns.last == 8)
+}
+
 @MainActor @Test func levelsAreIgnoredWhenNotRecordingAndResetOnStart() {
     let rig = Rig()
     rig.audio.onLevel?(1.0)
