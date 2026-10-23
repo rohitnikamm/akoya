@@ -520,9 +520,11 @@ public sealed class AppHost : IDisposable
             }
             catch (Exception e) when (!_disposed)
             {
-                // Present but unloadable. Once may be out of memory or an antivirus scan, so Retry loads the same files
-                // again; the same files failing twice are corrupt (an encoder of the right size): delete them, so the
-                // next Retry downloads them again.
+                // Present but unloadable. Failing once may be out of memory or an antivirus scan, so Retry loads the
+                // same files again (the built-in copy too: a download may be blocked on a company PC). The same files
+                // failing twice are corrupt (an encoder of the right size): Discard. A downloaded copy is deleted, so
+                // the next Retry downloads it again; the built-in copy is never deleted, only set aside for this
+                // session, so the next Retry uses a downloaded copy or downloads one.
                 _loadFailures++;
                 if (_loadFailures >= 2)
                 {

@@ -4,11 +4,11 @@ Nothing here could be checked by CI: it needs a real screen, microphones, a Wind
 
 ## Setup
 1. Run from source: `dotnet run --project windows/src/Akoya.App -c Release` (needs the .NET 10 SDK: `winget install Microsoft.DotNet.SDK.10`). A source run is not installed, so Updates and Launch at startup need the installed copy (see Install, update, uninstall).
-2. To see the first run again: quit Akoya from the tray, delete `%AppData%\Akoya\settings.json`. To also see the model download again, delete `%LocalAppData%\Akoya\models\`.
+2. To see the first run again: quit Akoya from the tray, delete `%AppData%\Akoya\settings.json`. The speech model is built in, so it is Ready at once. To see the fallback download (used only when the built-in model is missing), also rename `%LocalAppData%\Akoya\current\models` and delete `%LocalAppData%\Akoya\models\`.
 3. Logs are in `%LocalAppData%\Akoya\logs\akoya.log` (they never contain what you said).
 
 ## Setup window (first launch, or when the model is missing)
-- [ ] The setup window opens centred on the primary monitor with the blue rim glow, the dot logo, "Akoya", "Talk instead of type, in any app. Everything stays on your PC." and Get started. The model download has already started in the background.
+- [ ] The setup window opens centred on the primary monitor with the blue rim glow, the dot logo, "Akoya", "Talk instead of type, in any app. Everything stays on your PC." and Get started. The built-in model is already loading (fallback only, with the built-in model removed: the download has started in the background).
 - [ ] Microphone: the title is "Which mic do you talk into?" with "Say something. Pick the one that moves." The list shows every real input by plain name ("This PC's microphone", your headset's model name, "Webcam mic"), each with a live 10-dot meter that moves when you speak. Compare the names with Settings > System > Sound > Input.
 - [ ] Loopback and virtual inputs (Stereo Mix, Voicemeeter, NVIDIA Broadcast, OBS, Discord...) are folded into a final "More (n)" row; clicking it expands in place and those rows still have live meters.
 - [ ] The Windows default input is highlighted at first. Akoya never moves the highlight by itself; clicking a row does.
@@ -16,7 +16,7 @@ Nothing here could be checked by CI: it needs a real screen, microphones, a Wind
 - [ ] With only one input enabled (disable the others in Sound settings): the same screen with one row and the title "Is this the mic you want?".
 - [ ] Mic privacy switch off (Settings > Privacy & security > Microphone > "Let desktop apps access your microphone"): "Turn on your mic" and "Windows is blocking it. Open Settings and switch on microphone access for desktop apps." with Open Settings, which opens the right page. The text "Waiting for the switch..." shows and the screen moves on by itself within a couple of seconds of switching it on.
 - [ ] Continue saves the highlighted mic. After a relaunch the tray panel's Microphone row shows it.
-- [ ] Try it: "Hold [Right Alt] and say anything" with "or tap it once to start, again to stop". Holding the key shows a live waveform and your words fill the text card while you speak. Nothing is pasted into any other window, even if one has focus. If the model is still downloading, the dots under the hint fill left to right with the download and a line under them says "Getting the speech model ready 62%"; the text card keeps "Your words will appear here." A failed download says "Model download failed · Retry" in that line.
+- [ ] Try it: "Hold [Right Alt] and say anything" with "or tap it once to start, again to stop". Holding the key shows a live waveform and your words fill the text card while you speak. Nothing is pasted into any other window, even if one has focus. With the built-in model removed (fallback) and the model still downloading, the dots under the hint fill left to right with the download and a line under them says "Getting the speech model ready 62%"; the text card keeps "Your words will appear here." A failed download says "Model download failed · Retry" in that line.
 - [ ] Done (or Skip, or the x on any step) closes setup, and setup is not shown on the next launch. Everything is still reachable from the tray panel.
 
 ## Tray icon and panel
@@ -40,7 +40,7 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] The first word is not clipped.
 - [ ] Hold the key without speaking: the pill just fades, nothing is pasted. Quiet speech still transcribes.
 - [ ] Holding the key for more than a few minutes: recording stops by itself at 5 minutes and pastes what it heard.
-- [ ] While the model is not ready (right after the first install), pressing the hotkey shows "Getting the speech model ready..." in the pill and records nothing.
+- [ ] While the model is not ready (right after launch while it loads, or with the built-in model removed while it downloads), pressing the hotkey shows "Getting the speech model ready..." in the pill and records nothing.
 - [ ] Speak quietly (as quiet as still moves the pill's dots): the words are transcribed and pasted. Hold the key without saying anything: nothing is pasted. Each take adds a line like "Take: peak -41 dBFS (level 2); transcribing" to `%LocalAppData%\Akoya\logs\akoya.log`, never the words.
 
 ## Hotkey variants
@@ -65,6 +65,12 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Another app holding the clipboard open (some remote desktop or clipboard managers): the pill goes red with "Couldn't paste" and the text is kept as Last dictation with Copy.
 - [ ] Close the panel, then dictate right away: the text lands in the previous app, not in Akoya.
 
+## Built-in speech model
+- [ ] Fresh install of Setup.exe (no `%LocalAppData%\Akoya\models\`) with the network off: Akoya becomes Ready with no download and no "Getting the speech model ready" progress, and a dictation works. `models\sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` (four files) and `ThirdPartyNotices.txt` are next to `Akoya.exe` in `%LocalAppData%\Akoya\current`. Setup.exe is about 524.5 MB (550,013,004 bytes).
+- [ ] Update check: start from a version that downloaded its model (`%LocalAppData%\Akoya\models\` exists, with or without a `.part` file), update to this version. Once Ready, `%LocalAppData%\Akoya\models\` is gone and the model inside `current\models` is untouched.
+- [ ] Damaged install: rename `current\models` and relaunch: Akoya downloads the model as before. With a corrupted built-in file of the right size: "Speech model failed"; the first Retry loads the built-in again and fails again, the second Retry uses the downloaded copy or downloads one, and the built-in is tried again after a relaunch.
+- [ ] After one update, note the size of Velopack's local packages folder (`%LocalAppData%\Akoya\packages`) and of the whole `%LocalAppData%\Akoya` folder, and whether the update downloaded the full package or a delta (the model should not ship again unless it changed). Record the numbers here.
+
 ## Windows limits (expected behaviour)
 - [ ] Admin window (UIPI): start Notepad as administrator, give it focus and hold the hotkey. Windows blocks a normal app from seeing keys while an elevated window has focus, so the hotkey does not fire at all there. This is expected. It works again as soon as a normal window has focus.
 - [ ] Paste into an elevated window when the dictation was started from a normal window and focus moved to the elevated one before release: no paste is attempted, the pill is blue with "Copied. Press Ctrl+V", and Ctrl+V pastes the text.
@@ -75,14 +81,14 @@ Do these in each of: Windows Terminal, VS Code (editor and its terminal), Claude
 - [ ] Unplug the selected mic (or disable it in Sound settings) and press the hotkey: red pill with the alert icon and "Microphone not detected", gone after about 1.6 s, nothing recorded, and the tray Microphone row is yellow with "Not detected".
 - [ ] Mic privacy switch off, then press the hotkey: red pill "Turn on your mic in Settings", tray status "Microphone blocked" with Open Settings.
 - [ ] Unplug the headset while recording: recording stops, what was captured is transcribed and pasted, and the Microphone row turns yellow until it is back. The next dictation works.
-- [ ] Offline on a fresh model (delete the models folder, turn the network off, relaunch): tray status "Model download failed" with Retry; Retry restarts the download. With the network back, it finishes and shows Ready.
-- [ ] Model download progress shows "Getting the speech model ready..." with a percentage in the tray status, and an interrupted download (kill Akoya mid-way) restarts cleanly on the next launch.
+- [ ] Fallback, with the built-in model removed (rename `current\models`, delete `%LocalAppData%\Akoya\models\`, turn the network off, relaunch): tray status "Model download failed" with Retry; Retry restarts the download. With the network back, it finishes and shows Ready.
+- [ ] Fallback (built-in model removed): model download progress shows "Getting the speech model ready..." with a percentage in the tray status, and an interrupted download (kill Akoya mid-way) restarts cleanly on the next launch.
 - [ ] Keyboard hook cannot install (rare): tray status "Hotkey unavailable" with Retry.
 
 ## Install, update, uninstall
 Use the draft release's `Akoya-win-Setup.exe` (or the published one).
 - [ ] Download Setup.exe from the release in a browser. SmartScreen warns because the file is not signed: More info, then Run anyway. It installs for the current user with no admin prompt, adds Akoya to the Start menu, and starts it. Akoya appears in Settings > Apps > Installed apps. Setup.exe, the Start menu entry, the taskbar button, Task Manager and Settings > Apps all show the Akoya icon (the dot logo on a navy rounded square), not a blank one.
-- [ ] The files are under `%LocalAppData%\Akoya\` (the `current` folder and the `Akoya.exe` launcher). The speech model goes to `%LocalAppData%\Akoya\models\`, not into `current`.
+- [ ] The files are under `%LocalAppData%\Akoya\` (the `current` folder and the `Akoya.exe` launcher). The speech model is built in, in `current\models`; nothing is written to `%LocalAppData%\Akoya\models\` (that folder is only used by the fallback download).
 - [ ] Launch at startup on: adds `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Akoya` pointing at `%LocalAppData%\Akoya\Akoya.exe` (check with `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Akoya`). Sign out and in: Akoya starts by itself. It also shows in Task Manager > Startup apps. Off removes the entry.
 - [ ] Update: publish a newer release (for example bump the version and push the next `windows-v` tag), then in the older installed copy: within a few seconds of launch (or after the 6-hour check) the tray panel shows "Update ready" with a light-blue "Restart" link. Restart quits, updates and reopens Akoya on the new version without a new SmartScreen prompt and without downloading the model again. Your settings are kept. Launch at startup still works afterwards (the Run entry points at the launcher, which survives updates).
 - [ ] After the first Windows release is published, and again after the next Mac release: the update check still finds a Windows release when a newer Mac-only release exists. Velopack reads the latest 10 published releases and skips any without `releases.win.json`, so the Mac release (tag `vX.Y.Z`, no Windows files) is ignored. To confirm, keep an older Windows build installed, publish a Mac release after the newer Windows one, and check the old build still shows "Update ready". (An automated test covers the same feed logic; this checks it against real GitHub.)

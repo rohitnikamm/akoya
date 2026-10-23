@@ -16,11 +16,27 @@ public sealed class ModelStoreTests : IDisposable
     private static readonly ModelFiles Files = new("enc.onnx", "dec.onnx", "join.onnx", "tokens.txt");
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "akoya-modelstore-" + Guid.NewGuid().ToString("N"));
+    private readonly string _builtIn = Path.Combine(Path.GetTempPath(), "akoya-builtin-" + Guid.NewGuid().ToString("N"));
 
     public void Dispose()
     {
-        try { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        foreach (var dir in new[] { _root, _builtIn })
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); } catch (IOException) { }
+        }
     }
+
+    /// <summary>The model files at their pinned names and sizes, under <c>root/Folder</c>.</summary>
+    private static void WriteFakeModel(string root)
+    {
+        var dir = Path.Combine(root, Folder);
+        Directory.CreateDirectory(dir);
+        foreach (var name in Files.All) File.WriteAllText(Path.Combine(dir, name), "content of " + name);
+    }
+
+    private ModelStore BuiltInStore(Func<byte[]>? served = null) =>
+        new(_root, new HttpClient(new StubHandler(served ?? (() => throw new InvalidOperationException("downloaded")))),
+            SpecFor([]), builtInRoot: _builtIn);
 
     private sealed class StubHandler(Func<byte[]> body) : HttpMessageHandler
     {
@@ -270,6 +286,146 @@ public sealed class ModelStoreTests : IDisposable
 
         Assert.False(store.IsInstalled);
         Assert.False(Directory.Exists(store.ModelDirectory));
+    }
+
+    [Fact]
+    public void BuiltInCompleteIsUsed()
+    {
+        WriteFakeModel(_builtIn);
+        var store = BuiltInStore();
+
+        Assert.True(store.UsesBuiltIn);
+        Assert.Equal(Path.Combine(_builtIn, Folder), store.ModelDirectory);
+        Assert.True(store.IsInstalled);
+    }
+
+    [Fact]
+    public void BuiltInIncompleteFallsBackToDownloadFolder()
+    {
+        WriteFakeModel(_builtIn);
+        File.WriteAllBytes(Path.Combine(_builtIn, Folder, Files.Encoder), []); // a zero-byte encoder
+        var store = BuiltInStore();
+
+        Assert.False(store.UsesBuiltIn);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+        Assert.False(store.IsInstalled);
+
+        WriteFakeModel(_root);
+        Assert.True(store.IsInstalled);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+    }
+
+    [Fact]
+    public async Task EnsureDoesNothingWithBuiltIn()
+    {
+        WriteFakeModel(_builtIn);
+        var requests = 0;
+        var store = BuiltInStore(() =>
+        {
+            requests++;
+            throw new InvalidOperationException("downloaded");
+        });
+        var reports = new List<double>();
+
+        await store.EnsureAsync(new SyncProgress(reports.Add), CancellationToken.None);
+
+        Assert.Equal(0, requests);
+        Assert.Equal(new[] { 1.0 }, reports);
+        Assert.False(Directory.Exists(_root));
+    }
+
+    [Fact]
+    public void DiscardNeverDeletesBuiltIn()
+    {
+        WriteFakeModel(_builtIn);
+        WriteFakeModel(_root);
+        var store = BuiltInStore();
+
+        store.Discard(); // the built-in was in use: rejected, not deleted
+        store.Discard(); // now the downloaded copy is in use: deleted
+
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+        Assert.False(store.UsesBuiltIn);
+        Assert.False(Directory.Exists(Path.Combine(_root, Folder)));
+        Assert.False(store.IsInstalled);
+    }
+
+    [Fact]
+    public void RemoveDownloadedCopyDeletesOnlyTheDownloadRoot()
+    {
+        WriteFakeModel(_builtIn);
+        WriteFakeModel(_root);
+        File.WriteAllText(Path.Combine(_root, Folder + ".tar.bz2.part"), "junk");
+        Directory.CreateDirectory(Path.Combine(_root, ".extract-stale"));
+        var store = BuiltInStore();
+
+        store.RemoveDownloadedCopy();
+
+        Assert.False(Directory.Exists(_root));
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+        Assert.True(store.UsesBuiltIn);
+
+        store.RemoveDownloadedCopy(); // nothing left to delete: no error
+    }
+
+    [Fact]
+    public void DiscardWhileUsingBuiltIn_KeepsTheDownloadedCopyAndSwitchesToIt()
+    {
+        WriteFakeModel(_builtIn);
+        WriteFakeModel(_root);
+        var store = BuiltInStore();
+        Assert.True(store.UsesBuiltIn);
+
+        store.Discard();
+
+        Assert.False(store.UsesBuiltIn);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+        Assert.True(store.IsInstalled);
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_root, Folder, name))));
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+    }
+
+    [Fact]
+    public async Task RejectedBuiltIn_EnsureDownloads()
+    {
+        WriteFakeModel(_builtIn);
+        var tarball = MakeTarBz2();
+        var store = new ModelStore(_root, new HttpClient(new StubHandler(() => tarball)), SpecFor(tarball), builtInRoot: _builtIn);
+
+        store.RejectBuiltIn();
+        Assert.False(store.IsInstalled);
+        await store.EnsureAsync(new Progress<double>(), CancellationToken.None);
+
+        Assert.True(store.IsInstalled);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+    }
+
+    [Fact]
+    public void Resolve_ReturnsTheDirectoryAndWhetherItIsBuiltIn()
+    {
+        WriteFakeModel(_builtIn);
+        var store = BuiltInStore();
+
+        Assert.Equal((Path.Combine(_builtIn, Folder), true), store.Resolve());
+        store.RejectBuiltIn();
+        Assert.Equal((Path.Combine(_root, Folder), false), store.Resolve());
+    }
+
+    [Fact]
+    public void RemoveDownloadedCopy_DoesNothingWhenTheBuiltInIsInsideTheDownloadRoot()
+    {
+        var builtIn = Path.Combine(_root, "app", "models");
+        WriteFakeModel(builtIn);
+        var store = new ModelStore(_root, new HttpClient(), SpecFor([]), builtInRoot: builtIn);
+        Assert.True(store.UsesBuiltIn);
+
+        store.RemoveDownloadedCopy();
+        Assert.True(store.UsesBuiltIn);
+
+        var same = new ModelStore(builtIn, new HttpClient(), SpecFor([]), builtInRoot: builtIn);
+        same.RemoveDownloadedCopy();
+        Assert.True(same.UsesBuiltIn);
     }
 
     [ModelFact]
