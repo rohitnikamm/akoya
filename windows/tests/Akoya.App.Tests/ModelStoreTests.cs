@@ -366,6 +366,66 @@ public sealed class ModelStoreTests : IDisposable
         store.RemoveDownloadedCopy(); // nothing left to delete: no error
     }
 
+    [Fact]
+    public void DiscardWhileUsingBuiltIn_KeepsTheDownloadedCopyAndSwitchesToIt()
+    {
+        WriteFakeModel(_builtIn);
+        WriteFakeModel(_root);
+        var store = BuiltInStore();
+        Assert.True(store.UsesBuiltIn);
+
+        store.Discard();
+
+        Assert.False(store.UsesBuiltIn);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+        Assert.True(store.IsInstalled);
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_root, Folder, name))));
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+    }
+
+    [Fact]
+    public async Task RejectedBuiltIn_EnsureDownloads()
+    {
+        WriteFakeModel(_builtIn);
+        var tarball = MakeTarBz2();
+        var store = new ModelStore(_root, new HttpClient(new StubHandler(() => tarball)), SpecFor(tarball), builtInRoot: _builtIn);
+
+        store.RejectBuiltIn();
+        Assert.False(store.IsInstalled);
+        await store.EnsureAsync(new Progress<double>(), CancellationToken.None);
+
+        Assert.True(store.IsInstalled);
+        Assert.Equal(Path.Combine(_root, Folder), store.ModelDirectory);
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
+    }
+
+    [Fact]
+    public void Resolve_ReturnsTheDirectoryAndWhetherItIsBuiltIn()
+    {
+        WriteFakeModel(_builtIn);
+        var store = BuiltInStore();
+
+        Assert.Equal((Path.Combine(_builtIn, Folder), true), store.Resolve());
+        store.RejectBuiltIn();
+        Assert.Equal((Path.Combine(_root, Folder), false), store.Resolve());
+    }
+
+    [Fact]
+    public void RemoveDownloadedCopy_DoesNothingWhenTheBuiltInIsInsideTheDownloadRoot()
+    {
+        var builtIn = Path.Combine(_root, "app", "models");
+        WriteFakeModel(builtIn);
+        var store = new ModelStore(_root, new HttpClient(), SpecFor([]), builtInRoot: builtIn);
+        Assert.True(store.UsesBuiltIn);
+
+        store.RemoveDownloadedCopy();
+        Assert.True(store.UsesBuiltIn);
+
+        var same = new ModelStore(builtIn, new HttpClient(), SpecFor([]), builtInRoot: builtIn);
+        same.RemoveDownloadedCopy();
+        Assert.True(same.UsesBuiltIn);
+    }
+
     [ModelFact]
     public void RealModel_FileSizesMatchTheManifest()
     {

@@ -68,15 +68,36 @@ public sealed class SpeechModelTests : IDisposable
     }
 
     [Fact]
-    public void BuiltInLoadFailure_KeepsBothCopies()
+    public void BuiltInLoadFailure_NextLoadUsesTheDownloadedCopy_AndKeepsBoth()
     {
         WriteFakeModel(_builtIn);
         WriteFakeModel(_root);
+        var builtInDir = Path.Combine(_builtIn, Folder);
+        var loads = new List<string>();
+        var model = new SpeechModel(Store(), (dir, _) =>
+        {
+            loads.Add(dir);
+            return dir == builtInDir ? throw new InvalidOperationException("corrupt") : new FakeTranscriber("hi");
+        });
+
+        Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
+        Assert.True(model.IsInstalled);
+        model.Load(InferenceProvider.Cpu);
+
+        Assert.Equal(new[] { builtInDir, Path.Combine(_root, Folder) }, loads);
+        Assert.True(Directory.Exists(Path.Combine(_root, Folder)));
+        Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(builtInDir, name))));
+    }
+
+    [Fact]
+    public void BuiltInLoadFailure_WithoutADownloadedCopy_IsNotInstalled()
+    {
+        WriteFakeModel(_builtIn);
         var model = new SpeechModel(Store(), (_, _) => throw new InvalidOperationException("corrupt"));
 
         Assert.Throws<InvalidOperationException>(() => model.Load(InferenceProvider.Cpu));
 
-        Assert.True(Directory.Exists(Path.Combine(_root, Folder)));
+        Assert.False(model.IsInstalled); // so AppHost's next EnsureAsync downloads it
         Assert.All(Files.All, name => Assert.True(File.Exists(Path.Combine(_builtIn, Folder, name))));
     }
 

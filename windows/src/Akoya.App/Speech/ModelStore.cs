@@ -24,6 +24,7 @@ public sealed class ModelStore
 
     private readonly string _root;
     private readonly string? _builtInRoot;
+    private volatile bool _builtInRejected;
     private readonly HttpClient _http;
     private readonly ModelSpec _spec;
     private readonly TimeSpan _inactivityTimeout;
@@ -49,24 +50,44 @@ public sealed class ModelStore
 
     private string DownloadDirectory => Path.Combine(_root, _spec.FolderName);
 
-    /// <summary>The app ships a complete copy of the model (every file at its pinned size).</summary>
-    public bool UsesBuiltIn => _builtInRoot is not null && IsComplete(Path.Combine(_builtInRoot, _spec.FolderName));
+    /// <summary>
+    /// The app ships a complete copy of the model (every file at its pinned size) and it has not failed to load in
+    /// this session.
+    /// </summary>
+    public bool UsesBuiltIn =>
+        !_builtInRejected && _builtInRoot is not null && IsComplete(Path.Combine(_builtInRoot, _spec.FolderName));
 
-    /// <summary>The built-in copy when it is complete, else the downloaded one.</summary>
-    public string ModelDirectory => UsesBuiltIn ? Path.Combine(_builtInRoot!, _spec.FolderName) : DownloadDirectory;
+    /// <summary>The built-in copy when it is used, else the downloaded one.</summary>
+    public string ModelDirectory => Resolve().Directory;
+
+    /// <summary>The model folder to load and whether it is the built-in copy, from one check of the disk.</summary>
+    public (string Directory, bool BuiltIn) Resolve() =>
+        UsesBuiltIn ? (Path.Combine(_builtInRoot!, _spec.FolderName), true) : (DownloadDirectory, false);
+
+    /// <summary>
+    /// The built-in copy failed to load (a damaged install): use the downloaded copy for the rest of this session, or
+    /// download one. The built-in folder itself is left alone.
+    /// </summary>
+    public void RejectBuiltIn() => _builtInRejected = true;
 
     /// <summary>Every file is there, at its pinned size (a truncated or zero-byte encoder is not installed).</summary>
     public bool IsInstalled => UsesBuiltIn || IsComplete(DownloadDirectory);
 
     /// <summary>
-    /// Deletes the downloaded model (after it failed to load), so the next <see cref="EnsureAsync"/> downloads it
-    /// again. Never touches the built-in copy. Throws if the folder can't be deleted.
+    /// The model in use failed to load. A downloaded copy is deleted, so the next <see cref="EnsureAsync"/> downloads
+    /// it again; the built-in copy is never deleted, only rejected (see <see cref="RejectBuiltIn"/>), which keeps a
+    /// downloaded copy as the fallback. Throws if the folder can't be deleted.
     /// </summary>
     public void Discard()
     {
         _gate.Wait();
         try
         {
+            if (UsesBuiltIn)
+            {
+                RejectBuiltIn();
+                return;
+            }
             if (Directory.Exists(DownloadDirectory)) Directory.Delete(DownloadDirectory, recursive: true);
         }
         finally
@@ -77,19 +98,30 @@ public sealed class ModelStore
 
     /// <summary>
     /// Deletes everything under <c>modelsRoot</c> (the downloaded model, .part files, extract leftovers), once the
-    /// built-in copy has loaded. Never touches the built-in copy. Throws if the folder can't be deleted.
+    /// built-in copy has loaded. Never touches the built-in copy: does nothing if the built-in folder is inside
+    /// <c>modelsRoot</c>. Throws if the folder can't be deleted.
     /// </summary>
     public void RemoveDownloadedCopy()
     {
         _gate.Wait();
         try
         {
+            if (BuiltInIsInsideRoot()) return;
             if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private bool BuiltInIsInsideRoot()
+    {
+        if (_builtInRoot is null) return false;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_root));
+        var builtIn = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_builtInRoot));
+        return string.Equals(builtIn, root, StringComparison.OrdinalIgnoreCase)
+            || builtIn.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsComplete(string directory) =>

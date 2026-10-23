@@ -520,9 +520,11 @@ public sealed class AppHost : IDisposable
             }
             catch (Exception e) when (!_disposed)
             {
-                // Present but unloadable. Once may be out of memory or an antivirus scan, so Retry loads the same files
-                // again; the same files failing twice are corrupt (an encoder of the right size): delete them, so the
-                // next Retry downloads them again.
+                // Present but unloadable. A built-in copy that fails is a damaged install: SpeechModel stops using it,
+                // so Retry uses a downloaded copy or downloads one (the built-in folder is never deleted). A downloaded
+                // copy failing once may be out of memory or an antivirus scan, so Retry loads the same files again; the
+                // same files failing twice are corrupt (an encoder of the right size): delete them, so the next Retry
+                // downloads them again.
                 _loadFailures++;
                 if (_loadFailures >= 2)
                 {
