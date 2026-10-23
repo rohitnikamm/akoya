@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Testing
 @testable import AkoyaCore
 
@@ -840,4 +841,77 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     #expect(log.texts.first == "live")
     rig.coordinator.handle(.cancel)
     #expect(rig.coordinator.isPreviewLoopRunning == false)
+}
+
+// MARK: - Screen lock
+
+@MainActor @Test func screenLockWhileRecordingCancels() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.cancelCount == 1)
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func screenLockWhileTranscribingKeepsTextWithoutPasting() async {
+    let rig = Rig(transcript: "  hello world ")
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.model.lastDictation == "hello world")
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func screenLockWhileTranscribingSkipsTheErrorCueForAnEmptyTranscript() async {
+    let rig = Rig(transcript: " ")
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.model.lastDictation == nil)
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func screenLockWhileTranscribingSkipsTheErrorCueForAFailure() async {
+    let rig = Rig()
+    rig.transcriber.error = FakeFailure()
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func dictationAfterAScreenLockPastesAgain() async {
+    let rig = Rig()
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    rig.transcriber.result = "second"
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.inserter.inserted == ["second "])
+    #expect(rig.model.lastDictation == "second")
+}
+
+@MainActor @Test func screenLockWhileIdleDoesNothing() {
+    let rig = Rig()
+    rig.coordinator.screenLocked()
+    #expect(rig.audio.cancelCount == 0)
+    #expect(rig.coordinator.phase == .idle)
 }

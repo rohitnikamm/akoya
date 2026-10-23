@@ -42,6 +42,22 @@ public struct ContentFade: Equatable, Sendable {
     }
 }
 
+/// Colours the menu bar item draws in, besides the error flash.
+public enum WaveTint: Equatable, Sendable {
+    case primary, red, amber
+
+    /// Amber `#FBBF24`, the Windows pill's transcribing colour.
+    static let amberColor = Color(red: 0xFB / 255, green: 0xBF / 255, blue: 0x24 / 255)
+
+    var color: Color {
+        switch self {
+        case .primary: .primary
+        case .red: .red
+        case .amber: Self.amberColor
+        }
+    }
+}
+
 /// Pure rectangle layout for the waveform, in a canvas whose origin is top-left.
 /// Kept free of SwiftUI drawing so it can be unit tested.
 public enum WaveformLayout {
@@ -51,6 +67,16 @@ public enum WaveformLayout {
     public static let scannerCells = 2
     /// How long the error glyph stays red after entering `.error`.
     public static let errorFlashDuration: TimeInterval = 0.6
+
+    /// The colour for `content`. "Red while recording" also turns the transcribing sweep amber,
+    /// matching the Windows pill; the idle glyph stays the menu bar colour.
+    public static func tint(for content: StatusItemContent, redTint: Bool) -> WaveTint {
+        switch content {
+        case .waveform: redTint ? .red : .primary
+        case .scanner: redTint ? .amber : .primary
+        case .none, .glyph: .primary
+        }
+    }
 
     /// The five-bar idle glyph: 16 pt wide, bars 2 pt wide spread evenly, centered in `size`.
     public static func idleBarRects(in size: CGSize) -> [CGRect] {
@@ -264,15 +290,16 @@ public struct WaveformView: View {
                     path.addPath(shape(rect))
                 }
             }
-            context.fill(path, with: .color(model.redTint ? .red : .primary))
+            context.fill(path, with: .color(WaveformLayout.tint(for: .waveform, redTint: model.redTint).color))
         case .scanner:
             let opacities = WaveformGeometry.scannerOpacities(elapsed: max(0, elapsed), count: count)
+            let tint = WaveformLayout.tint(for: .scanner, redTint: model.redTint).color
             for i in 0..<count {
                 var path = Path()
                 for rect in WaveformLayout.scannerRects(index: i, count: count, look: model.look, in: box) {
                     path.addPath(shape(rect))
                 }
-                context.fill(path, with: .color(Color.primary.opacity(opacities[i])))
+                context.fill(path, with: .color(tint.opacity(opacities[i])))
             }
         }
     }

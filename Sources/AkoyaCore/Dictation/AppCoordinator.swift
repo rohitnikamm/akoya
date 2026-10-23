@@ -8,6 +8,9 @@ import Foundation
 /// failure. The phase stays `transcribing` until `insert` returns, so a new press cannot start
 /// a recording while the clipboard is still being restored.
 ///
+/// A screen lock or sleep (`screenLocked()`) cancels a recording, and keeps a transcription
+/// in progress as the last dictation instead of pasting it.
+///
 /// The hotkey is hold-or-tap: releasing after `holdThreshold` stops (push-to-talk); releasing
 /// sooner latches the recording on, and the next press stops it. Esc cancels either way.
 @MainActor
@@ -48,6 +51,10 @@ public final class AppCoordinator {
     /// Bumped per recording so a late partial from an earlier one is ignored.
     private var recordingGeneration = 0
     private static let previewTickInterval: Duration = .milliseconds(100)
+
+    /// Set when the screen locks or the Mac sleeps mid-transcription: the result is kept as the
+    /// last dictation instead of being pasted into a screen the user cannot see.
+    private var holdsResult = false
 
     /// The in-flight transcription/insert task (or error-cue task). Test hook.
     var pendingWork: Task<Void, Never>?
@@ -114,6 +121,17 @@ public final class AppCoordinator {
         }
     }
 
+    /// The screen locked or the Mac is going to sleep. A recording is cancelled, as with Esc; a
+    /// transcription still finishes, but its text goes to the last dictation rather than being
+    /// pasted, and a failure ends quietly (nothing went wrong from the user's side).
+    public func screenLocked() {
+        switch model.phase {
+        case .recording: cancelRecording()
+        case .transcribing: holdsResult = true
+        case .idle, .error: break
+        }
+    }
+
     // MARK: - Recording
 
     private func startRecording() {
@@ -152,6 +170,7 @@ public final class AppCoordinator {
             return
         }
         model.phase = .transcribing
+        holdsResult = false
         let transcriber = transcriber
         let inserter = inserter
         // A partial pass may still be running; never run two transcriptions at once.
@@ -162,6 +181,8 @@ public final class AppCoordinator {
                 let text = try await transcriber.transcribe(samples)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 switch destination {
+                case .paste where holdsResult:
+                    if !trimmed.isEmpty { model.lastDictation = trimmed }
                 case .paste:
                     guard !trimmed.isEmpty else { return await flashError() }
                     try await inserter.insert(trimmed + " ")
@@ -172,6 +193,10 @@ public final class AppCoordinator {
                 }
                 model.phase = .idle
             } catch {
+                guard !holdsResult else {
+                    model.phase = .idle
+                    return
+                }
                 await flashError()
             }
         }
