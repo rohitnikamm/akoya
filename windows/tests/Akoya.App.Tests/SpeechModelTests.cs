@@ -111,4 +111,18 @@ public sealed class SpeechModelTests : IDisposable
 
         Assert.True(Directory.Exists(Path.Combine(_root, Folder)));
     }
+
+    /// <summary>Opt-in: runs when AKOYA_BUILT_IN_MODELS (the staged <c>models</c> folder) is set.</summary>
+    [Fact]
+    public async Task BuiltInModelLoadsAndTranscribes()
+    {
+        var builtIn = Environment.GetEnvironmentVariable("AKOYA_BUILT_IN_MODELS");
+        if (string.IsNullOrEmpty(builtIn)) return; // skipped: the variable is unset
+        // A temp downloads root, so nothing outside temp can be deleted by the load.
+        var store = new ModelStore(_root, new HttpClient(), ModelManifest.Spec, builtInRoot: builtIn);
+        var model = new SpeechModel(store);
+
+        var transcriber = model.Load(InferenceProvider.Cpu);
+        await transcriber.TranscribeAsync(new float[16000]);
+    }
 }
