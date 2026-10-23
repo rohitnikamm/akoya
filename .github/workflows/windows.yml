@@ -48,7 +48,12 @@ jobs:
             pwsh windows/scripts/stage-model.ps1 -Destination $dest -CacheDir $cache
             if ($LASTEXITCODE -ne 0) { throw 'stage-model.ps1 failed' }
             "tarball cache: " + $(if ($hit) { 'hit' } else { 'miss (downloaded)' }) | Add-Content -Path out/model-cache.txt
-            $dir = Join-Path $dest 'models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
+            # SherpaTranscriberTests also need test_wavs, which the staged (shipped) folder does not have.
+            $full = Join-Path $env:RUNNER_TEMP 'model'
+            New-Item -ItemType Directory -Force $full | Out-Null
+            tar -xjf $tarball -C $full
+            if ($LASTEXITCODE -ne 0) { throw 'model extraction failed' }
+            $dir = Join-Path $full 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
             "AKOYA_MODEL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
             "AKOYA_BUILT_IN_MODELS=$(Join-Path $dest 'models')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           } catch {
