@@ -8,8 +8,8 @@ public enum PillContent: Equatable {
 
 /// Decides what the pill shows and when it hides. `content` is nil while the pill is hidden.
 /// Phases drive listening and transcribing; the outcome of each dictation drives the rest, so idle and
-/// error phases change nothing. Whether a dictation is shown is decided at `.recording` and kept until
-/// the next one, so the outcome of a practice or menu bar dictation never pops the pill.
+/// error phases change nothing. Whether a dictation's phases are shown is decided at `.recording` (not for
+/// practice or menu bar mode). Outcomes always apply: the coordinator only reports them in pill mode.
 @MainActor
 public final class PillPresenter: ObservableObject {
     static let pastedDuration: TimeInterval = 0.9
@@ -41,7 +41,6 @@ public final class PillPresenter: ObservableObject {
     }
 
     public func outcome(_ outcome: DictationOutcome) {
-        guard showsThisDictation else { return }
         switch outcome {
         case .pasted:
             content = .pasted
@@ -68,6 +67,7 @@ public final class PillPresenter: ObservableObject {
             await sleep(seconds)
             guard let self, !Task.isCancelled, self.generation == mine else { return }
             self.content = nil
+            self.pendingHide = nil
         }
     }
 }

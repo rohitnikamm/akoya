@@ -80,13 +80,13 @@ import Testing
     #expect(p.content == nil)
 }
 
-@MainActor @Test func outcomeOfAHiddenDictationDoesNothing() {
+@MainActor @Test func messageStillShowsAfterAHiddenDictation() {
     let p = makePresenter()
     p.phaseChanged(.recording, isPractice: true, usesPill: true)
-    p.outcome(.pasted)
-    #expect(p.content == nil)
-    #expect(p.pendingHide == nil)
+    p.outcome(.message(.micMissing))
+    #expect(p.content == .message(.micMissing))
+    p.outcome(.dismissed)
     p.phaseChanged(.recording, isPractice: false, usesPill: false)
-    p.outcome(.message(.micBlocked))
-    #expect(p.content == nil)
+    p.outcome(.message(.micMissing))
+    #expect(p.content == .message(.micMissing))
 }
