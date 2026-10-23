@@ -19,7 +19,7 @@ On-device dictation for macOS and Windows.
 - **Hold or tap.** Hold Right Option to talk, or tap once to start and again to stop. Esc cancels.
 - **Private.** Transcription runs on your Mac with NVIDIA's Parakeet model. No audio leaves the device.
 - **Works everywhere.** Text is pasted into whatever app has focus, and your clipboard is put back afterwards.
-- **Lives in the menu bar.** A floating pill with a live waveform while you speak, and every setting in one dropdown: hotkey, microphone, indicator style, launch at login.
+- **Lives in the menu bar.** It shows a floating pill with a live waveform while you speak, and every setting in one dropdown: hotkey, microphone, indicator style, launch at login.
 
 ## Install
 

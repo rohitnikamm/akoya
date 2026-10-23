@@ -79,7 +79,7 @@ The default indicator is the pill; lines below that mention the menu bar item or
 ## Pill
 Default indicator ("Show while dictating": Pill). Use TextEdit as the frontmost app unless stated.
 - [ ] Dock at the bottom: hold the hotkey; the pill appears centred, 20 pt above the Dock, with the live waveform and timer.
-- [ ] Dock on the left, then on the right: the pill is 20 pt above the bottom of the visible frame, centred on the screen.
+- [ ] Dock on the left, then on the right: the pill is 20 pt above the bottom of the visible frame, centred on the space beside the Dock.
 - [ ] Dock set to auto-hide: the pill is at the same height as with the Dock showing, and the Dock popping up never covers it.
 - [ ] Second display: focus a window on it, dictate: the pill is on that display at the same height above its bottom. Move the window to the other display and repeat.
 - [ ] A full-screen app, and another Space: the pill shows over them.
@@ -88,7 +88,7 @@ Default indicator ("Show while dictating": Pill). Use TextEdit as the frontmost 
 - [ ] "Pasted": blue check and "Pasted" for about a second after a paste, then it fades.
 - [ ] "Turn on your mic in System Settings" (red): deny Akoya's microphone in System Settings > Privacy & Security, press the hotkey.
 - [ ] "Microphone not detected" (red): unplug every microphone (and disconnect AirPods; on a Mac with a built-in mic, use an external-only setup such as a Mac mini), press the hotkey. With only the chosen mic missing it falls back to the system default instead, on purpose.
-- [ ] "Getting the speech model ready…" (blue): press the hotkey while the model is downloading or loading (remove `~/Library/Application Support/Akoya/Models`).
+- [ ] "Getting the speech model ready…" (blue): quit Akoya, remove `~/Library/Application Support/Akoya/Models`, relaunch, then press the hotkey while it downloads.
 - [ ] "Speech model failed" (red): corrupt the model folder (replace a file in `~/Library/Application Support/Akoya/Models` with junk), relaunch, press the hotkey. "Retry" in the dropdown recovers.
 - [ ] Silence: hold the hotkey saying nothing, release: the pill just fades, no message and no red.
 - [ ] Press the hotkey during "Pasted" or during a red or blue message: a new dictation starts at once.
@@ -96,7 +96,7 @@ Default indicator ("Show while dictating": Pill). Use TextEdit as the frontmost 
 - [ ] Switch "Show while dictating" to Menu bar and back in the dropdown: the pill stops showing and the item shows the waveform and red flash again; back to Pill, the item stays on the idle glyph while dictating. The choice survives a relaunch.
 - [ ] Pill mode with "Hide menu bar icon when idle" on: the item is hidden at rest and the pill shows while dictating.
 - [ ] Onboarding Try it (reset setup as in Setup step 3): dictating shows no pill; the card shows the dictation.
-- [ ] Reduce Motion on: the pill gets a plain fade in and out, no pop.
+- [ ] Reduce Motion on: the pill gets a plain fade in and an instant hide, no pop.
 
 ## Edge cases
 - [ ] Password field / Terminal with Secure Keyboard Entry: holding the key does nothing and nothing gets stuck.
