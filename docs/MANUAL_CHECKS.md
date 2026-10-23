@@ -36,7 +36,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] First launch (no model yet): chip "Preparing…" until the first progress report, then "Downloading 42%" with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
 - [ ] With a permission revoked: chip "Setup needed" and a "Finish setup" button, which closes the panel and opens onboarding at the first missing permission. Open the panel after granting it in System Settings: the state is re-checked on open and becomes Ready.
 - [ ] "Last dictation" is hidden until you dictate; then it shows the inserted text. "Copy" copies it (the label flips to "Copied") and pasting elsewhere gives that text. It is cleared when you quit Akoya.
-- [ ] There is no Settings window or Settings button anywhere: the dropdown holds everything. Below the status and last-dictation cards is one group with Microphone, Menu bar icon and Launch at login, then a quiet "Quit Akoya" text row (no round button, no ⌘Q label).
+- [ ] There is no Settings window or Settings button anywhere: the dropdown holds everything. Below the status and last-dictation cards is one group with Microphone, Dictation indicator and Launch at login, then a quiet "Quit Akoya" text row (no round button, no ⌘Q label).
 
 ### Hotkey
 - [ ] Click the keycap in "Hold [Right ⌥ ▾] to talk": a small "Hotkey" menu opens with Right Option, Right Command and Right Control and a check on the current one. The app you were typing in stays frontmost and keeps its text cursor while the menu is open.
@@ -50,11 +50,11 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Select a USB or Bluetooth microphone, then unplug it: the row shows "<name> (unavailable)" (checked but greyed out in the menu) and dictation still works using the system default. Plug it back in: the row returns to the normal name and dictation uses it again, with no relaunch.
 - [ ] AirPods: connect them while the dropdown is open: they appear in the Microphone menu without reopening it. Select them and dictate. Disconnect them: the row shows "(unavailable)" and dictation falls back to the system default without an error. Reconnect: they are used again. Do the same while recording (see Edge cases).
 
-### Menu bar icon
-- [ ] The "Menu bar icon" row shows "Pixel" or "Solid" with a › and is collapsed by default. Clicking it expands inline with a short animation and the chevron rotates; clicking again collapses it. The panel resizes to fit and stays under the menu bar item.
-- [ ] Expanded: a Waveform control (Pixel | Solid), a "Red while recording" switch, a "Hide when idle" switch, and the note "Hidden? Open Akoya from Spotlight to get back here." The controls are neutral grey/white (no solid-blue selected states).
+### Dictation indicator
+- [ ] The "Dictation indicator" row shows "Pill" (or "Pixel" / "Solid" in Menu bar mode) with a › and is collapsed by default. Clicking it expands inline with a short animation and the chevron rotates; clicking again collapses it. The panel resizes to fit and stays under the menu bar item.
+- [ ] Expanded: a "Show while dictating" control (Pill | Menu bar), a Waveform control (Pixel | Solid), a "Red while recording" switch, a "Hide menu bar icon when idle" switch, and the note "Hidden? Open Akoya from Spotlight to get back here." The controls are neutral grey/white (no solid-blue selected states).
 - [ ] With "Red while recording" on, the waveform is red while listening and the transcribing sweep is amber, on a light and on a dark menu bar; with it off, both are the menu bar colour.
-- [ ] Waveform, Red while recording and Hide when idle each apply live to the menu bar item, and the collapsed row's value follows the Waveform choice. They survive a relaunch.
+- [ ] Waveform and Red while recording apply live to the pill and the menu bar item, Hide menu bar icon when idle to the item, and the collapsed row's value is "Pill" in pill mode, else follows the Waveform choice. They survive a relaunch.
 
 ### Launch at login
 - [ ] The "Launch at login" switch adds Akoya to System Settings > General > Login Items when on and removes it when off.
@@ -64,6 +64,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] System Settings > Privacy & Security > Microphone / Accessibility list "Akoya" with that icon, so it is easy to find.
 
 ## Core flow
+The default indicator is the pill; lines below that mention the menu bar item or its red cue describe Menu bar mode (set it in the dropdown first). The pill itself is under "Pill".
 - [ ] Hold Right Option, speak, release: waveform while speaking, scanning bar, then text appears in TextEdit, Safari, Slack, Terminal and VS Code.
 - [ ] With Accessibility granted while Akoya is in the background, the hotkey starts working within ~2 s.
 - [ ] The first word isn't clipped (engine starts on press).
@@ -74,6 +75,28 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Open the panel, open the Hotkey or Microphone menu, then dictate (also with the menu still open): the paste lands in the frontmost app.
 - [ ] Reopen Akoya from Spotlight, then dictate with the panel open: the paste lands in the previously frontmost app.
 - [ ] Deny the microphone, then press: red cue, no system dialog mid-dictation.
+
+## Pill
+Default indicator ("Show while dictating": Pill). Use TextEdit as the frontmost app unless stated.
+- [ ] Dock at the bottom: hold the hotkey; the pill appears centred, 20 pt above the Dock, with the live waveform and timer.
+- [ ] Dock on the left, then on the right: the pill is 20 pt above the bottom of the visible frame, centred on the screen.
+- [ ] Dock set to auto-hide: the pill is at the same height as with the Dock showing, and the Dock popping up never covers it.
+- [ ] Second display: focus a window on it, dictate: the pill is on that display at the same height above its bottom. Move the window to the other display and repeat.
+- [ ] A full-screen app, and another Space: the pill shows over them.
+- [ ] TextEdit keeps focus and its cursor while the pill is up (clicks go through it), and the paste lands.
+- [ ] Resize: while the pill is up, a change of content (listening to "Pasted") resizes it with a short animation, no jump.
+- [ ] "Pasted": blue check and "Pasted" for about a second after a paste, then it fades.
+- [ ] "Turn on your mic in System Settings" (red): deny Akoya's microphone in System Settings > Privacy & Security, press the hotkey.
+- [ ] "Microphone not detected" (red): unplug every microphone (and disconnect AirPods; on a Mac with a built-in mic, use an external-only setup such as a Mac mini), press the hotkey. With only the chosen mic missing it falls back to the system default instead, on purpose.
+- [ ] "Getting the speech model ready…" (blue): press the hotkey while the model is downloading or loading (remove `~/Library/Application Support/Akoya/Models`).
+- [ ] "Speech model failed" (red): corrupt the model folder (replace a file in `~/Library/Application Support/Akoya/Models` with junk), relaunch, press the hotkey. "Retry" in the dropdown recovers.
+- [ ] Silence: hold the hotkey saying nothing, release: the pill just fades, no message and no red.
+- [ ] Press the hotkey during "Pasted" or during a red or blue message: a new dictation starts at once.
+- [ ] Esc while recording, and locking the screen (Ctrl+Cmd+Q) while recording: the pill just fades, nothing pasted.
+- [ ] Switch "Show while dictating" to Menu bar and back in the dropdown: the pill stops showing and the item shows the waveform and red flash again; back to Pill, the item stays on the idle glyph while dictating. The choice survives a relaunch.
+- [ ] Pill mode with "Hide menu bar icon when idle" on: the item is hidden at rest and the pill shows while dictating.
+- [ ] Onboarding Try it (reset setup as in Setup step 3): dictating shows no pill; the card shows the dictation.
+- [ ] Reduce Motion on: the pill gets a plain fade in and out, no pop.
 
 ## Edge cases
 - [ ] Password field / Terminal with Secure Keyboard Entry: holding the key does nothing and nothing gets stuck.
