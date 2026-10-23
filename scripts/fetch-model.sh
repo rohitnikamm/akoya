@@ -17,7 +17,7 @@ if [ -z "$REPO" ] || [ -z "$REVISION" ]; then
     exit 1
 fi
 
-while read -r sha path; do
+while read -r sha path || [ -n "$sha" ]; do
     [ -n "$sha" ] || continue
     case "$sha" in repo|revision) continue ;; esac
     file="$DEST/$path"
@@ -35,5 +35,16 @@ while read -r sha path; do
     fi
     mv "$file.part" "$file"
 done < "$PINS"
+
+# The cache is copied wholesale into the signed app: keep exactly the pinned files.
+PINNED="$(mktemp)"
+trap 'rm -f "$PINNED"' EXIT
+awk '$1 != "repo" && $1 != "revision" && NF >= 2 {print $2}' "$PINS" | LC_ALL=C sort > "$PINNED"
+(cd "$DEST" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) | LC_ALL=C comm -13 "$PINNED" - | while read -r extra; do
+    echo "Removing unpinned file $extra" >&2
+    rm -f "$DEST/$extra"
+done
+find "$DEST" -type d -empty -delete
+mkdir -p "$DEST"
 
 echo "$DEST"
