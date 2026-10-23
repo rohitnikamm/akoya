@@ -121,7 +121,7 @@ private struct PillWidthLayout: Layout {
 enum PillColors {
     static let dot = Color(hex: 0xDBE6FF)
     static let red = Color(hex: 0xFF6B6B)
-    static let amber = Color(hex: 0xFBBF24)
+    static let amber = AkoyaTheme.sweepAmber
     static let blue = Color(hex: 0x2F6BFF)
     static let alert = Color(hex: 0xEF4444)
 }

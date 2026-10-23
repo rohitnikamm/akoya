@@ -66,7 +66,7 @@ public enum WaveTint: Equatable, Sendable {
     case primary, red, amber
 
     /// Amber `#FBBF24`, the Windows pill's transcribing colour.
-    static let amberColor = Color(red: 0xFB / 255, green: 0xBF / 255, blue: 0x24 / 255)
+    static let amberColor = AkoyaTheme.sweepAmber
 
     var color: Color {
         switch self {
