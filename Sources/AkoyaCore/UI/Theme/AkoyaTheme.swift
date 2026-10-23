@@ -65,6 +65,9 @@ public enum AkoyaTheme {
     public static let chipPendingDot = Color.white.opacity(0.3)
     /// The amber dot beside "Waiting for the switch…", `#FBBF24`.
     public static let waiting = Color(hex: 0xFBBF24)
+    /// The dropdown's "Model failed" status line: dot and text.
+    public static let error = Color(hex: 0xF87171)
+    public static let errorText = Color(hex: 0xFCA5A5)
     /// Round permission icon well: `rgba(59,130,246,0.18)` with a 1 pt `rgba(147,197,253,0.28)` ring.
     public static let iconWell = Color(rgba: 59, 130, 246, 0.18)
     public static let iconWellRing = Color(rgba: 147, 197, 253, 0.28)

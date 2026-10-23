@@ -109,6 +109,8 @@ public struct DropdownView: View {
 // MARK: - Status card
 
 private struct StatusCard: View {
+    static let minHeight: CGFloat = 159
+
     let state: StatusCardState
     /// Retry sits beside "Finish setup" when the model failed behind a missing permission.
     let showsRetry: Bool
@@ -121,14 +123,6 @@ private struct StatusCard: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            HStack {
-                Text("Akoya")
-                    .font(AkoyaFonts.outfit(14, .semibold))
-                    .kerning(0.14)
-                    .foregroundStyle(AkoyaTheme.textPrimary)
-                Spacer()
-                StatusChip(title: state.chipTitle)
-            }
             DotLogo(dotSize: 5)
                 .frame(height: 44)
                 .padding(.vertical, 2)
@@ -139,9 +133,9 @@ private struct StatusCard: View {
             }
             .font(AkoyaFonts.outfit(13))
             .foregroundStyle(AkoyaTheme.textHint)
-            Text("or tap it once to start, again to stop")
-                .font(AkoyaFonts.outfit(11.5))
-                .foregroundStyle(AkoyaTheme.textHintSecondary)
+            if let line = state.statusLine {
+                StatusLine(text: line, isError: state == .modelFailed)
+            }
             switch state {
             case .downloading(let fraction?):
                 DownloadProgress(fraction: fraction)
@@ -157,7 +151,8 @@ private struct StatusCard: View {
             }
         }
         .padding(EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16))
-        .frame(maxWidth: .infinity)
+        // Keeps the size the card had with its title, chip and hint; the content is centred in it.
+        .frame(maxWidth: .infinity, minHeight: Self.minHeight)
         .akoyaDotGrid(pitch: 10, opacity: 0.07)
         // Layers, bottom to top: V1 card, glow base (cross-fades in with the glow), rim glow,
         // dot grid, content. Every kit modifier draws as a background, so the glow and the
@@ -178,18 +173,20 @@ private struct StatusCard: View {
     }
 }
 
-private struct StatusChip: View {
-    let title: String
+/// "● Model failed" and friends: the one status line under "Hold … to talk".
+private struct StatusLine: View {
+    let text: String
+    let isError: Bool
 
     var body: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(AkoyaTheme.accentLight)
-                .frame(width: 7, height: 7)
-                .shadow(color: AkoyaTheme.chipGlow, radius: 3)
-            Text(title)
+                .fill(isError ? AkoyaTheme.error : AkoyaTheme.accentLight)
+                .frame(width: 6, height: 6)
+                .shadow(color: isError ? AkoyaTheme.error.opacity(0.6) : AkoyaTheme.chipGlow, radius: 3)
+            Text(text)
                 .font(AkoyaFonts.outfit(12))
-                .foregroundStyle(AkoyaTheme.textHint)
+                .foregroundStyle(isError ? AkoyaTheme.errorText : AkoyaTheme.textHint)
                 .monospacedDigit()
         }
         .accessibilityElement(children: .combine)

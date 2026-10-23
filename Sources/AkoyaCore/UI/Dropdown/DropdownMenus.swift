@@ -63,6 +63,9 @@ public enum HotkeyMenuModel {
         public let isChecked: Bool
     }
 
+    /// Shown greyed at the bottom of the menu: the dropdown card no longer carries the tap hint.
+    public static let tip = "Hold to talk, or tap once to start and again to stop."
+
     public static func items(current: HotkeyKey) -> [Item] {
         HotkeyKey.allCases.map { Item(key: $0, title: $0.displayName, symbol: $0.symbol, isChecked: $0 == current) }
     }
@@ -135,6 +138,10 @@ enum DropdownMenus {
             menuItem.state = item.isChecked ? .on : .off
             menu.addItem(menuItem)
         }
+        menu.addItem(.separator())
+        let tip = NSMenuItem(title: HotkeyMenuModel.tip, action: nil, keyEquivalent: "")
+        tip.isEnabled = false
+        menu.addItem(tip)
         return menu
     }
 

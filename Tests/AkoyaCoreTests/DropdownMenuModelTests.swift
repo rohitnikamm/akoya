@@ -61,6 +61,10 @@ struct HotkeyMenuModelTests {
         ])
     }
 
+    @Test func menuEndsWithTheTapHint() {
+        #expect(HotkeyMenuModel.tip == "Hold to talk, or tap once to start and again to stop.")
+    }
+
     @Test func keycapLabelsUseTheSymbol() {
         #expect(HotkeyKey.rightOption.keycapLabel == "Right ⌥")
         #expect(HotkeyKey.rightControl.keycapLabel == "Right ⌃")
