@@ -1,0 +1,6 @@
+2026-10-24 18:55:52.119 +00:00 INFO Smoke run: models at C:\Users\runneradmin\AppData\Local\Temp\akoya-smoke-models-9080
+2026-10-24 18:55:52.339 +00:00 INFO Akoya 1.0.0.0 starting
+2026-10-24 18:55:52.768 +00:00 INFO Downloading the speech model
+2026-10-24 18:55:52.783 +00:00 INFO Not installed by Setup.exe; updates off
+2026-10-24 18:55:57.793 +00:00 INFO Smoke run finished
+2026-10-24 18:55:57.794 +00:00 INFO Akoya stopping

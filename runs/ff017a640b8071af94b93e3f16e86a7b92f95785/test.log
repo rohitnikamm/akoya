@@ -1,0 +1,25 @@
+Test run for D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\bin\Release\net10.0-windows\win-x64\Akoya.App.Tests.dll (.NETCoreApp,Version=v10.0)
+Test run for D:\a\akoya\akoya\windows\tests\Akoya.Core.Tests\bin\Release\net10.0\Akoya.Core.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.A total of 1 test files matched the specified pattern.
+
+Results File: D:\a\akoya\akoya\out\tests\runneradmin_runnervmdaln5_2026-10-24_18_55_21_net10.0.trx
+
+Passed!  - Failed:     0, Passed:   417, Skipped:     0, Total:   417, Duration: 1 s - Akoya.Core.Tests.dll (net10.0)
+[xUnit.net 00:00:05.52]     Akoya.App.Tests.ClipboardTests.RealClipboard_TrySetText_ReplacesEverything_EmojiAndAccentsIntact [FAIL]
+  Failed Akoya.App.Tests.ClipboardTests.RealClipboard_TrySetText_ReplacesEverything_EmojiAndAccentsIntact [16 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Stack Trace:
+     at Akoya.App.Tests.ClipboardTests.<>c.<RealClipboard_TrySetText_ReplacesEverything_EmojiAndAccentsIntact>b__8_0() in D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\ClipboardTests.cs:line 100
+   at Akoya.App.Tests.Snapshots.SnapshotHarness.<>c__DisplayClass5_0.<RunSta>b__0() in D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\Snapshots\SnapshotHarness.cs:line 98
+--- End of stack trace from previous location ---
+   at Akoya.App.Tests.Snapshots.SnapshotHarness.RunSta(Action action) in D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\Snapshots\SnapshotHarness.cs:line 111
+   at Akoya.App.Tests.ClipboardTests.RealClipboard_TrySetText_ReplacesEverything_EmojiAndAccentsIntact() in D:\a\akoya\akoya\windows\tests\Akoya.App.Tests\ClipboardTests.cs:line 94
+   at System.RuntimeMethodHandle.InvokeMethod(ObjectHandleOnStack target, Void** arguments, ObjectHandleOnStack sig, BOOL isConstructor, ObjectHandleOnStack result)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+Results File: D:\a\akoya\akoya\out\tests\runneradmin_runnervmdaln5_2026-10-24_18_55_22_net10.0.trx
+
+Failed!  - Failed:     1, Passed:   404, Skipped:     0, Total:   405, Duration: 28 s - Akoya.App.Tests.dll (net10.0)
