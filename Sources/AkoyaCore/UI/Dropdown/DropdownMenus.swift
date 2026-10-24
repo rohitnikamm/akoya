@@ -63,16 +63,20 @@ public enum HotkeyMenuModel {
         public let isChecked: Bool
     }
 
+    /// Shown greyed at the bottom of the menu: the dropdown card no longer carries the tap hint.
+    public static let tip = "Hold to talk, or tap once to start and again to stop."
+
     public static func items(current: HotkeyKey) -> [Item] {
         HotkeyKey.allCases.map { Item(key: $0, title: $0.displayName, symbol: $0.symbol, isChecked: $0 == current) }
     }
 }
 
-/// The Menu bar icon row's value: the current look while collapsed, nothing (just the rotated
-/// chevron) while expanded.
+/// The Dictation indicator row's value: "Pill" in pill mode, else the current look while
+/// collapsed; nothing (just the rotated chevron) while expanded.
 public enum MenuBarIconDisclosure {
-    public static func value(look: WaveLook, isExpanded: Bool) -> String? {
-        isExpanded ? nil : look.displayName
+    public static func value(indicator: DictationIndicator, look: WaveLook, isExpanded: Bool) -> String? {
+        if isExpanded { return nil }
+        return indicator == .pill ? indicator.displayName : look.displayName
     }
 }
 
@@ -101,6 +105,15 @@ extension HotkeyKey {
     public var keycapLabel: String { "Right \(symbol)" }
 }
 
+extension DictationIndicator {
+    public var displayName: String {
+        switch self {
+        case .pill: "Pill"
+        case .menuBar: "Menu bar"
+        }
+    }
+}
+
 extension WaveLook {
     public var displayName: String {
         switch self {
@@ -125,6 +138,10 @@ enum DropdownMenus {
             menuItem.state = item.isChecked ? .on : .off
             menu.addItem(menuItem)
         }
+        menu.addItem(.separator())
+        let tip = NSMenuItem(title: HotkeyMenuModel.tip, action: nil, keyEquivalent: "")
+        tip.isEnabled = false
+        menu.addItem(tip)
         return menu
     }
 

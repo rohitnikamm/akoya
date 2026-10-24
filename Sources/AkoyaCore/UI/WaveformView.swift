@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// Observable state behind the menu bar item. The coordinator mutates it; `WaveformView`
@@ -8,9 +9,14 @@ public final class WaveformModel: ObservableObject {
         didSet { if phase != oldValue { phaseEnteredAt = Date() } }
     }
     @Published public var columns: [Int] = Array(repeating: 1, count: 22)
+    /// The pill's level history: one step (1...8) per pill column.
+    @Published public var pillColumns: [Int] = Array(repeating: 1, count: PillDots.columns)
     @Published public var look: WaveLook = .pixel
     @Published public var redTint = false
     @Published public var hideIdleIcon = false
+    /// Where dictation shows. Defaults to `.menuBar` so the model alone behaves as it always
+    /// did; the app binds `AkoyaSettings.indicator` (default `.pill`) to it.
+    @Published public var indicator: DictationIndicator = .menuBar
     /// Set by `StatusItemController` while the item cross-fades from one content to another;
     /// nil otherwise.
     @Published public var fade: ContentFade?
@@ -24,7 +30,20 @@ public final class WaveformModel: ObservableObject {
     /// Deliberately not `@Published`: it only matters while the timeline is ticking.
     public private(set) var phaseEnteredAt = Date()
 
+    private var indicatorFollower: AnyCancellable?
+
     public init() {}
+
+    /// Makes `indicator` follow the setting, but only while idle: a change made mid-dictation
+    /// waits until the phase returns to `.idle`, so the menu bar and the pill never both show
+    /// (or both miss) one dictation. The coordinator sets `indicator` at each press.
+    public func followIndicator<Setting: Publisher>(_ setting: Setting)
+    where Setting.Output == DictationIndicator, Setting.Failure == Never {
+        // `@Published` emits in willSet, so use the delivered phase, not `phase`.
+        indicatorFollower = setting.combineLatest($phase)
+            .filter { $0.1 == .idle }
+            .sink { [weak self] indicator, _ in self?.indicator = indicator }
+    }
 }
 
 /// A cross-fade in progress: `from` fades out as the current phase's content fades in.
@@ -42,6 +61,22 @@ public struct ContentFade: Equatable, Sendable {
     }
 }
 
+/// Colours the menu bar item draws in, besides the error flash.
+public enum WaveTint: Equatable, Sendable {
+    case primary, red, amber
+
+    /// Amber `#FBBF24`, the Windows pill's transcribing colour.
+    static let amberColor = AkoyaTheme.sweepAmber
+
+    var color: Color {
+        switch self {
+        case .primary: .primary
+        case .red: .red
+        case .amber: Self.amberColor
+        }
+    }
+}
+
 /// Pure rectangle layout for the waveform, in a canvas whose origin is top-left.
 /// Kept free of SwiftUI drawing so it can be unit tested.
 public enum WaveformLayout {
@@ -51,6 +86,16 @@ public enum WaveformLayout {
     public static let scannerCells = 2
     /// How long the error glyph stays red after entering `.error`.
     public static let errorFlashDuration: TimeInterval = 0.6
+
+    /// The colour for `content`. "Red while recording" also turns the transcribing sweep amber,
+    /// matching the Windows pill; the idle glyph stays the menu bar colour.
+    public static func tint(for content: StatusItemContent, redTint: Bool) -> WaveTint {
+        switch content {
+        case .waveform: redTint ? .red : .primary
+        case .scanner: redTint ? .amber : .primary
+        case .none, .glyph: .primary
+        }
+    }
 
     /// The five-bar idle glyph: 16 pt wide, bars 2 pt wide spread evenly, centered in `size`.
     public static func idleBarRects(in size: CGSize) -> [CGRect] {
@@ -213,7 +258,8 @@ public struct WaveformView: View {
         // Only the scanner, the error flash and a cross-fading scanner depend on elapsed time;
         // other states redraw from model changes alone, so the timeline stays paused to keep
         // an idle menu bar free.
-        let animating = model.phase == .transcribing || model.phase == .error || model.fade?.from == .scanner
+        let phase = WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator)
+        let animating = phase == .transcribing || phase == .error || model.fade?.from == .scanner
         TimelineView(.animation(paused: !animating)) { timeline in
             Canvas { context, size in
                 draw(into: &context, size: size, now: timeline.date)
@@ -223,10 +269,11 @@ public struct WaveformView: View {
 
     private func draw(into context: inout GraphicsContext, size: CGSize, now: Date) {
         context.clip(to: Path(CGRect(origin: .zero, size: size)))
-        let current = StatusItemContent(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
+        let phase = WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator)
+        let current = StatusItemContent(phase: phase, hideIdleIcon: model.hideIdleIcon)
         let elapsed = now.timeIntervalSince(model.phaseEnteredAt)
         let glyphColor: Color =
-            model.phase == .error && elapsed < WaveformLayout.errorFlashDuration ? .red : .primary
+            phase == .error && elapsed < WaveformLayout.errorFlashDuration ? .red : .primary
         if let fade = model.fade {
             drawContent(
                 fade.from, opacity: 1 - fade.progress, elapsed: now.timeIntervalSince(fade.fromPhaseEnteredAt),
@@ -264,15 +311,16 @@ public struct WaveformView: View {
                     path.addPath(shape(rect))
                 }
             }
-            context.fill(path, with: .color(model.redTint ? .red : .primary))
+            context.fill(path, with: .color(WaveformLayout.tint(for: .waveform, redTint: model.redTint).color))
         case .scanner:
             let opacities = WaveformGeometry.scannerOpacities(elapsed: max(0, elapsed), count: count)
+            let tint = WaveformLayout.tint(for: .scanner, redTint: model.redTint).color
             for i in 0..<count {
                 var path = Path()
                 for rect in WaveformLayout.scannerRects(index: i, count: count, look: model.look, in: box) {
                     path.addPath(shape(rect))
                 }
-                context.fill(path, with: .color(Color.primary.opacity(opacities[i])))
+                context.fill(path, with: .color(tint.opacity(opacities[i])))
             }
         }
     }

@@ -28,16 +28,18 @@ public enum StatusCardState: Equatable, Sendable {
         return self == .modelFailed || self == .setupNeeded
     }
 
-    public var chipTitle: String {
+    /// The line under "Hold … to talk", shown only when something needs saying; nil while ready,
+    /// listening or transcribing (the card has no status chip).
+    public var statusLine: String? {
         switch self {
-        case .ready: "Ready"
-        case .listening: "Listening"
-        case .transcribing: "Transcribing"
-        case .downloading(let fraction?): "Downloading \(Int((min(max(fraction, 0), 1) * 100).rounded()))%"
+        case .ready, .listening, .transcribing: nil
+        case .downloading(let fraction?):
+            "Downloading speech model · \(Int((min(max(fraction, 0), 1) * 100).rounded()))%"
         // No progress report yet: the files may already be on disk and only be loading.
-        case .downloading(nil): "Preparing…"
+        case .downloading(nil): "Getting the speech model ready…"
         case .modelFailed: "Model failed"
         case .setupNeeded: "Setup needed"
         }
     }
+
 }

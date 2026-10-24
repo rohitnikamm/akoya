@@ -13,6 +13,7 @@ public final class AkoyaSettings: ObservableObject {
         static let look = "akoya.look"
         static let redTint = "akoya.redTint"
         static let hideIdleIcon = "akoya.hideIdleIcon"
+        static let indicator = "akoya.indicator"
         static let onboardingCompleted = "akoya.onboardingCompleted"
         static let inputDeviceUID = "akoya.inputDeviceUID"
         static let inputDeviceName = "akoya.inputDeviceName"
@@ -34,6 +35,9 @@ public final class AkoyaSettings: ObservableObject {
     }
     @Published public var hideIdleIcon: Bool {
         didSet { defaults.set(hideIdleIcon, forKey: Key.hideIdleIcon) }
+    }
+    @Published public var indicator: DictationIndicator {
+        didSet { defaults.set(indicator.rawValue, forKey: Key.indicator) }
     }
     @Published public var onboardingCompleted: Bool {
         didSet { defaults.set(onboardingCompleted, forKey: Key.onboardingCompleted) }
@@ -82,6 +86,7 @@ public final class AkoyaSettings: ObservableObject {
         look = defaults.string(forKey: Key.look).flatMap(WaveLook.init(rawValue:)) ?? .pixel
         redTint = defaults.bool(forKey: Key.redTint)
         hideIdleIcon = defaults.bool(forKey: Key.hideIdleIcon)
+        indicator = defaults.string(forKey: Key.indicator).flatMap(DictationIndicator.init(rawValue:)) ?? .pill
         onboardingCompleted = defaults.bool(forKey: Key.onboardingCompleted)
         inputDeviceUID = defaults.string(forKey: Key.inputDeviceUID)
         inputDeviceName = defaults.string(forKey: Key.inputDeviceName)

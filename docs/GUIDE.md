@@ -21,7 +21,7 @@ Click the Akoya icon in the menu bar. Everything lives here; there is no Setting
 - **Status** and the hotkey. Click the keycap to choose Right Option, Right Command or Right Control.
 - **Last dictation**, with a Copy button.
 - **Microphone**: the system default unless you pick one. If the one you picked is disconnected (AirPods, say), the row shows "(unavailable)" and Akoya records from the system default until it is back.
-- **Menu bar icon**: Pixel or Solid waveform, red while recording, hide when idle. If the icon is hidden, open Akoya from Spotlight to get the dropdown back.
+- **Dictation indicator**: show a floating pill or the menu bar waveform while you dictate, Pixel or Solid waveform, red while recording, hide the menu bar icon when idle. If the icon is hidden, open Akoya from Spotlight to get the dropdown back.
 - **Launch at login** and **Quit**.
 
 ## Upgrading from Silk

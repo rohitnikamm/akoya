@@ -8,8 +8,17 @@ import Foundation
 /// failure. The phase stays `transcribing` until `insert` returns, so a new press cannot start
 /// a recording while the clipboard is still being restored.
 ///
+/// A screen lock or sleep (`screenLocked()`) cancels a recording, and keeps a transcription
+/// in progress as the last dictation instead of pasting it.
+///
 /// The hotkey is hold-or-tap: releasing after `holdThreshold` stops (push-to-talk); releasing
 /// sooner latches the recording on, and the next press stops it. Esc cancels either way.
+///
+/// In pill mode (`usesPill()` at the press) there is no `.error` phase: every dictation goes
+/// straight back to `.idle` and reports exactly one `DictationOutcome`, which the pill shows.
+/// Practice keeps the `.error` cue in both modes (the Try it card's retry hint follows it), and
+/// a dictation that started as practice reports no outcome. The press also sets
+/// `model.indicator`, so the menu bar follows the same choice for the whole dictation.
 @MainActor
 public final class AppCoordinator {
     /// A recording whose loudest level step (see `LevelMeter.step(forRMS:)`) never rose above
@@ -34,6 +43,7 @@ public final class AppCoordinator {
     private let errorDisplay: TimeInterval
 
     private var meter = LevelMeter()
+    private var pillMeter = LevelMeter(columnCount: PillDots.columns)
     /// Loudest raw level step seen in the current recording.
     private var loudestStep = 1
     private var recordingStartedAt: TimeInterval = 0
@@ -49,6 +59,14 @@ public final class AppCoordinator {
     private var recordingGeneration = 0
     private static let previewTickInterval: Duration = .milliseconds(100)
 
+    /// Set when the screen locks or the Mac sleeps mid-transcription: the result is kept as the
+    /// last dictation instead of being pasted into a screen the user cannot see.
+    private var holdsResult = false
+
+    /// Whether the current dictation shows the pill: `usesPill()` and not practising, read at
+    /// the press. When true the dictation always ends with an outcome, so the pill never sticks.
+    private var showsPill = false
+
     /// The in-flight transcription/insert task (or error-cue task). Test hook.
     var pendingWork: Task<Void, Never>?
 
@@ -62,8 +80,22 @@ public final class AppCoordinator {
     /// Presses are ignored while this returns false (e.g. the model is still downloading).
     public var isReady: () -> Bool = { true }
 
+    /// Read at each press: whether this dictation reports to the pill instead of the menu bar.
+    public var usesPill: () -> Bool = { false }
+
+    /// Whether the speech model failed to load, so a press shows that instead of "loading".
+    public var isModelFailed: () -> Bool = { false }
+
+    /// How each pill-mode dictation ended (never for one that started as practice; `.dismissed`
+    /// for one that switched to practice mid-dictation).
+    public var onOutcome: (DictationOutcome) -> Void = { _ in }
+
     public var phase: DictationPhase { model.phase }
     public var isRecording: Bool { model.phase == .recording }
+    /// True while dictation goes to onboarding's practice field instead of the frontmost app.
+    public var isPracticing: Bool {
+        if case .practice = destination { true } else { false }
+    }
 
     public init(audio: AudioRecording, transcriber: Transcribing, inserter: TextInserting,
                 model: WaveformModel,
@@ -90,8 +122,11 @@ public final class AppCoordinator {
     public func handle(_ event: HotkeyEvent) {
         switch (event, model.phase) {
         case (.pressed, .idle):
+            let usesPill = usesPill()
+            model.indicator = usesPill ? .pill : .menuBar
+            showsPill = usesPill && !isPracticing
             guard isReady() else {
-                showError()
+                fail(.message(isModelFailed() ? .modelFailed : .modelLoading))
                 return
             }
             startRecording()
@@ -114,16 +149,32 @@ public final class AppCoordinator {
         }
     }
 
+    /// The screen locked or the Mac is going to sleep. A recording is cancelled, as with Esc; a
+    /// transcription still finishes, but its text goes to the last dictation rather than being
+    /// pasted, and a failure ends quietly (nothing went wrong from the user's side).
+    public func screenLocked() {
+        switch model.phase {
+        case .recording: cancelRecording()
+        case .transcribing: holdsResult = true
+        case .idle, .error: break
+        }
+    }
+
     // MARK: - Recording
 
     private func startRecording() {
         meter.reset()
+        pillMeter.reset()
         loudestStep = 1
         model.columns = meter.columns
+        model.pillColumns = pillMeter.columns
         do {
             try audio.start()
+        } catch AudioCaptureError.microphoneNotAuthorized {
+            fail(.message(.micBlocked))
+            return
         } catch {
-            showError()
+            fail(.message(.micMissing))
             return
         }
         isLatched = false
@@ -139,6 +190,7 @@ public final class AppCoordinator {
         audio.cancel()
         model.voiceLevel = 0
         model.phase = .idle
+        if showsPill { report(.dismissed) }
     }
 
     private func stopRecording() {
@@ -148,12 +200,14 @@ public final class AppCoordinator {
         model.voiceLevel = 0
         let destination = destination
         guard loudestStep > Self.silenceMaxStep else {
-            showError() // nothing was said; treat it like an empty transcript
+            fail(.dismissed) // nothing was said; treat it like an empty transcript
             return
         }
         model.phase = .transcribing
+        holdsResult = false
         let transcriber = transcriber
         let inserter = inserter
+        let showsPill = showsPill
         // A partial pass may still be running; never run two transcriptions at once.
         let partial = pendingPreview
         pendingWork = Task {
@@ -162,17 +216,27 @@ public final class AppCoordinator {
                 let text = try await transcriber.transcribe(samples)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 switch destination {
+                case .paste where holdsResult:
+                    if !trimmed.isEmpty { model.lastDictation = trimmed }
+                    if showsPill { return report(.dismissed) }
                 case .paste:
-                    guard !trimmed.isEmpty else { return await flashError() }
+                    guard !trimmed.isEmpty else { return await fail(.dismissed, showsPill, destination) }
                     try await inserter.insert(trimmed + " ")
                     model.lastDictation = trimmed
+                    if showsPill { return report(.pasted) }
                 case .practice(let onText):
                     onText(trimmed, true)
-                    guard !trimmed.isEmpty else { return await flashError() }
+                    guard !trimmed.isEmpty else { return await fail(.dismissed, showsPill, destination) }
+                    if showsPill { return report(.dismissed) }
                 }
                 model.phase = .idle
             } catch {
-                await flashError()
+                guard !holdsResult else {
+                    model.phase = .idle
+                    if showsPill { report(.dismissed) }
+                    return
+                }
+                await fail(.dismissed, showsPill, destination)
             }
         }
     }
@@ -238,6 +302,8 @@ public final class AppCoordinator {
         model.voiceLevel = Double(step - 1) / 7
         meter.push(rms: rms)
         model.columns = meter.columns
+        pillMeter.push(rms: rms)
+        model.pillColumns = pillMeter.columns
     }
 
     private func receiveInterruption() {
@@ -245,7 +311,40 @@ public final class AppCoordinator {
         stopRecording()
     }
 
-    // MARK: - Error cue
+    // MARK: - Outcomes and error cue
+
+    /// Ends a pill dictation: straight back to `.idle`, then the outcome is reported.
+    private func report(_ outcome: DictationOutcome) {
+        model.phase = .idle
+        onOutcome(outcome)
+    }
+
+    /// A dictation that ended without text: the pill's outcome, or the error cue. Practice
+    /// always gets the error cue, which only the Try it card shows in pill mode (the pill
+    /// ignores `.error` and the menu bar stays idle); a pill still showing is dismissed.
+    private func fail(_ outcome: DictationOutcome) {
+        if isPracticing {
+            if showsPill { onOutcome(.dismissed) }
+            showError()
+        } else if showsPill {
+            report(outcome)
+        } else {
+            showError()
+        }
+    }
+
+    /// `fail` inside the transcription task, with the pill choice and destination it captured.
+    private func fail(_ outcome: DictationOutcome, _ showsPill: Bool,
+                      _ destination: Destination) async {
+        if case .practice = destination {
+            if showsPill { onOutcome(.dismissed) }
+            await flashError()
+        } else if showsPill {
+            report(outcome)
+        } else {
+            await flashError()
+        }
+    }
 
     /// Shows `.error` for `errorDisplay` seconds, then returns to `.idle`.
     private func flashError() async {

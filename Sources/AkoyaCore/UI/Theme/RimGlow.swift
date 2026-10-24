@@ -81,6 +81,7 @@ struct InsetShadow {
 struct InsetShadows: View {
     let layers: [InsetShadow]
     let cornerRadius: CGFloat
+    var style: RoundedCornerStyle = .continuous
 
     var body: some View {
         ZStack {
@@ -90,30 +91,31 @@ struct InsetShadows: View {
                 let margin = layer.blur * 1.5 + abs(layer.x) + abs(layer.y) + 2
                 InsetShadowFill(
                     cornerRadius: cornerRadius, inset: margin + layer.spread,
-                    spread: layer.spread, offset: CGSize(width: layer.x, height: layer.y)
+                    spread: layer.spread, offset: CGSize(width: layer.x, height: layer.y), style: style
                 )
                 .fill(layer.color, style: FillStyle(eoFill: true))
                 .padding(-margin)
                 .blur(radius: layer.blur / 2)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: style))
     }
 }
 
-/// The frame rect with a continuous rounded-rect hole punched in it (fill with `eoFill`).
+/// The frame rect with a rounded-rect hole punched in it (fill with `eoFill`).
 private struct InsetShadowFill: Shape {
     let cornerRadius: CGFloat
     let inset: CGFloat
     let spread: CGFloat
     let offset: CGSize
+    let style: RoundedCornerStyle
 
     func path(in rect: CGRect) -> Path {
         var path = Path(rect)
         let hole = rect.insetBy(dx: inset, dy: inset).offsetBy(dx: offset.width, dy: offset.height)
         if hole.width > 0, hole.height > 0 {
             let radius = min(max(cornerRadius - spread, 0), min(hole.width, hole.height) / 2)
-            path.addRoundedRect(in: hole, cornerSize: CGSize(width: radius, height: radius), style: .continuous)
+            path.addRoundedRect(in: hole, cornerSize: CGSize(width: radius, height: radius), style: style)
         }
         return path
     }

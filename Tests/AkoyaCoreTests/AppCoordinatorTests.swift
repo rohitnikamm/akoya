@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Testing
 @testable import AkoyaCore
 
@@ -68,6 +69,13 @@ private final class FakeClock: @unchecked Sendable {
     func advance(_ seconds: TimeInterval) { time += seconds }
 }
 
+/// The indicator setting and the outcomes the coordinator reported.
+@MainActor
+private final class PillProbe {
+    var usesPill = false
+    var outcomes: [DictationOutcome] = []
+}
+
 @MainActor
 private struct Rig {
     let audio = FakeAudio()
@@ -75,6 +83,7 @@ private struct Rig {
     let inserter = FakeInserter()
     let model = WaveformModel()
     let clock = FakeClock()
+    let pill = PillProbe()
     let coordinator: AppCoordinator
 
     init(transcript: String = "hello",
@@ -86,6 +95,9 @@ private struct Rig {
             audio: audio, transcriber: transcriber, inserter: inserter, model: model,
             now: { clock.time },
             maxRecording: maxRecording, errorDisplay: errorDisplay)
+        let pill = self.pill
+        coordinator.usesPill = { pill.usesPill }
+        coordinator.onOutcome = { pill.outcomes.append($0) }
     }
 
     /// Press, speak (one loud level so the silence gate lets it through), hold past the
@@ -390,6 +402,13 @@ private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool)
     rig.audio.onLevel?(1.0)
     #expect(rig.model.columns.last == 8)
     #expect(rig.model.columns.count == 22)
+}
+
+@MainActor @Test func levelsFeedPillColumns() {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.audio.onLevel?(1.0)
+    #expect(rig.model.pillColumns.count == 23 && rig.model.pillColumns.last == 8)
 }
 
 @MainActor @Test func levelsAreIgnoredWhenNotRecordingAndResetOnStart() {
@@ -840,4 +859,351 @@ private func practiceRig(transcript: String = "partial") -> (Rig, PracticeLog) {
     #expect(log.texts.first == "live")
     rig.coordinator.handle(.cancel)
     #expect(rig.coordinator.isPreviewLoopRunning == false)
+}
+
+// MARK: - Screen lock
+
+@MainActor @Test func screenLockWhileRecordingCancels() async {
+    let rig = Rig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.audio.cancelCount == 1)
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func screenLockWhileTranscribingKeepsTextWithoutPasting() async {
+    let rig = Rig(transcript: "  hello world ")
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.inserter.inserted.isEmpty)
+    #expect(rig.model.lastDictation == "hello world")
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func screenLockWhileTranscribingSkipsTheErrorCueForAnEmptyTranscript() async {
+    let rig = Rig(transcript: " ")
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.model.lastDictation == nil)
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func screenLockWhileTranscribingSkipsTheErrorCueForAFailure() async {
+    let rig = Rig()
+    rig.transcriber.error = FakeFailure()
+    var phases: [DictationPhase] = []
+    let sink = rig.model.$phase.sink { phases.append($0) }
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    sink.cancel()
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!phases.contains(.error))
+}
+
+@MainActor @Test func dictationAfterAScreenLockPastesAgain() async {
+    let rig = Rig()
+    rig.dictate()
+    rig.coordinator.screenLocked()
+    await rig.coordinator.pendingWork?.value
+    rig.transcriber.result = "second"
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.inserter.inserted == ["second "])
+    #expect(rig.model.lastDictation == "second")
+}
+
+@MainActor @Test func screenLockWhileIdleDoesNothing() {
+    let rig = Rig()
+    rig.coordinator.screenLocked()
+    #expect(rig.audio.cancelCount == 0)
+    #expect(rig.coordinator.phase == .idle)
+}
+
+// MARK: - Pill outcomes
+
+@MainActor
+private func pillRig(transcript: String = "hello", maxRecording: TimeInterval = 300) -> Rig {
+    let rig = Rig(transcript: transcript, maxRecording: maxRecording)
+    rig.pill.usesPill = true
+    return rig
+}
+
+/// Records every phase the model passes through until `stop` is called.
+@MainActor
+private final class PhaseLog {
+    private(set) var phases: [DictationPhase] = []
+    private var sink: AnyCancellable?
+    init(_ model: WaveformModel) { sink = model.$phase.sink { [unowned self] in phases.append($0) } }
+    func stop() { sink = nil }
+}
+
+@MainActor @Test func pillModePastedOutcome() async {
+    let rig = pillRig()
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.pill.outcomes == [.pasted])
+    #expect(rig.inserter.inserted == ["hello "])
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func pillModeSilenceDismissesWithoutErrorPhase() async {
+    let rig = pillRig()
+    let log = PhaseLog(rig.model)
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    log.stop()
+    #expect(rig.pill.outcomes == [.dismissed])
+    #expect(rig.transcriber.received.isEmpty)
+    #expect(rig.coordinator.phase == .idle)
+    #expect(!log.phases.contains(.error))
+}
+
+@MainActor @Test func pillModeNotReadyShowsLoadingOrFailed() {
+    let rig = pillRig()
+    rig.coordinator.isReady = { false }
+    rig.coordinator.handle(.pressed)
+    #expect(rig.pill.outcomes == [.message(.modelLoading)])
+    #expect(rig.coordinator.phase == .idle)
+    rig.coordinator.isModelFailed = { true }
+    rig.coordinator.handle(.pressed)
+    #expect(rig.pill.outcomes == [.message(.modelLoading), .message(.modelFailed)])
+    #expect(rig.audio.startCount == 0)
+}
+
+@MainActor @Test func pillModeMicErrorsMapToMessages() {
+    let errors: [(Error, PillMessage)] = [
+        (AudioCaptureError.microphoneNotAuthorized, .micBlocked),
+        (AudioCaptureError.noInputDevice, .micMissing),
+        (AudioCaptureError.engineFailedToStart("x"), .micMissing),
+    ]
+    for (error, message) in errors {
+        let rig = pillRig()
+        rig.audio.startError = error
+        rig.coordinator.handle(.pressed)
+        #expect(rig.pill.outcomes == [.message(message)])
+        #expect(rig.coordinator.phase == .idle)
+    }
+}
+
+@MainActor @Test func pillModePressRightAfterAnErrorStartsRecording() {
+    let rig = pillRig()
+    var ready = false
+    rig.coordinator.isReady = { ready }
+    rig.coordinator.handle(.pressed)
+    rig.coordinator.handle(.released)
+    ready = true
+    rig.coordinator.handle(.pressed)
+    #expect(rig.coordinator.phase == .recording)
+    rig.coordinator.handle(.cancel)
+}
+
+@MainActor @Test func indicatorIsReadAtThePress() async {
+    let rig = pillRig(transcript: " ")
+    let log = PhaseLog(rig.model)
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.pill.usesPill = false
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    log.stop()
+    #expect(rig.pill.outcomes == [.dismissed])
+    #expect(!log.phases.contains(.error))
+}
+
+@MainActor @Test func menuBarAtThePressKeepsTheErrorCue() async {
+    let rig = Rig(transcript: " ")
+    let log = PhaseLog(rig.model)
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.pill.usesPill = true
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    await rig.coordinator.pendingWork?.value
+    log.stop()
+    #expect(rig.pill.outcomes.isEmpty)
+    #expect(log.phases.contains(.error))
+}
+
+@MainActor @Test func practiceInPillModeKeepsTheErrorCueAndReportsNothing() async {
+    let (rig, practice) = practiceRig(transcript: "final")
+    rig.pill.usesPill = true
+    let log = PhaseLog(rig.model)
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    rig.transcriber.result = " "
+    rig.dictate()
+    await rig.coordinator.pendingWork?.value
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released) // silent
+    await rig.coordinator.pendingWork?.value
+    log.stop()
+    #expect(practice.finals.contains(true))
+    #expect(rig.pill.outcomes.isEmpty)
+    // The Try it card's retry hint follows `.error`; the forced-idle menu bar and the pill
+    // ignore it.
+    #expect(log.phases.contains(.error))
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func tryItRetryHintInPillMode() async {
+    let rig = pillRig(transcript: " ")
+    let session = TryItSession(coordinator: rig.coordinator, model: rig.model)
+    session.begin()
+    rig.coordinator.handle(.pressed)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released) // silent
+    await rig.coordinator.pendingWork?.value
+    #expect(session.transcript.showsRetryHint)
+
+    rig.dictate() // an empty transcript
+    #expect(!session.transcript.showsRetryHint)
+    await rig.coordinator.pendingWork?.value
+    #expect(session.transcript.showsRetryHint)
+    #expect(rig.pill.outcomes.isEmpty)
+}
+
+@MainActor @Test func pillDictationSwitchedToPracticeStillEndsThePill() async {
+    for transcript in ["hello", " "] {
+        let rig = pillRig(transcript: transcript)
+        rig.coordinator.handle(.pressed)
+        rig.speak()
+        rig.coordinator.destination = .practice { _, _ in }
+        rig.clock.advance(1)
+        rig.coordinator.handle(.released)
+        await rig.coordinator.pendingWork?.value
+        #expect(rig.pill.outcomes == [.dismissed])
+        #expect(rig.inserter.inserted.isEmpty)
+        #expect(rig.coordinator.phase == .idle)
+    }
+
+    let silent = pillRig()
+    silent.coordinator.handle(.pressed)
+    silent.coordinator.destination = .practice { _, _ in }
+    silent.clock.advance(1)
+    silent.coordinator.handle(.released)
+    await silent.coordinator.pendingWork?.value
+    #expect(silent.pill.outcomes == [.dismissed])
+    #expect(silent.coordinator.phase == .idle)
+}
+
+@MainActor @Test func indicatorSettingChangesWaitForTheDictationToEnd() async {
+    let rig = pillRig()
+    let setting = CurrentValueSubject<DictationIndicator, Never>(.pill)
+    rig.model.followIndicator(setting)
+    var menuBar: DictationPhase { WaveformGeometry.menuBarPhase(rig.model.phase, indicator: rig.model.indicator) }
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    setting.send(.menuBar)
+    rig.pill.usesPill = false
+    #expect(menuBar == .idle)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(rig.model.phase == .transcribing && menuBar == .idle)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.indicator == .menuBar)
+    #expect(rig.pill.outcomes == [.pasted])
+
+    // The other way: a menu bar dictation keeps the menu bar until it ends.
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    setting.send(.pill)
+    rig.pill.usesPill = true
+    #expect(menuBar == .recording)
+    rig.clock.advance(1)
+    rig.coordinator.handle(.released)
+    #expect(menuBar == .transcribing)
+    await rig.coordinator.pendingWork?.value
+    #expect(rig.model.indicator == .pill)
+    #expect(rig.pill.outcomes == [.pasted])
+}
+
+@MainActor @Test func pillModeEscDismisses() async {
+    let rig = pillRig()
+    rig.coordinator.handle(.pressed)
+    rig.speak()
+    rig.coordinator.handle(.cancel)
+    #expect(rig.pill.outcomes == [.dismissed])
+    #expect(rig.coordinator.phase == .idle)
+}
+
+@MainActor @Test func pillModeTranscriptFailuresDismiss() async {
+    let empty = pillRig(transcript: " ")
+    let failing = pillRig()
+    failing.transcriber.error = FakeFailure()
+    let insertFails = pillRig()
+    insertFails.inserter.error = FakeFailure()
+    for rig in [empty, failing, insertFails] {
+        let log = PhaseLog(rig.model)
+        rig.dictate()
+        await rig.coordinator.pendingWork?.value
+        log.stop()
+        #expect(rig.pill.outcomes == [.dismissed])
+        #expect(!log.phases.contains(.error))
+        #expect(rig.coordinator.phase == .idle)
+    }
+}
+
+@MainActor @Test func pillModeAutoStopAndInterruptionPaste() async {
+    let capped = pillRig(maxRecording: 0.05)
+    capped.coordinator.handle(.pressed)
+    capped.speak()
+    #expect(await waitUntil { capped.coordinator.phase != .recording })
+    await capped.coordinator.pendingWork?.value
+    #expect(capped.pill.outcomes == [.pasted])
+
+    let interrupted = pillRig()
+    interrupted.coordinator.handle(.pressed)
+    interrupted.speak()
+    interrupted.audio.onInterrupted?()
+    await interrupted.coordinator.pendingWork?.value
+    #expect(interrupted.pill.outcomes == [.pasted])
+}
+
+@MainActor @Test func pillModeScreenLockDismisses() async {
+    let recording = pillRig()
+    recording.coordinator.handle(.pressed)
+    recording.speak()
+    recording.coordinator.screenLocked()
+    #expect(recording.pill.outcomes == [.dismissed])
+    #expect(recording.coordinator.phase == .idle)
+
+    let transcribing = pillRig()
+    transcribing.dictate()
+    transcribing.coordinator.screenLocked()
+    await transcribing.coordinator.pendingWork?.value
+    #expect(transcribing.pill.outcomes == [.dismissed])
+    #expect(transcribing.inserter.inserted.isEmpty)
+    #expect(transcribing.model.lastDictation == "hello")
+
+    let failing = pillRig()
+    failing.transcriber.error = FakeFailure()
+    failing.dictate()
+    failing.coordinator.screenLocked()
+    await failing.coordinator.pendingWork?.value
+    #expect(failing.pill.outcomes == [.dismissed])
+}
+
+@Test func pillMessageCopy() {
+    #expect(PillMessage.modelLoading.text == "Getting the speech model ready…" && !PillMessage.modelLoading.isAlert)
+    #expect(PillMessage.modelFailed.text == "Speech model failed" && PillMessage.micBlocked.text == "Turn on your mic in System Settings" && PillMessage.micMissing.text == "Microphone not detected")
+    #expect(PillMessage.modelFailed.isAlert && PillMessage.micBlocked.isAlert && PillMessage.micMissing.isAlert)
 }

@@ -1,5 +1,6 @@
 import AkoyaCore
 import AppKit
+import Combine
 import os
 import SwiftUI
 
@@ -20,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let onboarding: OnboardingWindowController
     private var statusController: StatusItemController?
     private var panel: StatusPanelController?
+    private let pillPresenter = PillPresenter()
+    private var pillController: PillPanelController?
+    private var pillPhaseSubscription: AnyCancellable?
 
     private var modelState: ModelState = .notReady {
         didSet {
@@ -30,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var hotkeyRetryTimer: Timer?
     private var becameActiveObserver: NSObjectProtocol?
+    /// Screen lock and sleep observers; see `observeScreenLock`.
+    private var screenLockObservers: [NSObjectProtocol] = []
     /// Keeps the audio device listeners alive; see `refreshInputs`.
     private var inputDevicesObservation: AnyObject?
 
@@ -61,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         super.init()
         coordinator.isReady = { [weak self] in self?.modelState == .ready }
+        coordinator.isModelFailed = { [weak self] in
+            if case .failed = self?.modelState { true } else { false }
+        }
+        coordinator.usesPill = { settings.indicator == .pill }
         onboarding.retryModel = { [weak self] in self?.prepareModel() }
     }
 
@@ -70,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
+        model.followIndicator(settings.$indicator)
 
         refreshInputs()
         inputDevicesObservation = AudioDevices.observeChanges { [weak self] in self?.refreshInputs() }
@@ -84,12 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
+        startPill()
 
         quitLegacySilk()
         showOnboardingIfNeeded()
         migrateModelsFolder()
         prepareModel()
         startHotkeyMonitor()
+        observeScreenLock()
     }
 
     /// Practice mode must not outlive the onboarding window.
@@ -107,6 +120,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // open pastes into the previous app (the panel survives the hide: canHide is false).
         WindowPresenter.handBackFocusIfActive()
         return false
+    }
+
+    // MARK: - Pill
+
+    private func startPill() {
+        let presenter = pillPresenter
+        pillController = PillPanelController(presenter: presenter, model: model)
+        // `@Published` emits in willSet, so use the delivered phase, not `model.phase`.
+        // The coordinator sets `model.indicator` at the press, before the phase leaves `.idle`.
+        pillPhaseSubscription = model.$phase.sink { [coordinator, model] phase in
+            presenter.phaseChanged(phase, isPractice: coordinator.isPracticing, usesPill: model.indicator == .pill)
+        }
+        coordinator.onOutcome = { presenter.outcome($0) }
     }
 
     // MARK: - Microphones
@@ -164,6 +190,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         Task { await transcriber.prepare(onState: report) }
+    }
+
+    // MARK: - Screen lock
+
+    /// A lock or sleep cancels a recording, and a dictation still transcribing is kept as the
+    /// last dictation instead of being pasted behind the lock screen.
+    private func observeScreenLock() {
+        let sources: [(NotificationCenter, Notification.Name)] = [
+            (DistributedNotificationCenter.default(), Notification.Name("com.apple.screenIsLocked")),
+            (NSWorkspace.shared.notificationCenter, NSWorkspace.willSleepNotification),
+        ]
+        screenLockObservers = sources.map { center, name in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.coordinator.screenLocked() }
+            }
+        }
     }
 
     // MARK: - Hotkey
