@@ -1,5 +1,6 @@
 import FluidAudio
 import Foundation
+import OSLog
 
 public enum ModelState: Equatable, Sendable {
     case notReady
@@ -24,12 +25,16 @@ extension ParakeetTranscriberError: LocalizedError {
 
 /// On-device speech-to-text using Parakeet TDT v2 (English) through FluidAudio.
 ///
-/// Call `prepare` once at launch: it downloads the model on first run, loads it, and reports
+/// Call `prepare` once at launch: it loads the model built into the app (downloading it only if that is missing
+/// or fails to load), and reports
 /// progress through `onState`. `transcribe` never downloads anything; before a successful
 /// `prepare` it throws `ParakeetTranscriberError.notPrepared`.
 public actor ParakeetTranscriber: Transcribing {
     private let modelsDirectory: URL
+    private let legacyDirectory: URL
+    private let builtInDirectory: URL?
     private var manager: AsrManager?
+    private static let logger = Logger(subsystem: "com.rohitnikamm.akoya", category: "ParakeetTranscriber")
 
     /// `~/Library/Application Support/Akoya/Models`
     public static var defaultDirectory: URL {
@@ -47,25 +52,47 @@ public actor ParakeetTranscriber: Transcribing {
             .appendingPathComponent("Models", isDirectory: true)
     }
 
-    public init(modelsDirectory: URL = ParakeetTranscriber.defaultDirectory) {
+    /// `builtInDirectory` is the model inside the app bundle, if it is there and complete.
+    public init(
+        modelsDirectory: URL = ParakeetTranscriber.defaultDirectory,
+        legacyDirectory: URL = ParakeetTranscriber.legacyDirectory,
+        builtInDirectory: URL? = BuiltInModel.directory(in: Bundle.main.resourceURL)
+    ) {
         self.modelsDirectory = modelsDirectory
+        self.legacyDirectory = legacyDirectory
+        self.builtInDirectory = builtInDirectory
     }
 
-    /// Downloads (if needed) and loads the model. Never throws: failure is reported as
-    /// `.failed`, and calling `prepare` again retries.
+    /// Loads the model built into the app and, once that works, deletes any copy downloaded by older versions.
+    /// If there is no built-in model, or it fails to load, downloads the model (if needed) and loads that instead.
+    /// Never throws: failure is reported as `.failed`, and calling `prepare` again retries.
     public func prepare(onState: @escaping @Sendable (ModelState) -> Void) async {
         if manager != nil {
             onState(.ready)
             return
         }
+        if let builtInDirectory {
+            do {
+                let models = try AsrModels.loadLocal(from: builtInDirectory, version: .v2)
+                let asr = AsrManager(config: .default)
+                try await asr.loadModels(models)
+                manager = asr
+                onState(.ready)
+                BuiltInModel.removeDownloadedCopies(
+                    modelsDirectory: modelsDirectory, legacyDirectory: legacyDirectory,
+                    builtInDirectory: builtInDirectory)
+                return
+            } catch {
+                Self.logger.error("Built-in model failed to load, downloading instead: \(error.localizedDescription)")
+            }
+        }
         onState(.downloading(nil))
         do {
             // FluidAudio keeps each model repo in a folder inside the directory's parent, so
             // `to:` names the repo folder inside our models directory.
-            let repoFolder = AsrModels.defaultCacheDirectory(for: .v2).lastPathComponent
             let throttle = ProgressThrottle()
             let models = try await AsrModels.downloadAndLoad(
-                to: modelsDirectory.appendingPathComponent(repoFolder, isDirectory: true),
+                to: modelsDirectory.appendingPathComponent(BuiltInModel.folderName, isDirectory: true),
                 version: .v2,
                 progressHandler: { progress in
                     if let fraction = throttle.nextFraction(progress.fractionCompleted) {

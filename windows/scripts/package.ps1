@@ -57,6 +57,10 @@ Invoke-Native dotnet @('publish', (Join-Path $root 'windows\src\Akoya.App\Akoya.
 # The apphost finds Akoya.App.dll by an embedded name, so renaming the exe is safe.
 Move-Item (Join-Path $publish 'Akoya.App.exe') (Join-Path $publish 'Akoya.exe')
 
+# The speech model and its credit ship inside the app, so it works offline on first launch.
+& (Join-Path $PSScriptRoot 'stage-model.ps1') -Destination $publish
+Copy-Item (Join-Path $root 'windows\ThirdPartyNotices.txt') (Join-Path $publish 'ThirdPartyNotices.txt')
+
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 if ($Token) {
     # Best effort: the first release has no predecessor.

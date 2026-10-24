@@ -54,7 +54,10 @@ public interface ISpeechModel
     /// <summary>Builds the transcriber and warms it up. Slow: AppHost calls it on a background thread.</summary>
     ITranscriber Load(InferenceProvider provider);
 
-    /// <summary>Deletes the installed model (it failed to load), so the next <see cref="EnsureAsync"/> downloads it.</summary>
+    /// <summary>
+    /// Deletes the downloaded model (it failed to load), so the next <see cref="EnsureAsync"/> downloads it. Never deletes
+    /// the copy shipped with the app.
+    /// </summary>
     void Discard();
 }
 

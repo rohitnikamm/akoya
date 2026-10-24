@@ -26,6 +26,13 @@ if (Test-Path -LiteralPath $modelFailure) {
     $lines.Add('')
 }
 
+$modelCache = Join-Path $OutDir 'model-cache.txt'
+if (Test-Path -LiteralPath $modelCache) {
+    $lines.Add('## Model')
+    Get-Content -LiteralPath $modelCache | ForEach-Object { $lines.Add($_) }
+    $lines.Add('')
+}
+
 # --- Build ---------------------------------------------------------------
 $buildLog = Join-Path $OutDir 'build.log'
 $lines.Add('## Build')

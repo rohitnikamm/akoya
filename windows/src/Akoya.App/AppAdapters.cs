@@ -36,9 +36,12 @@ namespace Akoya.App
     }
 
     /// <summary>Parakeet through <see cref="ModelStore"/> and <see cref="SherpaTranscriber"/>.</summary>
-    public sealed class SpeechModel(ModelStore store) : ISpeechModel
+    /// <param name="createTranscriber">Builds and warms up a transcriber from a model folder; tests pass a fake.</param>
+    public sealed class SpeechModel(ModelStore store, Func<string, InferenceProvider, ITranscriber>? createTranscriber = null)
+        : ISpeechModel
     {
         private readonly ModelStore _store = store;
+        private readonly Func<string, InferenceProvider, ITranscriber> _createTranscriber = createTranscriber ?? CreateSherpa;
 
         /// <summary><c>%LocalAppData%\Akoya\models</c>.</summary>
         public static string DefaultRoot { get; } =
@@ -56,9 +59,26 @@ namespace Akoya.App
 
         public Task EnsureAsync(IProgress<double> progress, CancellationToken ct) => _store.EnsureAsync(progress, ct);
 
+        /// <summary>
+        /// Builds the transcriber. Once the built-in copy has loaded, the downloaded copy from older versions is deleted
+        /// (best effort: if it can't be deleted now, the next launch tries again). A built-in copy that fails to load is
+        /// kept: one failure may be out of memory or an antivirus scan, so the next attempt loads it again; AppHost calls
+        /// <see cref="Discard"/> after a second failure, which rejects it for this session.
+        /// </summary>
         public ITranscriber Load(InferenceProvider provider)
         {
-            var transcriber = new SherpaTranscriber(_store.ModelDirectory, provider, ThreadsFor(Environment.ProcessorCount));
+            var (directory, builtIn) = _store.Resolve();
+            var transcriber = _createTranscriber(directory, provider);
+            if (builtIn)
+            {
+                try { _store.RemoveDownloadedCopy(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+            return transcriber;
+        }
+
+        private static ITranscriber CreateSherpa(string directory, InferenceProvider provider)
+        {
+            var transcriber = new SherpaTranscriber(directory, provider, ThreadsFor(Environment.ProcessorCount));
             try
             {
                 transcriber.WarmUp(); // "Ready" only after a warm-up decode (spec, Model)

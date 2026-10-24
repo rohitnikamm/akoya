@@ -72,3 +72,18 @@ func transcribesSpokenPhrase() async throws {
     #expect(result.lowercased().contains("hello"), "got: \(result)")
     #expect(result.lowercased().contains("world"), "got: \(result)")
 }
+
+@Test(.enabled(if: ProcessInfo.processInfo.environment["AKOYA_BUILT_IN_MODEL"] != nil))
+func builtInModelLoadsAndTranscribes() async throws {
+    let path = try #require(ProcessInfo.processInfo.environment["AKOYA_BUILT_IN_MODEL"])
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("akoya-parakeet-builtin-\(UUID().uuidString)")
+    let transcriber = ParakeetTranscriber(
+        modelsDirectory: directory,
+        legacyDirectory: directory.appendingPathComponent("Silk/Models"),
+        builtInDirectory: URL(fileURLWithPath: path, isDirectory: true))
+    let recorder = StateRecorder()
+    await transcriber.prepare { recorder.record($0) }
+    #expect(recorder.states == [.ready])
+    _ = try await transcriber.transcribe([Float](repeating: 0, count: 16_000))
+}

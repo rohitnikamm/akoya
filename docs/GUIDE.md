@@ -43,3 +43,5 @@ scripts/release.sh VERSION    # publish a GitHub release and update the Homebrew
 ```
 
 For a stable code signature, so permissions survive rebuilds, run `scripts/make-signing-cert.sh` once before granting any permissions and follow its trust instructions. Without an identity, builds sign ad-hoc and macOS may ask for permissions again after each build. Manual test steps are in [MANUAL_CHECKS.md](MANUAL_CHECKS.md).
+
+An installed release Akoya deletes the downloaded model folder (`~/Library/Application Support/Akoya/Models`) once its built-in model loads, so a dev build without `--with-model` downloads the model again each time. Use `scripts/build-app.sh debug --with-model` locally.

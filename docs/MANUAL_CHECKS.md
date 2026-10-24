@@ -10,7 +10,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 ## Upgrading from Silk (once)
 - [ ] First: quit Silk, turn off its Launch at Login, and delete the old Silk.app. (Akoya also asks a running Silk to quit at launch: start Silk, then Akoya, and Silk's menu bar item disappears. Without this both apps would paste every dictation twice.)
 - [ ] The bundle id changed (`com.rohitnikamm.silk` to `com.rohitnikamm.akoya`), so macOS treats Akoya as a new app: Microphone and Accessibility must be granted again once. Onboarding walks through this; the old "Silk" entries in the privacy lists can be removed.
-- [ ] If `~/Library/Application Support/Silk/Models` existed, it is moved to `~/Library/Application Support/Akoya/Models` on first launch (`ls` both), with no ~450 MB re-download. The dropdown chip says "Preparing…" while the existing model loads (it may skip the download percentage entirely), then Ready. Old Silk preferences are untouched.
+- [ ] If `~/Library/Application Support/Silk/Models` existed, the migration still moves it to `~/Library/Application Support/Akoya/Models` first (use a debug build without `--with-model` to see it, `ls` both). The dropdown chip says "Preparing…" while the model loads, then Ready, with no ~450 MB re-download. With a release build (built-in model), once the built-in model has loaded the migrated copy and `Silk/Models` are deleted. Old Silk preferences are untouched.
 
 ## Onboarding (first launch, or after the reset in Setup step 3)
 - [ ] The 420x520 dark card opens centred, with the dot logo, "Akoya", and "Get started". Drag it by its background; the x in the corner closes it.
@@ -18,14 +18,14 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Microphone: "Allow" shows the system prompt. After you click Allow in the prompt, the step advances on its own within about half a second. (If it was denied earlier, the button opens the Microphone pane instead.)
 - [ ] Accessibility: "Open System Settings" opens the right pane with Akoya in the list (with the new app icon). The status reads "Waiting for the switch…"; flipping Akoya on advances to the next step on its own, with no button press. The hotkey and dictation work from this permission alone.
 - [ ] A subtle haptic tap fires each time a permission turns green (trackpad Mac), and a different one when you press Done.
-- [ ] While the model is still downloading, a "Getting the speech model ready…" line (with %) shows on steps 2 and 3.
+- [ ] Fallback (debug build without `--with-model`, no downloaded model): while the model is downloading, a "Getting the speech model ready…" line (with %) shows on steps 2 and 3.
 - [ ] Try it: the hotkey hint names your current key ("Hold Right ⌥ and say anything") with a quieter second line "or tap it once to start, again to stop". Holding it makes the blue glow rise from the bottom edge following your voice, and the grid brightens; your words appear live while you speak, then settle as the final text. Nothing is pasted anywhere, even with another app frontmost.
 - [ ] Say nothing or something unintelligible: "Didn’t catch that — try again" appears.
 - [ ] "Done" is quiet and does nothing until the first transcript arrives; after that it turns light and closes setup. "Skip" closes setup without needing a dictation. Either way setup is not shown on the next launch (if all permissions are still granted).
 - [ ] Closing with the x mid-flow: dictation works normally again (it pastes, no longer goes to the practice card). Setup is not marked complete: the next launch restarts at the welcome step if no permission is on yet, or at the first missing permission if at least one already is. The exception is the x on the Try it step, or with both permissions on, which counts as Skip (not shown again). After Done or Skip, a later launch with a permission missing resumes at the first missing permission.
 - [ ] When the last permission is switched on in System Settings, the setup window comes to the front on the Try it step by itself (Done and Return work without an extra click).
 - [ ] Try it: Return presses Done once it is light (after the first transcript). A "Didn’t catch that" hint from a failed paste-mode dictation made earlier is not shown when the step opens.
-- [ ] Model failure during setup (network off on a fresh model): steps 2 and 3 show "The speech model couldn’t load." with a small Retry that restarts the download. The dropdown with a permission still missing shows "Setup needed" with both "Finish setup" and "Retry".
+- [ ] Model failure during setup (fallback: debug build without `--with-model`, no downloaded model, network off): steps 2 and 3 show "The speech model couldn’t load." with a small Retry that restarts the download. The dropdown with a permission still missing shows "Setup needed" with both "Finish setup" and "Retry".
 - [ ] Reduce Motion on (System Settings > Accessibility > Display): the glow still follows the voice but without the breathing animation.
 
 ## Dropdown
@@ -33,7 +33,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 - [ ] Click outside, press Esc, or click the item again: the panel closes.
 - [ ] Status card at rest shows only the dot logo and "Hold [Right ⌥ ▾] to talk", centred, with no title, no status chip, no hint and no rim glow; the dropdown is the same size as before. While the model downloads, after it fails, or with a permission missing, one line appears under the Hold line ("Downloading speech model · 42%", red "Model failed" with Retry, "Setup needed" with Finish setup). The hotkey menu ends with a greyed "Hold to talk, or tap once to start and again to stop."
 - [ ] While you hold the hotkey with the panel open: the chip says "Listening" and the blue rim glow follows your voice; it says "Transcribing" while the model works, then returns to Ready with no glow.
-- [ ] First launch (no model yet): chip "Preparing…" until the first progress report, then "Downloading 42%" with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
+- [ ] Fallback, first launch with no built-in or downloaded model (debug build without `--with-model`): chip "Preparing…" until the first progress report, then "Downloading 42%" with a thin progress bar; it becomes "Ready" when done. With the network off on a fresh model: chip "Model failed" and a Retry button; Retry restarts the download.
 - [ ] With a permission revoked: chip "Setup needed" and a "Finish setup" button, which closes the panel and opens onboarding at the first missing permission. Open the panel after granting it in System Settings: the state is re-checked on open and becomes Ready.
 - [ ] "Last dictation" is hidden until you dictate; then it shows the inserted text. "Copy" copies it (the label flips to "Copied") and pasting elsewhere gives that text. It is cleared when you quit Akoya.
 - [ ] There is no Settings window or Settings button anywhere: the dropdown holds everything. Below the status and last-dictation cards is one group with Microphone, Dictation indicator and Launch at login, then a quiet "Quit Akoya" text row (no round button, no ⌘Q label).
@@ -62,6 +62,11 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 ## App icon
 - [ ] Finder shows `build/products.noindex/Akoya.app` with the dark rounded icon and the glowing dot logo.
 - [ ] System Settings > Privacy & Security > Microphone / Accessibility list "Akoya" with that icon, so it is easy to find.
+
+## Built-in speech model
+- [ ] Fresh install of a release build (no `~/Library/Application Support/Akoya/Models`, no `Silk/Models`) with Wi-Fi and Ethernet off: Akoya becomes Ready without any download or "Downloading" progress, and a dictation works. `Akoya.app/Contents/Resources/Models/parakeet-tdt-0.6b-v2` and `Contents/Resources/ThirdPartyNotices.txt` exist; the app is about 464 MB (`du -sh`), the release zip about 441 MiB.
+- [ ] Update check: start from a version that downloaded its model (`ls ~/Library/Application Support/Akoya/Models/parakeet-tdt-0.6b-v2` exists), install this version over it and open it. It becomes Ready, and once it is Ready that folder (and `Models`, and `Silk/Models` if present) is gone. The built-in model inside the app is untouched.
+- [ ] Damaged install: move the app's `Models` folder away (or use a debug build without `--with-model`): Akoya falls back to downloading (or to a downloaded copy if one exists), with the usual progress and Retry.
 
 ## Core flow
 The default indicator is the pill; lines below that mention the menu bar item or its red cue describe Menu bar mode (set it in the dropdown first). The pill itself is under "Pill".

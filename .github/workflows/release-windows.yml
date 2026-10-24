@@ -2,8 +2,8 @@ name: release-windows
 
 # Tag push windows-vX.Y.Z: build Setup.exe with Velopack and attach everything to a DRAFT GitHub release.
 # Publishing the draft stays a manual step. Tag pushes ignore the paths filter below.
-# Pushes to a branch that touch this file, the packaging script or Program.cs (vpk checks VelopackApp.Run is
-# there), and manual runs, only do a dry run:
+# Pushes to a branch that touch this file, the packaging or model staging scripts, ModelManifest.cs (the pinned
+# model) or Program.cs (vpk checks VelopackApp.Run is there), and manual runs, only do a dry run:
 # the package is built, nothing is uploaded, and the size of Setup.exe is printed as a notice.
 on:
   push:
@@ -13,6 +13,8 @@ on:
       - '.github/workflows/release-windows.yml'
       - 'windows/scripts/package.ps1'
       - 'windows/src/Akoya.App/Program.cs'
+      - 'windows/scripts/stage-model.ps1'
+      - 'windows/src/Akoya.Core/Model/ModelManifest.cs'
   workflow_dispatch:
 
 concurrency:
@@ -32,6 +34,12 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+
+      - name: Restore speech model cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/akoya-model-cache
+          key: parakeet-tdt-0.6b-v2-int8-157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad
 
       - name: Pack (no upload)
         shell: pwsh
@@ -56,6 +64,12 @@ jobs:
           $version = $env:GITHUB_REF_NAME -replace '^windows-v', ''
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "tag $env:GITHUB_REF_NAME is not windows-vX.Y.Z" }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore speech model cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/akoya-model-cache
+          key: parakeet-tdt-0.6b-v2-int8-157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad
 
       - name: Pack
         shell: pwsh
