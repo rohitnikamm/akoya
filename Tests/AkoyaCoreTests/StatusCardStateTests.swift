@@ -5,31 +5,31 @@ import Testing
     @Test func recordingIsListening() {
         let state = StatusCardState.from(phase: .recording, model: .ready, permissionsGranted: true)
         #expect(state == .listening)
-        #expect(state.chipTitle == "Listening")
+        #expect(state.statusLine == nil)
     }
 
     @Test func transcribing() {
         let state = StatusCardState.from(phase: .transcribing, model: .ready, permissionsGranted: true)
         #expect(state == .transcribing)
-        #expect(state.chipTitle == "Transcribing")
+        #expect(state.statusLine == nil)
     }
 
     @Test func idleReady() {
         let state = StatusCardState.from(phase: .idle, model: .ready, permissionsGranted: true)
         #expect(state == .ready)
-        #expect(state.chipTitle == "Ready")
+        #expect(state.statusLine == nil)
     }
 
     @Test func downloadingShowsPercent() {
         let state = StatusCardState.from(phase: .idle, model: .downloading(0.42), permissionsGranted: true)
         #expect(state == .downloading(0.42))
-        #expect(state.chipTitle == "Downloading 42%")
+        #expect(state.statusLine == "Downloading speech model · 42%")
     }
 
     @Test func downloadingUnknown() {
         let state = StatusCardState.from(phase: .idle, model: .downloading(nil), permissionsGranted: true)
         #expect(state == .downloading(nil))
-        #expect(state.chipTitle == "Preparing…")
+        #expect(state.statusLine == "Getting the speech model ready…")
         // Before the first progress report the model is still being prepared.
         #expect(StatusCardState.from(phase: .idle, model: .notReady, permissionsGranted: true) == .downloading(nil))
     }
@@ -37,13 +37,13 @@ import Testing
     @Test func failed() {
         let state = StatusCardState.from(phase: .idle, model: .failed("offline"), permissionsGranted: true)
         #expect(state == .modelFailed)
-        #expect(state.chipTitle == "Model failed")
+        #expect(state.statusLine == "Model failed")
     }
 
     @Test func setupNeededWhenIdle() {
         let state = StatusCardState.from(phase: .idle, model: .ready, permissionsGranted: false)
         #expect(state == .setupNeeded)
-        #expect(state.chipTitle == "Setup needed")
+        #expect(state.statusLine == "Setup needed")
         // Setup beats model problems and progress too.
         #expect(StatusCardState.from(phase: .idle, model: .failed("x"), permissionsGranted: false) == .setupNeeded)
         #expect(StatusCardState.from(phase: .idle, model: .downloading(0.5), permissionsGranted: false) == .setupNeeded)

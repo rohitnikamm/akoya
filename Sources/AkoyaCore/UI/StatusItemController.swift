@@ -91,7 +91,9 @@ public final class StatusItemController {
         self.model = model
         statusItem = NSStatusBar.system.statusItem(withLength: WaveformGeometry.idleItemWidth)
         statusItem.autosaveName = Self.autosaveName
-        shownContent = StatusItemContent(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
+        shownContent = StatusItemContent(
+            phase: WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator),
+            hideIdleIcon: model.hideIdleIcon)
 
         if let button = statusItem.button {
             button.setAccessibilityLabel("Akoya")
@@ -112,14 +114,17 @@ public final class StatusItemController {
         // `@Published` emits in willSet, so use the delivered values rather than reading the
         // model, which still holds the old ones at that moment.
         model.$phase
-            .combineLatest(model.$hideIdleIcon)
+            .combineLatest(model.$hideIdleIcon, model.$indicator)
             .dropFirst()
-            .sink { [weak self] phase, hideIdleIcon in
-                self?.apply(phase: phase, hideIdleIcon: hideIdleIcon)
+            .sink { [weak self] phase, hideIdleIcon, indicator in
+                self?.apply(
+                    phase: WaveformGeometry.menuBarPhase(phase, indicator: indicator), hideIdleIcon: hideIdleIcon)
             }
             .store(in: &subscriptions)
 
-        statusItem.length = WaveformGeometry.itemWidth(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
+        statusItem.length = WaveformGeometry.itemWidth(
+            phase: WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator),
+            hideIdleIcon: model.hideIdleIcon)
     }
 
     /// The item's button, which the dropdown panel anchors to (also while the item is 0 wide).
@@ -127,7 +132,9 @@ public final class StatusItemController {
 
     /// Applies `WaveformGeometry.itemWidth` for the model's current state to the item length.
     public func refreshWidth() {
-        apply(phase: model.phase, hideIdleIcon: model.hideIdleIcon)
+        apply(
+            phase: WaveformGeometry.menuBarPhase(model.phase, indicator: model.indicator),
+            hideIdleIcon: model.hideIdleIcon)
     }
 
     private func apply(phase: DictationPhase, hideIdleIcon: Bool) {

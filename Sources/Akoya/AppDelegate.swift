@@ -1,5 +1,6 @@
 import AkoyaCore
 import AppKit
+import Combine
 import os
 import SwiftUI
 
@@ -20,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let onboarding: OnboardingWindowController
     private var statusController: StatusItemController?
     private var panel: StatusPanelController?
+    private let pillPresenter = PillPresenter()
+    private var pillController: PillPanelController?
+    private var pillPhaseSubscription: AnyCancellable?
 
     private var modelState: ModelState = .notReady {
         didSet {
@@ -63,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         super.init()
         coordinator.isReady = { [weak self] in self?.modelState == .ready }
+        coordinator.isModelFailed = { [weak self] in
+            if case .failed = self?.modelState { true } else { false }
+        }
+        coordinator.usesPill = { settings.indicator == .pill }
         onboarding.retryModel = { [weak self] in self?.prepareModel() }
     }
 
@@ -72,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$look.assign(to: &model.$look)
         settings.$redTint.assign(to: &model.$redTint)
         settings.$hideIdleIcon.assign(to: &model.$hideIdleIcon)
+        model.followIndicator(settings.$indicator)
 
         refreshInputs()
         inputDevicesObservation = AudioDevices.observeChanges { [weak self] in self?.refreshInputs() }
@@ -86,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController = StatusItemController(model: model) { [weak self] button in
             self?.togglePanel(from: button)
         }
+        startPill()
 
         quitLegacySilk()
         showOnboardingIfNeeded()
@@ -110,6 +120,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // open pastes into the previous app (the panel survives the hide: canHide is false).
         WindowPresenter.handBackFocusIfActive()
         return false
+    }
+
+    // MARK: - Pill
+
+    private func startPill() {
+        let presenter = pillPresenter
+        pillController = PillPanelController(presenter: presenter, model: model)
+        // `@Published` emits in willSet, so use the delivered phase, not `model.phase`.
+        // The coordinator sets `model.indicator` at the press, before the phase leaves `.idle`.
+        pillPhaseSubscription = model.$phase.sink { [coordinator, model] phase in
+            presenter.phaseChanged(phase, isPractice: coordinator.isPracticing, usesPill: model.indicator == .pill)
+        }
+        coordinator.onOutcome = { presenter.outcome($0) }
     }
 
     // MARK: - Microphones

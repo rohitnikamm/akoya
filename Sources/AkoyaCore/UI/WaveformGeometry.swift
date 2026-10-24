@@ -36,6 +36,11 @@ public enum WaveformGeometry {
         }
     }
 
+    /// The phase the menu bar item shows: always idle when the pill is the indicator.
+    public static func menuBarPhase(_ phase: DictationPhase, indicator: DictationIndicator) -> DictationPhase {
+        indicator == .pill ? .idle : phase
+    }
+
     public static func itemWidth(phase: DictationPhase, hideIdleIcon: Bool) -> CGFloat {
         switch phase {
         case .recording, .transcribing: activeItemWidth
