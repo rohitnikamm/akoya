@@ -53,6 +53,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 ### Menu bar icon
 - [ ] The "Menu bar icon" row shows "Pixel" or "Solid" with a › and is collapsed by default. Clicking it expands inline with a short animation and the chevron rotates; clicking again collapses it. The panel resizes to fit and stays under the menu bar item.
 - [ ] Expanded: a Waveform control (Pixel | Solid), a "Red while recording" switch, a "Hide when idle" switch, and the note "Hidden? Open Akoya from Spotlight to get back here." The controls are neutral grey/white (no solid-blue selected states).
+- [ ] With "Red while recording" on, the waveform is red while listening and the transcribing sweep is amber, on a light and on a dark menu bar; with it off, both are the menu bar colour.
 - [ ] Waveform, Red while recording and Hide when idle each apply live to the menu bar item, and the collapsed row's value follows the Waveform choice. They survive a relaunch.
 
 ### Launch at login
@@ -76,6 +77,7 @@ Nothing here could be checked automatically: it needs a screen, a microphone and
 
 ## Edge cases
 - [ ] Password field / Terminal with Secure Keyboard Entry: holding the key does nothing and nothing gets stuck.
+- [ ] Lock the screen (Ctrl+Cmd+Q) while recording: nothing is pasted, and after unlocking the item is idle with no red flash. Lock it right after releasing a long dictation: nothing is pasted, and after unlocking the words are in the dropdown's Last dictation. The next dictation pastes as usual.
 - [ ] AirPods as input, and connecting or disconnecting them mid-recording: no hang or stuck recording; the take ends or continues on the default input, and the next dictation works.
 - [ ] Opening the dropdown on a secondary display and with a full-screen app active: the panel appears under the item and closes on a Space change.
 
